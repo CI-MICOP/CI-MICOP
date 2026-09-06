@@ -80,7 +80,8 @@ export const NAV_CONFIG = {
     { label: "SLA Reports", path: "sla-reports", icon: Clock },
     { label: "Audit Logs", path: "audit-logs", icon: History },
     { label: "Notifications", path: "notifications", icon: Bell },
-    { label: "Profile Settings", path: "profile-settings", icon: UserCircle },
+    { label: "Profile Settings", path: "profile", icon: UserCircle },
+    { label: "Help & Support", path: "support", icon: LifeBuoy },
   ],
   Admin: [
     { label: "Dashboard", path: "", icon: LayoutDashboard },

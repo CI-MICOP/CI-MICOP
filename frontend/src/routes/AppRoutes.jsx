@@ -18,7 +18,24 @@ import SupportRequestPage from "../pages/customer/SupportRequestPage";
 import UploadDocumentsPage from "../pages/customer/UploadDocumentsPage";
 import LoginPage from "../pages/LoginPage";
 import NotFoundPage from "../pages/NotFoundPage";
+import AiInsightsPage from "../pages/officer/AiInsightsPage";
+import AllClaimsPage from "../pages/officer/AllClaimsPage";
+import AuditLogsPage from "../pages/officer/AuditLogsPage";
+import ClaimSearchPage from "../pages/officer/ClaimSearchPage";
+import OfficerClaimDetailsPage from "../pages/officer/ClaimDetailsPage";
 import OfficerDashboardPage from "../pages/officer/DashboardPage";
+import DecisionPage from "../pages/officer/DecisionPage";
+import DocumentConsistencyPage from "../pages/officer/DocumentConsistencyPage";
+import EscalationsPage from "../pages/officer/EscalationsPage";
+import EstimateAnalysisPage from "../pages/officer/EstimateAnalysisPage";
+import FraudRiskPage from "../pages/officer/FraudRiskPage";
+import OfficerNotificationsPage from "../pages/officer/NotificationsPage";
+import PerformanceReportsPage from "../pages/officer/PerformanceReportsPage";
+import OfficerProfilePage from "../pages/officer/ProfilePage";
+import RfiPage from "../pages/officer/RfiPage";
+import SlaReportsPage from "../pages/officer/SlaReportsPage";
+import OfficerSupportPage from "../pages/officer/SupportPage";
+import WorkQueuePage from "../pages/officer/WorkQueuePage";
 import SurveyorClaimDetailsPage from "../pages/surveyor/ClaimDetailsPage";
 import SurveyorClaimsListPage from "../pages/surveyor/ClaimsListPage";
 import SurveyorDashboardPage from "../pages/surveyor/DashboardPage";
@@ -94,6 +111,23 @@ export default function AppRoutes() {
         <Route element={<RoleProtectedRoute allowedRoles={["Claims Officer"]} />}>
           <Route path="/officer" element={<AppShell />}>
             <Route index element={<OfficerDashboardPage />} />
+            <Route path="queue" element={<WorkQueuePage />} />
+            <Route path="claims" element={<AllClaimsPage />} />
+            <Route path="search" element={<ClaimSearchPage />} />
+            <Route path="claims/:claimId" element={<OfficerClaimDetailsPage />} />
+            <Route path="claims/:claimId/fraud-risk" element={<FraudRiskPage />} />
+            <Route path="claims/:claimId/ai-insights" element={<AiInsightsPage />} />
+            <Route path="claims/:claimId/consistency" element={<DocumentConsistencyPage />} />
+            <Route path="claims/:claimId/estimate" element={<EstimateAnalysisPage />} />
+            <Route path="claims/:claimId/decision" element={<DecisionPage />} />
+            <Route path="escalations" element={<EscalationsPage />} />
+            <Route path="rfi" element={<RfiPage />} />
+            <Route path="performance-reports" element={<PerformanceReportsPage />} />
+            <Route path="sla-reports" element={<SlaReportsPage />} />
+            <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="notifications" element={<OfficerNotificationsPage />} />
+            <Route path="profile" element={<OfficerProfilePage />} />
+            <Route path="support" element={<OfficerSupportPage />} />
             <Route path="*" element={<ComingSoonPage />} />
           </Route>
         </Route>
