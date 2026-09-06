@@ -1,0 +1,74 @@
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_db, require_roles
+from app.crud import claim as crud_claim
+from app.crud import claim_decision_audit as crud_audit
+from app.crud import cross_document_consistency as crud_consistency
+from app.crud import document as crud_document
+from app.crud import fraud_risk_analysis as crud_fraud
+from app.crud import repair_estimate as crud_repair_estimate
+from app.crud import surveyor_inspection as crud_inspection
+from app.crud import vehicle_damage as crud_vehicle_damage
+from app.db_models.authentication_user import AuthenticationUser
+from app.schemas.claim import ClaimOut, ClaimSummaryOut
+from app.schemas.claim_detail import (
+    ClaimDecisionAuditOut,
+    CrossDocumentConsistencyOut,
+    FraudRiskAnalysisOut,
+    RepairEstimateOut,
+    VehicleDamageOut,
+)
+from app.schemas.document import DocumentOut
+from app.schemas.surveyor import SurveyorInspectionOut
+from app.services.claim_access import get_claim_or_403
+
+router = APIRouter(prefix="/officer", tags=["officer"])
+
+_officer_or_admin = require_roles("Claims Officer", "Admin")
+
+
+@router.get("/claims", response_model=list[ClaimSummaryOut])
+def list_claims_for_processing(
+    claim_status: str | None = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    return crud_claim.list_all(db, skip, limit, claim_status)
+
+
+@router.get("/claims/{claim_id}")
+def read_claim_processing_detail(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Aggregated claim-processing view: the claim plus documents,
+    damage, repair estimates, surveyor findings, cross-document
+    consistency, fraud risk, and prior decision audit history."""
+    claim = get_claim_or_403(db, claim_id, current_user)
+    return {
+        "claim": ClaimOut.model_validate(claim),
+        "documents": [DocumentOut.model_validate(d) for d in crud_document.list_by_claim(db, claim_id)],
+        "vehicle_damage": [
+            VehicleDamageOut.model_validate(d) for d in crud_vehicle_damage.list_by_claim(db, claim_id)
+        ],
+        "repair_estimates": [
+            RepairEstimateOut.model_validate(r) for r in crud_repair_estimate.list_by_claim(db, claim_id)
+        ],
+        "surveyor_inspections": [
+            SurveyorInspectionOut.model_validate(i) for i in crud_inspection.list_by_claim(db, claim_id)
+        ],
+        "cross_document_consistency": [
+            CrossDocumentConsistencyOut.model_validate(c)
+            for c in crud_consistency.list_by_claim(db, claim_id)
+        ],
+        "fraud_risk_analysis": [
+            FraudRiskAnalysisOut.model_validate(r) for r in crud_fraud.list_by_claim(db, claim_id)
+        ],
+        "decision_audit": [
+            ClaimDecisionAuditOut.model_validate(a) for a in crud_audit.list_by_claim(db, claim_id)
+        ],
+    }

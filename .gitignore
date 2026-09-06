@@ -46,6 +46,9 @@ ai_ml/datasets/*
 *.pt
 *.onnx
 
+# ---------- Source dataset archives ----------
+*.zip
+
 # ---------- Logs ----------
 *.log
 logs/

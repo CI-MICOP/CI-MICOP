@@ -11,6 +11,7 @@ from alembic import context
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import settings  # noqa: E402
+from app.db.base import Base  # noqa: E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,9 +26,9 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Will be set to Base.metadata once SQLAlchemy models are introduced,
-# enabling `alembic revision --autogenerate`.
-target_metadata = None
+# All 15 application models are imported via app.db.base, so this
+# metadata is complete and supports `alembic revision --autogenerate`.
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
