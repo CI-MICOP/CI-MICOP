@@ -4,4 +4,11 @@
 
 body {
   margin: 0;
+  @apply bg-surface font-sans text-ink;
+}
+
+.input {
+  @apply w-full rounded-lg border border-border px-3 py-2 text-sm text-ink
+    focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
+    disabled:cursor-not-allowed disabled:bg-surface disabled:text-muted;
 }

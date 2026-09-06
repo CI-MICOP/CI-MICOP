@@ -1,0 +1,28 @@
+import { apiClient } from "./apiClient";
+import { listClaims } from "./claimService";
+
+export async function listDocumentsByClaim(claimId) {
+  const response = await apiClient.get("/documents", { params: { claim_id: claimId } });
+  return response.data;
+}
+
+export async function getDocumentById(documentId) {
+  const response = await apiClient.get(`/documents/${documentId}`);
+  return response.data;
+}
+
+// There is no "my documents" aggregate endpoint on the backend, so this
+// composes the two that do exist: the current user's claims, then the
+// documents attached to each one. Used by the Documents page and the
+// dashboard's "Recent Documents" section.
+export async function listMyDocuments() {
+  const claims = await listClaims({ limit: 200 });
+  const perClaim = await Promise.all(
+    claims.map((claim) =>
+      listDocumentsByClaim(claim.Claim_ID).then((docs) =>
+        docs.map((doc) => ({ ...doc, Claim_Number: claim.Claim_Number }))
+      )
+    )
+  );
+  return perClaim.flat();
+}

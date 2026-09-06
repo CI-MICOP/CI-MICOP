@@ -1,0 +1,112 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+
+import AppShell from "../layouts/AppShell";
+import { useAuth } from "../hooks/useAuth";
+import AdminDashboardPage from "../pages/admin/DashboardPage";
+import ComingSoonPage from "../pages/ComingSoonPage";
+import ClaimDetailsPage from "../pages/customer/ClaimDetailsPage";
+import ClaimTimelinePage from "../pages/customer/ClaimTimelinePage";
+import ClaimsListPage from "../pages/customer/ClaimsListPage";
+import CustomerDashboardPage from "../pages/customer/DashboardPage";
+import DocumentsPage from "../pages/customer/DocumentsPage";
+import NewClaimPage from "../pages/customer/NewClaimPage";
+import NotificationsPage from "../pages/customer/NotificationsPage";
+import PoliciesPage from "../pages/customer/PoliciesPage";
+import ProfilePage from "../pages/customer/ProfilePage";
+import SupportPage from "../pages/customer/SupportPage";
+import SupportRequestPage from "../pages/customer/SupportRequestPage";
+import UploadDocumentsPage from "../pages/customer/UploadDocumentsPage";
+import LoginPage from "../pages/LoginPage";
+import NotFoundPage from "../pages/NotFoundPage";
+import OfficerDashboardPage from "../pages/officer/DashboardPage";
+import SurveyorClaimDetailsPage from "../pages/surveyor/ClaimDetailsPage";
+import SurveyorClaimsListPage from "../pages/surveyor/ClaimsListPage";
+import SurveyorDashboardPage from "../pages/surveyor/DashboardPage";
+import EvidencePage from "../pages/surveyor/EvidencePage";
+import InspectionHistoryPage from "../pages/surveyor/InspectionHistoryPage";
+import InspectionWorkspacePage from "../pages/surveyor/InspectionWorkspacePage";
+import SurveyorNotificationsPage from "../pages/surveyor/NotificationsPage";
+import SurveyorProfilePage from "../pages/surveyor/ProfilePage";
+import SurveyReportPage from "../pages/surveyor/SurveyReportPage";
+import SurveyorSupportPage from "../pages/surveyor/SupportPage";
+import VehicleDamagePage from "../pages/surveyor/VehicleDamagePage";
+import LoadingState from "../components/common/LoadingState";
+import { getRoleHomePath } from "../utils/roles";
+import ProtectedRoute from "./ProtectedRoute";
+import PublicRoute from "./PublicRoute";
+import RoleProtectedRoute from "./RoleProtectedRoute";
+
+function RootRedirect() {
+  const { isAuthenticated, isLoading, role } = useAuth();
+
+  if (isLoading) {
+    return <LoadingState label="Loading CI-MICOP..." />;
+  }
+
+  return <Navigate to={isAuthenticated ? getRoleHomePath(role) : "/login"} replace />;
+}
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
+
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<RoleProtectedRoute allowedRoles={["Customer"]} />}>
+          <Route path="/customer" element={<AppShell />}>
+            <Route index element={<CustomerDashboardPage />} />
+            <Route path="claims" element={<ClaimsListPage />} />
+            <Route path="claims/new" element={<NewClaimPage />} />
+            <Route path="claims/:claimId" element={<ClaimDetailsPage />} />
+            <Route path="claims/:claimId/timeline" element={<ClaimTimelinePage />} />
+            <Route path="documents" element={<DocumentsPage />} />
+            <Route path="documents/upload" element={<UploadDocumentsPage />} />
+            <Route path="policies" element={<PoliciesPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="support" element={<SupportPage />} />
+            <Route path="support/request" element={<SupportRequestPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="*" element={<ComingSoonPage />} />
+          </Route>
+        </Route>
+
+        <Route element={<RoleProtectedRoute allowedRoles={["Surveyor"]} />}>
+          <Route path="/surveyor" element={<AppShell />}>
+            <Route index element={<SurveyorDashboardPage />} />
+            <Route path="claims" element={<SurveyorClaimsListPage />} />
+            <Route path="claims/:claimId" element={<SurveyorClaimDetailsPage />} />
+            <Route path="claims/:claimId/inspection" element={<InspectionWorkspacePage />} />
+            <Route path="claims/:claimId/damage" element={<VehicleDamagePage />} />
+            <Route path="claims/:claimId/evidence" element={<EvidencePage />} />
+            <Route path="claims/:claimId/report" element={<SurveyReportPage />} />
+            <Route path="history" element={<InspectionHistoryPage />} />
+            <Route path="notifications" element={<SurveyorNotificationsPage />} />
+            <Route path="profile" element={<SurveyorProfilePage />} />
+            <Route path="support" element={<SurveyorSupportPage />} />
+            <Route path="*" element={<ComingSoonPage />} />
+          </Route>
+        </Route>
+
+        <Route element={<RoleProtectedRoute allowedRoles={["Claims Officer"]} />}>
+          <Route path="/officer" element={<AppShell />}>
+            <Route index element={<OfficerDashboardPage />} />
+            <Route path="*" element={<ComingSoonPage />} />
+          </Route>
+        </Route>
+
+        <Route element={<RoleProtectedRoute allowedRoles={["Admin"]} />}>
+          <Route path="/admin" element={<AppShell />}>
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="*" element={<ComingSoonPage />} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
