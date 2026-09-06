@@ -1,0 +1,5 @@
+-- CI-MICOP database schema
+--
+-- Placeholder for Step 1 (project foundation).
+-- The full PostgreSQL schema (tables, relationships, constraints) will be
+-- added in a later step, once the data model has been designed.

@@ -1,0 +1,5 @@
+# Docker Compose configuration
+#
+# Placeholder for Step 1 (project foundation).
+# Multi-container orchestration (frontend, backend, PostgreSQL) will be
+# added in a later step.
