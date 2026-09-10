@@ -1,0 +1,17 @@
+# CI-MICOP AI/ML pipeline dependencies (Step 5.1-5.3).
+# Deliberately separate from backend/requirements.txt: the ai_ml module is
+# an independent, offline data-science pipeline, not part of the running
+# FastAPI service, and should never share a dependency lockstep with it.
+#
+# Install into the same interpreter already used for ai_ml/ (this project
+# reuses backend/venv for convenience - see AI_VS_NON_AI_RESULTS.md - but
+# any Python 3.11+ environment with these packages works):
+#   pip install -r ai_ml/requirements.txt
+
+pandas==3.0.5
+numpy==2.5.2
+openpyxl==3.1.5
+scikit-learn==1.9.0
+shap==0.52.0
+matplotlib==3.11.1
+scipy==1.18.1

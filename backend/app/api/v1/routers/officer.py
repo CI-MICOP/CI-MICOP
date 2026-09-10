@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_db, require_roles
+from app.api.v1.deps import get_db, require_claims_officer_employee_id, require_roles
+from app.crud import authentication_user as crud_user
 from app.crud import claim as crud_claim
 from app.crud import claim_decision_audit as crud_audit
 from app.crud import cross_document_consistency as crud_consistency
@@ -20,12 +21,60 @@ from app.schemas.claim_detail import (
     VehicleDamageOut,
 )
 from app.schemas.document import DocumentOut
+from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
 from app.schemas.surveyor import SurveyorInspectionOut
+from app.services import claim_decision, surveyor_assignment
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/officer", tags=["officer"])
 
 _officer_or_admin = require_roles("Claims Officer", "Admin")
+
+
+@router.get("/surveyors", response_model=list[SurveyorSummaryOut])
+def list_eligible_surveyors(
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Active Surveyor accounts eligible for claim assignment."""
+    return crud_user.list_active_surveyors(db)
+
+
+@router.post(
+    "/claims/{claim_id}/assign-surveyor",
+    response_model=SurveyorInspectionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def assign_surveyor(
+    claim_id: str,
+    payload: AssignSurveyorRequest,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Claims Officer/Admin assigns a Surveyor to a claim by creating the
+    claim's first surveyor_inspections row - see
+    services/surveyor_assignment.py for the full rule set."""
+    return surveyor_assignment.assign_surveyor_to_claim(db, claim_id, payload.surveyor_employee_id)
+
+
+@router.post(
+    "/claims/{claim_id}/decision",
+    response_model=ClaimDecisionAuditOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_decision(
+    claim_id: str,
+    payload: DecisionCreate,
+    employee_id: str = Depends(require_claims_officer_employee_id),
+    db: Session = Depends(get_db),
+):
+    """Claims Officer records the claim's final decision. Admin is
+    intentionally not permitted here - see
+    api/v1/deps.py::require_claims_officer_employee_id for why. The
+    decision is always the human officer's own selection - AI signals, if
+    any genuinely exist, are carried forward as supporting information
+    only (see services/claim_decision.py)."""
+    return claim_decision.record_decision_for_officer(db, employee_id, claim_id, payload)
 
 
 @router.get("/claims", response_model=list[ClaimSummaryOut])

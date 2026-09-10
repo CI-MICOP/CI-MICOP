@@ -1,13 +1,26 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_user, get_db
+from app.api.v1.deps import get_current_user, get_db, require_customer_id
 from app.crud import claim as crud_claim
 from app.db_models.authentication_user import AuthenticationUser
-from app.schemas.claim import ClaimOut, ClaimSummaryOut
+from app.schemas.claim import ClaimCreate, ClaimOut, ClaimSummaryOut
+from app.services import claim_creation
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/claims", tags=["claims"])
+
+
+@router.post("", response_model=ClaimOut, status_code=status.HTTP_201_CREATED)
+def create_claim(
+    payload: ClaimCreate,
+    customer_id: str = Depends(require_customer_id),
+    db: Session = Depends(get_db),
+):
+    """Customer FNOL submission. Customer_ID always comes from the
+    authenticated JWT via require_customer_id - it is never read from the
+    request body, so a customer cannot file a claim as anyone else."""
+    return claim_creation.create_claim_for_customer(db, customer_id, payload)
 
 
 @router.get("", response_model=list[ClaimSummaryOut])

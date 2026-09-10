@@ -1,31 +1,30 @@
-import { Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Card from "../../components/common/Card";
-import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
+import AIInsightCard from "../../components/officer/ai/AIInsightCard";
 import ClaimTabs from "../../components/officer/ClaimTabs";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
-
-const SECTIONS = [
-  { title: "Overall Risk", message: "Risk score and model confidence will appear here once an AI model is connected." },
-  { title: "Why the Model Gave This Result", message: "Top contributing factors will be listed here once explainability output is available." },
-  { title: "Evidence", message: "Documents and events supporting each factor will be shown here." },
-  { title: "Explanation", message: "A human-readable explanation of the AI's reasoning will appear here." },
-  { title: "Recommended Action", message: "The AI's recommended action will be shown here for officer review." },
-];
+import { getAiInsightsForClaim, listDemonstrationExamples } from "../../services/aiRiskService";
 
 /**
- * Explainable-AI interface placeholder. No AI/ML service exists yet
- * (see Step 4.5 report) - every section is an honest "not connected"
- * state rather than fabricated SHAP values, confidence, or recommendations.
+ * Step 5.5: read-only "AI Risk Insights" surface, wired to the Step 5.4
+ * risk-fusion research prototype (ai_ml/risk_fusion, ai_ml/experiments/
+ * run_risk_fusion_experiment.py) via a static, bundled export of its
+ * ACTUAL output - see src/services/aiRiskService.js. No backend AI
+ * endpoint exists or was added for this step; nothing on this page is
+ * connected to any decision action. See
+ * docs/project_documentation/AI_OFFICER_INTEGRATION.md.
  */
 export default function AiInsightsPage() {
   const { claimId } = useParams();
   const { data, isLoading, error, reload } = useClaimWorkspace(claimId);
+  const examples = useMemo(() => listDemonstrationExamples(), []);
+  const [selectedExampleKey, setSelectedExampleKey] = useState("");
 
   if (isLoading) return <LoadingState label="Loading claim..." />;
   if (error) {
@@ -38,29 +37,47 @@ export default function AiInsightsPage() {
   }
 
   const { claim } = data;
+  const insight = getAiInsightsForClaim(claim.Claim_ID);
+  const selectedExample = examples.find((example) => example.key === selectedExampleKey) ?? null;
+  const exampleInsight = selectedExample ? getAiInsightsForClaim(selectedExample.claimId) : null;
 
   return (
     <div>
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number, to: `/officer/claims/${claim.Claim_ID}` }, { label: "AI Insights" }]} />
-      <PageHeader title={`AI Risk Insights — ${claim.Claim_Number}`} subtitle="Explainable AI is not connected yet. This is the reserved interface for a future model." />
+      <PageHeader
+        title={`AI Risk Insights — ${claim.Claim_Number}`}
+        subtitle="Research-prototype decision support (Step 5.4/5.5), validated only on a synthetic/de-identified dataset. Not production fraud-detection accuracy."
+      />
       <ClaimTabs claimId={claim.Claim_ID} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {SECTIONS.map((section) => (
-          <Card key={section.title}>
-            <h3 className="mb-3 text-sm font-semibold text-ink">{section.title}</h3>
-            <EmptyState icon={Sparkles} title="AI analysis not connected yet" message={section.message} />
-          </Card>
-        ))}
-        <Card className="lg:col-span-2">
-          <h3 className="mb-3 text-sm font-semibold text-ink">Human Review</h3>
-          <p className="text-sm text-muted">
-            When AI insights are available, this section will let the officer confirm or override the AI's
-            suggestion. Until then, all decisions are made entirely by the Claims Officer on the Make
-            Decision tab.
-          </p>
-        </Card>
-      </div>
+      <AIInsightCard insight={insight} />
+
+      <Card className="mt-6">
+        <h3 className="mb-1 text-sm font-semibold text-ink">AI Demonstration Examples</h3>
+        <p className="mb-4 text-sm text-muted">
+          Four real claims from the Step 5.4 dataset, one for each risk/confidence combination the research
+          prototype actually found. A fifth category, "insufficient evidence", is intentionally not shown here
+          because Step 5.4 found no claim in the current dataset that genuinely qualifies for it - every claim
+          in this dataset has complete document and evidence records.
+        </p>
+        <label className="block max-w-sm">
+          <span className="mb-1 block text-sm font-medium text-ink">Select an example</span>
+          <select className="input" value={selectedExampleKey} onChange={(e) => setSelectedExampleKey(e.target.value)}>
+            <option value="">Choose a demonstration example…</option>
+            {examples.map((example) => (
+              <option key={example.key} value={example.key}>
+                {example.label} ({example.claimId})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {exampleInsight && (
+          <div className="mt-6 border-t border-border pt-6">
+            <AIInsightCard insight={exampleInsight} demoLabel={selectedExample.label} />
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

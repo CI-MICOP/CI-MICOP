@@ -36,3 +36,23 @@ def get_claim_or_403(db: Session, claim_id: str, current_user: AuthenticationUse
         status_code=status.HTTP_403_FORBIDDEN,
         detail="You do not have permission to access this claim",
     )
+
+
+def get_claim_assigned_to_surveyor_or_403(db: Session, claim_id: str, employee_id: str) -> Claim:
+    """Stricter than get_claim_or_403's Surveyor branch: used by actions
+    that must be surveyor-specific (creating vehicle damage or evidence),
+    so an Admin/Claims Officer token can't be used to take a surveyor-only
+    action. Reuses the same surveyor_is_assigned definition of "assigned"
+    established in Step 5.8.5 (services/inspection_creation.py) - a
+    surveyor_inspections row for (claim, surveyor) - rather than inventing
+    a second assignment mechanism."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    if not crud_claim.surveyor_is_assigned(db, claim_id, employee_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not assigned to this claim",
+        )
+    return claim

@@ -5,6 +5,7 @@ const TABS = [
   { key: "inspection", label: "Inspection", path: "inspection" },
   { key: "damage", label: "Vehicle Damage", path: "damage" },
   { key: "evidence", label: "Evidence", path: "evidence" },
+  { key: "repair-estimate", label: "Repair Estimate", path: "repair-estimate" },
   { key: "report", label: "Survey Report", path: "report" },
 ];
 

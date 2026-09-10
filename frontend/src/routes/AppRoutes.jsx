@@ -44,6 +44,7 @@ import InspectionHistoryPage from "../pages/surveyor/InspectionHistoryPage";
 import InspectionWorkspacePage from "../pages/surveyor/InspectionWorkspacePage";
 import SurveyorNotificationsPage from "../pages/surveyor/NotificationsPage";
 import SurveyorProfilePage from "../pages/surveyor/ProfilePage";
+import RepairEstimatePage from "../pages/surveyor/RepairEstimatePage";
 import SurveyReportPage from "../pages/surveyor/SurveyReportPage";
 import SurveyorSupportPage from "../pages/surveyor/SupportPage";
 import VehicleDamagePage from "../pages/surveyor/VehicleDamagePage";
@@ -99,6 +100,7 @@ export default function AppRoutes() {
             <Route path="claims/:claimId/inspection" element={<InspectionWorkspacePage />} />
             <Route path="claims/:claimId/damage" element={<VehicleDamagePage />} />
             <Route path="claims/:claimId/evidence" element={<EvidencePage />} />
+            <Route path="claims/:claimId/repair-estimate" element={<RepairEstimatePage />} />
             <Route path="claims/:claimId/report" element={<SurveyReportPage />} />
             <Route path="history" element={<InspectionHistoryPage />} />
             <Route path="notifications" element={<SurveyorNotificationsPage />} />

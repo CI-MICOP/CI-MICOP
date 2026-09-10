@@ -12,6 +12,7 @@ import StatCard from "../../components/common/StatCard";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../hooks/useAuth";
 import { useFetch } from "../../hooks/useFetch";
+import { getAiSummaryStats } from "../../services/aiRiskService";
 import { getClaimProcessingDetail, listClaimsForProcessing } from "../../services/officerService";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatDate } from "../../utils/format";
@@ -104,6 +105,7 @@ export default function OfficerDashboardPage() {
     );
   }
 
+  const aiSummary = getAiSummaryStats();
   const maxMonthCount = Math.max(1, ...claimsPerMonth.map((m) => m.count));
   const totalStatusCount = Math.max(1, claimsByStatus.reduce((sum, [, count]) => sum + count, 0));
   const totalFraudCount = Math.max(1, fraudByCategory.reduce((sum, [, count]) => sum + count, 0));
@@ -228,6 +230,34 @@ export default function OfficerDashboardPage() {
           )}
         </Card>
       </div>
+
+      <div className="mt-6">
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-ink">AI Risk Insights Summary</h3>
+            <span className="text-xs text-muted">Research prototype (Step 5.4/5.5) — synthetic dataset, read-only</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <AiSummaryStat label="High Review Priority" value={aiSummary.highReviewPriority} />
+            <AiSummaryStat label="Low AI Confidence" value={aiSummary.lowConfidence} />
+            <AiSummaryStat label="Multiple Warning Signals" value={aiSummary.multipleWarningSignals} />
+            <AiSummaryStat label="Insufficient Evidence" value={aiSummary.insufficientEvidence} />
+          </div>
+          <p className="mt-4 text-xs text-muted">
+            Counts are computed from the Step 5.4 risk-fusion export across {aiSummary.totalClaimsAssessed} claims.
+            AI output is advisory only; the Claims Officer makes every final decision.
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function AiSummaryStat({ label, value }) {
+  return (
+    <div className="rounded-card border border-border p-3 text-center">
+      <p className="text-2xl font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-xs text-muted">{label}</p>
     </div>
   );
 }

@@ -11,3 +11,10 @@ export async function getClaimById(claimId) {
   const response = await apiClient.get(`/claims/${claimId}`);
   return response.data;
 }
+
+// Customer_ID is never sent here - the backend always derives it from the
+// authenticated JWT (see backend/app/services/claim_creation.py).
+export async function createClaim(payload) {
+  const response = await apiClient.post("/claims", payload);
+  return response.data;
+}

@@ -386,3 +386,139 @@ def admin_token(client, seed_data):
 
 def auth_headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+def _make_bare_claim(claim_id: str, claim_number: str, seed_data: dict, description: str) -> Claim:
+    """A minimal, valid Claim row for assignment-boundary tests (Steps
+    5.8.5/5.8.6) - shared here so every test module that needs an
+    "unassigned" or "someone else's" claim uses the same shape."""
+    return Claim(
+        Claim_ID=claim_id,
+        Policy_ID=seed_data["policy1"],
+        Customer_ID=seed_data["customer1"],
+        Vehicle_ID=seed_data["vehicle1"],
+        Claim_Number=claim_number,
+        Claim_Number_Child=None,
+        Claim_Date=date(2026, 1, 1),
+        Claim_Year="2026",
+        Claim_Type="Own Damage",
+        Claim_Amount=Decimal("10000.00"),
+        Approved_Amount=Decimal("0.00"),
+        Claim_Status="Under Review",
+        Claim_Description=description,
+        Claims_History_Code="CH01",
+        Incurred_Claims_Code="IC01",
+        Nature_of_Loss_Code="NOL01",
+        Insurer_NOL_Code="INOL001",
+        TPPD_Statutory_Cover_Flag=False,
+        Claim_Intimation_Date=date(2026, 1, 1),
+        Date_of_Disbursement=date(2026, 1, 1),
+        Place_of_Accident="TestCity",
+        Accident_Pincode="123456",
+        Claim_Processing_Days=0,
+        Repair_Duration_Days=0,
+        Final_Decision="Pending",
+        Decision_Date=date(2026, 1, 1),
+        Decision_Reason="Pending human review.",
+        TP_Amount_Claimed=Decimal("0.00"),
+        TP_Claims_Paid=Decimal("0.00"),
+        TP_Awards_Paid=Decimal("0.00"),
+        TP_Expenses_Paid=Decimal("0.00"),
+        TP_Interest_Paid=Decimal("0.00"),
+        Wider_Legal_Liability_Amount=Decimal("0.00"),
+        PA_Owner_Driver_Amount=Decimal("0.00"),
+        PA_Others_Amount=Decimal("0.00"),
+        Nature_of_Injury_Code="NONE",
+        Interim_Award_Flag=False,
+        Settlement_Basis_Code="PENDING",
+        Fatal_NonFatal_Flag=False,
+        Open_Provision_Main=Decimal("10000.00"),
+        Open_Provision_Expenses=Decimal("0.00"),
+        Open_Provision_Interest=Decimal("0.00"),
+        Closing_Provision_Main=Decimal("0.00"),
+        Closing_Provision_Expenses=Decimal("0.00"),
+        Closing_Provision_Interest=Decimal("0.00"),
+    )
+
+
+@pytest.fixture(scope="module")
+def unassigned_claim(seed_data):
+    """A claim nobody has ever inspected - the "brand new customer claim"
+    scenario the surveyor-assignment gap applies to (Steps 5.8.5/5.8.6)."""
+    db = SessionLocal()
+    claim_id = "TEST-CLM-UNASSIGNED"
+    db.add(_make_bare_claim(claim_id, "TEST-CLMNUM-UNASSIGNED", seed_data, "Unassigned test claim."))
+    db.commit()
+    db.close()
+
+    yield claim_id
+
+    db = SessionLocal()
+    db.query(Claim).filter(Claim.Claim_ID == claim_id).delete()
+    db.commit()
+    db.close()
+
+
+@pytest.fixture(scope="module")
+def other_surveyor_claim(seed_data):
+    """A second surveyor with their own claim+inspection, used to prove
+    surveyor1 cannot touch surveyor2's assigned claim, inspection,
+    damage, or evidence (Steps 5.8.5/5.8.6)."""
+    db = SessionLocal()
+    employee_id = "TEST-EMP-SURV2"
+    user_id = "TEST-USER-SURV2"
+    claim_id = "TEST-CLM-SURV2"
+    inspection_id = "TEST-INS-SURV2"
+
+    user = AuthenticationUser(
+        User_ID=user_id,
+        Username="test_surveyor2",
+        Password_Hash=hash_password(TEST_PASSWORD),
+        Role="Surveyor",
+        Customer_ID=None,
+        Employee_ID=employee_id,
+        Email="test_surveyor2@example.com",
+        Phone="9990000006",
+        Account_Status="Active",
+        Login_Status="Active",
+        Last_Login=None,
+        Created_Date=date(2025, 1, 1),
+        Failed_Login_Count=0,
+        Permission_Level=2,
+        Insurer_Code=None,
+    )
+
+    claim = _make_bare_claim(claim_id, "TEST-CLMNUM-SURV2", seed_data, "Claim assigned to a second surveyor only.")
+
+    inspection = SurveyorInspection(
+        Inspection_ID=inspection_id,
+        Claim_ID=claim_id,
+        Surveyor_ID=employee_id,
+        Inspection_Date=date(2026, 1, 2),
+        Inspection_Location="TestCity",
+        Vehicle_Condition="Good",
+        Damage_Observed="No",
+        Damage_Severity="Pending",
+        Parts_Required=0,
+        Repair_Recommendation="Repair",
+        Surveyor_Comments="",
+        Inspection_Status="In Progress",
+        Survey_Report_Submitted=False,
+        Surveyor_Confidence_Score=Decimal("0.0000"),
+    )
+
+    db.add(user)
+    db.add(claim)
+    db.commit()
+    db.add(inspection)
+    db.commit()
+    db.close()
+
+    yield {"employee_id": employee_id, "claim_id": claim_id, "inspection_id": inspection_id}
+
+    db = SessionLocal()
+    db.query(SurveyorInspection).filter(SurveyorInspection.Inspection_ID == inspection_id).delete()
+    db.query(Claim).filter(Claim.Claim_ID == claim_id).delete()
+    db.query(AuthenticationUser).filter(AuthenticationUser.User_ID == user_id).delete()
+    db.commit()
+    db.close()

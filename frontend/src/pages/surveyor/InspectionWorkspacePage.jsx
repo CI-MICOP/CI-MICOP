@@ -14,16 +14,39 @@ import ClaimTabs from "../../components/surveyor/ClaimTabs";
 import { useAuth } from "../../hooks/useAuth";
 import { useFetch } from "../../hooks/useFetch";
 import { getClaimById } from "../../services/claimService";
-import { getAssignedClaimDetail, updateInspection } from "../../services/surveyorService";
+import { getAssignedClaimDetail, startInspection, updateInspection } from "../../services/surveyorService";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatDate } from "../../utils/format";
 import { getStatusTone } from "../../utils/statusTone";
+
+// Real values from the approved dataset (see
+// docs/project_documentation/SURVEYOR_INSPECTION_WORKFLOW.md) plus
+// "Pending" - the backend's own sentinel for "not yet assessed" on a
+// freshly started inspection. Kept in sync with backend/app/schemas/surveyor.py.
+const VEHICLE_CONDITION_OPTIONS = ["Pending", "Good", "Fair", "Poor"];
+const DAMAGE_OBSERVED_OPTIONS = ["Pending", "Yes", "No"];
+const DAMAGE_SEVERITY_OPTIONS = ["Pending", "Minor", "Moderate", "Severe"];
+const REPAIR_RECOMMENDATION_OPTIONS = ["Pending", "Repair", "Replace", "Total Loss"];
+const INSPECTION_STATUS_OPTIONS = ["Assigned", "Scheduled", "In Progress", "Completed"];
+
+function getStartInspectionErrorMessage(error) {
+  if (!error?.response) return "Unable to connect to the CI-MICOP server.";
+  switch (error.response.status) {
+    case 403:
+      return "You are not assigned to this claim, so an inspection cannot be started.";
+    case 409:
+      return "An active inspection already exists for this claim.";
+    default:
+      return "Something went wrong while starting the inspection.";
+  }
+}
 
 export default function InspectionWorkspacePage() {
   const { claimId } = useParams();
   const { user } = useAuth();
   const [form, setForm] = useState(null);
   const [saveState, setSaveState] = useState({ status: "idle", message: "" });
+  const [startState, setStartState] = useState({ status: "idle", message: "" });
 
   const fetchDetail = useCallback(async () => {
     const [claim, assigned] = await Promise.all([getClaimById(claimId), getAssignedClaimDetail(claimId)]);
@@ -32,7 +55,9 @@ export default function InspectionWorkspacePage() {
 
   const { data, isLoading, error, reload } = useFetch(fetchDetail, [fetchDetail]);
 
-  const inspection = data?.inspections.find((i) => i.Surveyor_ID === user?.Employee_ID) ?? data?.inspections[0];
+  // Only ever the current surveyor's own inspection - never fall back to
+  // showing another surveyor's inspection findings.
+  const inspection = data?.inspections.find((i) => i.Surveyor_ID === user?.Employee_ID);
 
   useEffect(() => {
     if (inspection) {
@@ -52,6 +77,8 @@ export default function InspectionWorkspacePage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  const formValid = form && form.Vehicle_Condition && form.Damage_Observed && Number(form.Parts_Required) >= 0;
+
   async function handleSave() {
     setSaveState({ status: "saving", message: "" });
     try {
@@ -61,6 +88,17 @@ export default function InspectionWorkspacePage() {
       reload();
     } catch (err) {
       setSaveState({ status: "error", message: getApiErrorMessage(err) });
+    }
+  }
+
+  async function handleStartInspection() {
+    setStartState({ status: "starting", message: "" });
+    try {
+      await startInspection(claimId);
+      setStartState({ status: "idle", message: "" });
+      reload();
+    } catch (err) {
+      setStartState({ status: "error", message: getStartInspectionErrorMessage(err) });
     }
   }
 
@@ -90,7 +128,18 @@ export default function InspectionWorkspacePage() {
       <ClaimTabs claimId={claim.Claim_ID} />
 
       {!inspection || !form ? (
-        <EmptyState title="No inspection record exists for this claim" message="There is nothing to update here yet." />
+        <EmptyState
+          title="Inspection has not been started yet."
+          message="Once you start an inspection, you can record your findings and save your progress here."
+          action={
+            <div className="flex flex-col items-center gap-2">
+              <Button onClick={handleStartInspection} isLoading={startState.status === "starting"}>
+                Start Inspection
+              </Button>
+              {startState.status === "error" && <p className="text-sm text-danger">{startState.message}</p>}
+            </div>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
@@ -135,31 +184,57 @@ export default function InspectionWorkspacePage() {
                 <Field label="Inspection Location">
                   <p className="input flex items-center bg-surface text-muted">{inspection.Inspection_Location}</p>
                 </Field>
-                <Field label="Vehicle Condition">
-                  <input className="input" value={form.Vehicle_Condition} onChange={(e) => update("Vehicle_Condition", e.target.value)} />
+                <Field label="Vehicle Condition" required>
+                  <select className="input" value={form.Vehicle_Condition} onChange={(e) => update("Vehicle_Condition", e.target.value)}>
+                    {VEHICLE_CONDITION_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
                 </Field>
-                <Field label="Damage Observed">
+                <Field label="Damage Observed" required>
                   <select className="input" value={form.Damage_Observed} onChange={(e) => update("Damage_Observed", e.target.value)}>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
+                    {DAMAGE_OBSERVED_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Damage Severity">
-                  <input className="input" value={form.Damage_Severity} onChange={(e) => update("Damage_Severity", e.target.value)} />
+                  <select className="input" value={form.Damage_Severity} onChange={(e) => update("Damage_Severity", e.target.value)}>
+                    {DAMAGE_SEVERITY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                  {form.Damage_Observed === "Yes" && form.Damage_Severity === "Pending" && (
+                    <p className="mt-1 text-xs text-warning">Required before the survey report can be submitted.</p>
+                  )}
                 </Field>
-                <Field label="Parts Required">
+                <Field label="Parts Required" required>
                   <input type="number" min="0" className="input" value={form.Parts_Required} onChange={(e) => update("Parts_Required", e.target.value)} />
                 </Field>
                 <Field label="Repair Recommendation">
-                  <input className="input" value={form.Repair_Recommendation} onChange={(e) => update("Repair_Recommendation", e.target.value)} />
+                  <select className="input" value={form.Repair_Recommendation} onChange={(e) => update("Repair_Recommendation", e.target.value)}>
+                    {REPAIR_RECOMMENDATION_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Inspection Status">
-                  <input className="input" value={form.Inspection_Status} onChange={(e) => update("Inspection_Status", e.target.value)} />
+                  <select className="input" value={form.Inspection_Status} onChange={(e) => update("Inspection_Status", e.target.value)}>
+                    {INSPECTION_STATUS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
                 </Field>
               </div>
               <div className="mt-4">
                 <Field label="Surveyor Comments">
-                  <textarea className="input resize-none" rows={3} value={form.Surveyor_Comments} onChange={(e) => update("Surveyor_Comments", e.target.value)} />
+                  <textarea
+                    className="input resize-none"
+                    rows={3}
+                    maxLength={2000}
+                    value={form.Surveyor_Comments}
+                    onChange={(e) => update("Surveyor_Comments", e.target.value)}
+                  />
                 </Field>
               </div>
 
@@ -174,7 +249,7 @@ export default function InspectionWorkspacePage() {
               )}
 
               <div className="mt-4 flex justify-end border-t border-border pt-4">
-                <Button onClick={handleSave} isLoading={saveState.status === "saving"}>
+                <Button onClick={handleSave} isLoading={saveState.status === "saving"} disabled={!formValid}>
                   Save Inspection
                 </Button>
               </div>
@@ -200,10 +275,13 @@ export default function InspectionWorkspacePage() {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, required, children }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-ink">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-ink">
+        {label}
+        {required && <span className="text-danger"> *</span>}
+      </span>
       {children}
     </label>
   );

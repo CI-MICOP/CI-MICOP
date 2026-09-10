@@ -1,7 +1,49 @@
-from datetime import date
+from datetime import date, time
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# Real values observed in the approved dataset (see
+# ai_ml/model_artifacts/test_set_predictions_and_errors.csv) - the FNOL
+# form offers exactly these, so a claim never carries a Claim_Type the
+# rest of the project's data/AI pipeline hasn't seen before.
+ALLOWED_CLAIM_TYPES = {"Own Damage", "Third Party", "Theft"}
+
+
+class ClaimCreate(BaseModel):
+    """Fields a Customer may submit at First Notice of Loss (FNOL).
+
+    Deliberately excludes every internal/processing field (Approved_Amount,
+    Final_Decision, Decision_Date, Decision_Reason, Claim_Processing_Days,
+    AI/fraud/audit fields, ...) - those are always server-assigned so a
+    claim can never arrive pre-approved or pre-decided from the browser.
+    """
+
+    Policy_ID: str
+    Vehicle_ID: str
+    Claim_Date: date
+    Claim_Type: str
+    Claim_Amount: Decimal = Field(gt=0)
+    Claim_Description: str = Field(min_length=1)
+    Place_of_Accident: str = Field(min_length=1, max_length=100)
+    Accident_Pincode: str = Field(min_length=1, max_length=10)
+
+    # Optional accident detail already collected by the existing NewClaimPage
+    # UI. Police_Station is intentionally not accepted here - the approved
+    # accidents table has no column for it (only FIR_Number, a different
+    # concept) - see CUSTOMER_CLAIM_SUBMISSION.md limitations.
+    Accident_Time: time | None = None
+    Third_Party_Involved: bool = False
+    Injury_Reported: bool = False
+    Police_Report_Available: bool = False
+    FIR_Number: str | None = None
+
+    @field_validator("Claim_Type")
+    @classmethod
+    def _validate_claim_type(cls, value: str) -> str:
+        if value not in ALLOWED_CLAIM_TYPES:
+            raise ValueError(f"Claim_Type must be one of {sorted(ALLOWED_CLAIM_TYPES)}")
+        return value
 
 
 class ClaimOut(BaseModel):

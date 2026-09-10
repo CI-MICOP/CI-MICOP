@@ -132,11 +132,15 @@ export default function ClaimDetailsPage() {
               <ul className="divide-y divide-border">
                 {documents.map((doc) => (
                   <li key={doc.Document_ID} className="flex items-center justify-between py-2.5 text-sm">
-                    <div>
-                      <p className="text-ink">{doc.Document_Type}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-ink">{doc.Document_Type}</p>
+                      <p className="truncate text-xs text-muted">{doc.Document_Name}</p>
                       <p className="text-xs text-muted">{formatDate(doc.Document_Submitted_Date)}</p>
                     </div>
-                    <StatusBadge label={doc.Document_Status} tone={getStatusTone(doc.Document_Status)} />
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <StatusBadge label={doc.Document_Status} tone={getStatusTone(doc.Document_Status)} />
+                      <StatusBadge label={doc.Verification_Status} tone={getStatusTone(doc.Verification_Status)} />
+                    </div>
                   </li>
                 ))}
               </ul>

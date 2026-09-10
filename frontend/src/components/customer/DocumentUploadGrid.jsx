@@ -3,10 +3,11 @@ import { CheckCircle2, Upload } from "lucide-react";
 import { DOCUMENT_CATEGORIES } from "./documentCategories";
 
 /**
- * Lets the customer pick files locally for each document category. There
- * is no document-upload endpoint on the backend yet (only GET /documents),
- * so nothing here is actually sent anywhere - selecting a file only
- * updates local state. See the Step 4.3 report for the missing-API note.
+ * Lets the customer pick files locally for each document category before
+ * the claim exists. Selecting a file here only updates local state -
+ * NewClaimPage uploads the selected files to POST /documents once the
+ * claim has actually been created (a claim must exist before a document
+ * can be linked to it).
  */
 export default function DocumentUploadGrid({ files, onFileChange }) {
   return (

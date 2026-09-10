@@ -1,7 +1,9 @@
-import { Info } from "lucide-react";
+import { CheckCircle2, Info } from "lucide-react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import Breadcrumbs from "../../components/common/Breadcrumbs";
+import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
@@ -10,12 +12,59 @@ import StatusBadge from "../../components/common/StatusBadge";
 import ClaimTabs from "../../components/officer/ClaimTabs";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
+import { assignSurveyor, getSurveyors } from "../../services/officerService";
 import { formatCurrency, formatDate, formatVehicleLabel } from "../../utils/format";
 import { getStatusTone } from "../../utils/statusTone";
+
+function getAssignSurveyorErrorMessage(error) {
+  if (!error?.response) return "Unable to connect to the CI-MICOP server.";
+  switch (error.response.status) {
+    case 404:
+      return "That claim or surveyor could not be found.";
+    case 409:
+      return error.response.data?.detail || "This claim already has an active surveyor assignment.";
+    case 422:
+      return error.response.data?.detail || "That account cannot be assigned as a surveyor.";
+    default:
+      return "Something went wrong while assigning the surveyor.";
+  }
+}
 
 export default function OfficerClaimDetailsPage() {
   const { claimId } = useParams();
   const { data, isLoading, error, reload } = useClaimWorkspace(claimId);
+  const [showAssignForm, setShowAssignForm] = useState(false);
+  const [surveyors, setSurveyors] = useState(null);
+  const [selectedSurveyorId, setSelectedSurveyorId] = useState("");
+  const [assignState, setAssignState] = useState({ status: "idle", message: "" });
+
+  async function openAssignForm() {
+    setShowAssignForm(true);
+    setAssignState({ status: "idle", message: "" });
+    if (surveyors === null) {
+      try {
+        const list = await getSurveyors();
+        setSurveyors(list);
+      } catch (err) {
+        setSurveyors([]);
+        setAssignState({ status: "error", message: getAssignSurveyorErrorMessage(err) });
+      }
+    }
+  }
+
+  async function handleConfirmAssignment() {
+    if (!selectedSurveyorId) return;
+    setAssignState({ status: "saving", message: "" });
+    try {
+      await assignSurveyor(claimId, selectedSurveyorId);
+      setAssignState({ status: "success", message: "Surveyor assigned successfully." });
+      setShowAssignForm(false);
+      setSelectedSurveyorId("");
+      reload();
+    } catch (err) {
+      setAssignState({ status: "error", message: getAssignSurveyorErrorMessage(err) });
+    }
+  }
 
   if (isLoading) return <LoadingState label="Loading claim details..." />;
   if (error) {
@@ -46,6 +95,8 @@ export default function OfficerClaimDetailsPage() {
               <Detail label="Claim Status"><StatusBadge label={claim.Claim_Status} tone={getStatusTone(claim.Claim_Status)} /></Detail>
               <Detail label="Final Decision" value={claim.Final_Decision || "Pending"} />
               <Detail label="Decision Reason" value={claim.Decision_Reason || "-"} />
+              <Detail label="Approved Amount" value={formatCurrency(claim.Approved_Amount)} />
+              <Detail label="Decision Date" value={claim.Final_Decision && claim.Final_Decision !== "Pending" ? formatDate(claim.Decision_Date) : "-"} />
               <Detail label="Processing Days" value={claim.Claim_Processing_Days} />
               <Detail label="Repair Duration (Days)" value={claim.Repair_Duration_Days} />
             </dl>
@@ -162,6 +213,95 @@ export default function OfficerClaimDetailsPage() {
                 <StatusBadge label={inspections[0].Inspection_Status} tone={getStatusTone(inspections[0].Inspection_Status)} />
                 <p className="text-muted">{formatDate(inspections[0].Inspection_Date)}</p>
                 <p className="text-muted">{inspections[0].Repair_Recommendation}</p>
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 text-sm font-semibold text-ink">Surveyor Assignment</h3>
+
+            {inspections.length === 0 ? (
+              <>
+                <StatusBadge label="Not Assigned" tone="warning" />
+
+                {!showAssignForm ? (
+                  <div className="mt-3">
+                    <Button size="sm" onClick={openAssignForm}>
+                      Assign Surveyor
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <label className="block">
+                      <span className="mb-1 block text-sm font-medium text-ink">Select Surveyor</span>
+                      {surveyors === null ? (
+                        <p className="text-sm text-muted">Loading surveyors...</p>
+                      ) : surveyors.length === 0 ? (
+                        <p className="text-sm text-muted">No active surveyors are available.</p>
+                      ) : (
+                        <select
+                          className="input"
+                          value={selectedSurveyorId}
+                          onChange={(e) => setSelectedSurveyorId(e.target.value)}
+                        >
+                          <option value="">Choose a surveyor...</option>
+                          {surveyors.map((s) => (
+                            <option key={s.Employee_ID} value={s.Employee_ID}>
+                              {s.Username} ({s.Employee_ID})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </label>
+
+                    {selectedSurveyorId && (
+                      <p className="text-sm text-ink">
+                        Assign this claim to{" "}
+                        <span className="font-medium">
+                          {surveyors.find((s) => s.Employee_ID === selectedSurveyorId)?.Username}
+                        </span>
+                        ?
+                      </p>
+                    )}
+
+                    {assignState.status === "error" && <p className="text-sm text-danger">{assignState.message}</p>}
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setShowAssignForm(false);
+                          setSelectedSurveyorId("");
+                          setAssignState({ status: "idle", message: "" });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleConfirmAssignment}
+                        isLoading={assignState.status === "saving"}
+                        disabled={!selectedSurveyorId}
+                      >
+                        Confirm Assignment
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-1 text-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Assigned Surveyor</p>
+                <p className="text-muted">Employee ID: {inspections[0].Surveyor_ID}</p>
+                <StatusBadge label={inspections[0].Inspection_Status} tone={getStatusTone(inspections[0].Inspection_Status)} />
+              </div>
+            )}
+
+            {assignState.status === "success" && (
+              <div className="mt-3 flex items-center gap-2 rounded-card border border-green-200 bg-green-50 p-3 text-sm text-success">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                {assignState.message}
               </div>
             )}
           </Card>

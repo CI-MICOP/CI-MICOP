@@ -13,6 +13,34 @@ export async function getClaimProcessingDetail(claimId) {
   return response.data;
 }
 
+export async function getSurveyors() {
+  const response = await apiClient.get("/officer/surveyors");
+  return response.data;
+}
+
+// Surveyor_ID/Claim_ID are never sent as free-form identifiers beyond the
+// URL path and the selected surveyor's Employee_ID - the backend always
+// re-derives and validates both from authoritative records.
+export async function assignSurveyor(claimId, surveyorEmployeeId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/assign-surveyor`, {
+    surveyor_employee_id: surveyorEmployeeId,
+  });
+  return response.data;
+}
+
+// Only the officer's own human-entered fields are sent - AI_Recommendation/
+// AI_Confidence_Score/Claims_Officer_ID are never accepted from the
+// frontend, the backend derives/carries them forward server-side only.
+export async function submitDecision(claimId, { finalDecision, decisionReason, approvedAmount, officerComments }) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/decision`, {
+    Final_Decision: finalDecision,
+    Decision_Reason: decisionReason,
+    Approved_Amount: approvedAmount,
+    Officer_Comments: officerComments,
+  });
+  return response.data;
+}
+
 // Claims Officer/Admin are authorized to read full customer, vehicle, and
 // policy records (unlike Surveyor, who is explicitly blocked) - this
 // composes the claim-processing aggregate with those three lookups for

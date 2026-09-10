@@ -84,3 +84,36 @@ def require_employee_id(current_user: AuthenticationUser = Depends(get_current_u
             detail="This action is only available to staff accounts",
         )
     return current_user.Employee_ID
+
+
+def require_surveyor_employee_id(current_user: AuthenticationUser = Depends(get_current_user)) -> str:
+    """Resolves the Employee_ID for a Surveyor-role user only - stricter
+    than require_employee_id (which also allows Claims Officer), for
+    actions that must be surveyor-specific such as creating an
+    inspection."""
+    if current_user.Role != "Surveyor" or not current_user.Employee_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action is only available to surveyor accounts",
+        )
+    return current_user.Employee_ID
+
+
+def require_claims_officer_employee_id(current_user: AuthenticationUser = Depends(get_current_user)) -> str:
+    """Resolves the Employee_ID for a Claims Officer-role user only.
+
+    Deliberately excludes Admin: unlike claim-assignment (where the
+    Employee_ID being validated belongs to the *target* surveyor, not the
+    acting user), claim_decision_audit.Claims_Officer_ID must reference
+    the ACTING user's own Employee_ID via a NOT NULL foreign key. Admin
+    accounts have no Employee_ID in this project's data (the approved
+    660-row authentication dataset has no Admin role at all - Admin is a
+    synthetic project role), so there is no valid value to store. This
+    mirrors require_surveyor_employee_id's same reasoning for
+    surveyor-specific actions."""
+    if current_user.Role != "Claims Officer" or not current_user.Employee_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action is only available to Claims Officer accounts",
+        )
+    return current_user.Employee_ID

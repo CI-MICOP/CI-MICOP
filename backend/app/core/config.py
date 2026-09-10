@@ -5,7 +5,12 @@ This keeps configuration separated from application code and allows
 the same code to run in different environments without modification.
 """
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/app/core/config.py -> parents[3] is the repository root.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -26,6 +31,20 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "changeme"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # Document storage - local filesystem for this prototype (see
+    # docs/project_documentation/CUSTOMER_DOCUMENT_UPLOAD.md). Deliberately
+    # isolated behind this one setting so it can be pointed at a different
+    # mount, or swapped for S3/Azure/MinIO later, without touching the
+    # documents table or any router/service code.
+    DOCUMENT_STORAGE_ROOT: str = str(_REPO_ROOT / "infra" / "storage" / "documents")
+    DOCUMENT_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 MB
+
+    # Surveyor evidence storage - same local-filesystem-prototype approach
+    # as document storage, kept as a separate root/setting (see
+    # docs/project_documentation/SURVEYOR_DAMAGE_AND_EVIDENCE_WORKFLOW.md).
+    EVIDENCE_STORAGE_ROOT: str = str(_REPO_ROOT / "infra" / "storage" / "evidence")
+    EVIDENCE_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 MB
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

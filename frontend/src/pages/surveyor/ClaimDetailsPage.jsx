@@ -46,7 +46,7 @@ export default function SurveyorClaimDetailsPage() {
     );
   }
 
-  const { claim, accidents, evidence, inspections, documents } = data;
+  const { claim, accidents, evidence, repair_estimates, inspections, documents } = data;
   const accident = accidents[0];
 
   return (
@@ -121,13 +121,6 @@ export default function SurveyorClaimDetailsPage() {
             )}
           </Card>
 
-          <Card>
-            <h3 className="mb-3 text-sm font-semibold text-ink">Repair Estimate</h3>
-            <p className="text-sm text-muted">
-              Repair estimate data is not available to the Surveyor role - it is only exposed through the
-              Claims Officer processing API.
-            </p>
-          </Card>
         </div>
 
         <div className="space-y-6">
@@ -159,6 +152,16 @@ export default function SurveyorClaimDetailsPage() {
             <p className="text-sm text-muted">{evidence.length} evidence item{evidence.length === 1 ? "" : "s"} on file.</p>
             <Link to={`/surveyor/claims/${claim.Claim_ID}/evidence`} className="mt-3 inline-block text-sm font-medium text-brand-600 hover:text-brand-700">
               View Evidence
+            </Link>
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 text-sm font-semibold text-ink">Repair Estimate</h3>
+            <p className="text-sm text-muted">
+              {repair_estimates.length} repair estimate{repair_estimates.length === 1 ? "" : "s"} on file.
+            </p>
+            <Link to={`/surveyor/claims/${claim.Claim_ID}/repair-estimate`} className="mt-3 inline-block text-sm font-medium text-brand-600 hover:text-brand-700">
+              View Repair Estimate
             </Link>
           </Card>
         </div>

@@ -1,4 +1,4 @@
-import { AlertTriangle, Check } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,15 +8,21 @@ import EmptyState from "../../components/common/EmptyState";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import DocumentUploadGrid from "../../components/customer/DocumentUploadGrid";
 import { DOCUMENT_CATEGORIES } from "../../components/customer/documentCategories";
 import { useFetch } from "../../hooks/useFetch";
+import { createClaim } from "../../services/claimService";
+import { uploadDocument } from "../../services/documentService";
 import { getMyPolicies } from "../../services/policyService";
 import { getMyVehicles } from "../../services/vehicleService";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatVehicleLabel } from "../../utils/format";
+import { getStatusTone } from "../../utils/statusTone";
 
 const STEPS = ["Incident Details", "Vehicle & Policy", "Upload Documents", "Review & Submit"];
+
+const CLAIM_TYPES = ["Own Damage", "Third Party", "Theft"];
 
 function StepIndicator({ currentStep }) {
   return (
@@ -37,7 +43,7 @@ function StepIndicator({ currentStep }) {
                       : "bg-surface text-muted"
                 }`}
               >
-                {isComplete ? <Check className="h-4 w-4" aria-hidden="true" /> : stepNumber}
+                {isComplete ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : stepNumber}
               </span>
               <span className={`w-24 text-xs ${isCurrent ? "font-medium text-ink" : "text-muted"}`}>{label}</span>
             </div>
@@ -53,11 +59,46 @@ const EMPTY_INCIDENT = {
   incidentDate: "",
   incidentTime: "",
   placeOfAccident: "",
+  accidentPincode: "",
   description: "",
   policeStation: "",
   thirdPartyInvolved: "no",
   injuryReported: "no",
+  claimType: "",
+  claimAmount: "",
 };
+
+function getSubmitErrorMessage(error) {
+  if (!error?.response) {
+    return "Unable to connect to the CI-MICOP server. Please try again.";
+  }
+  switch (error.response.status) {
+    case 400:
+      return "The selected vehicle does not match the selected policy. Please go back and re-check your selection.";
+    case 403:
+      return "You do not have permission to file a claim against this vehicle or policy.";
+    case 422:
+      return "Some information is missing or invalid. Please review your entries and try again.";
+    default:
+      return "Something went wrong while submitting your claim. Please try again.";
+  }
+}
+
+function getUploadErrorMessage(error) {
+  if (!error?.response) {
+    return "Unable to connect to the CI-MICOP server.";
+  }
+  // The backend's validation messages here (unsupported type, oversized
+  // file, ...) are already written to be shown directly to the customer.
+  return error.response.data?.detail || "This document could not be uploaded. Please try again.";
+}
+
+function formatFileSize(bytes) {
+  if (typeof bytes !== "number") return "-";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function NewClaimPage() {
   const navigate = useNavigate();
@@ -66,7 +107,11 @@ export default function NewClaimPage() {
   const [vehicleId, setVehicleId] = useState("");
   const [policyId, setPolicyId] = useState("");
   const [files, setFiles] = useState({});
-  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submittedClaim, setSubmittedClaim] = useState(null);
+  // { [documentCategoryKey]: { status: "uploading" | "uploaded" | "failed", error? } }
+  const [documentUploads, setDocumentUploads] = useState({});
 
   const fetchOptions = useMemo(
     () => async () => {
@@ -84,14 +129,74 @@ export default function NewClaimPage() {
 
   const selectedVehicle = data?.vehicles.find((v) => v.Vehicle_ID === vehicleId);
   const selectedPolicy = data?.policies.find((p) => p.Policy_ID === policyId);
+  const selectedFiles = DOCUMENT_CATEGORIES.filter((c) => files[c.key]);
 
   function updateIncident(field, value) {
     setIncident((prev) => ({ ...prev, [field]: value }));
   }
 
   const incidentValid =
-    incident.incidentDate && incident.placeOfAccident.trim() && incident.description.trim();
+    incident.incidentDate &&
+    incident.placeOfAccident.trim() &&
+    incident.accidentPincode.trim() &&
+    incident.description.trim() &&
+    incident.claimType &&
+    Number(incident.claimAmount) > 0;
   const vehicleValid = Boolean(vehicleId && policyId);
+
+  async function uploadOneDocument(claimId, categoryKey) {
+    const file = files[categoryKey];
+    setDocumentUploads((prev) => ({ ...prev, [categoryKey]: { status: "uploading" } }));
+    try {
+      await uploadDocument(claimId, categoryKey, file);
+      setDocumentUploads((prev) => ({ ...prev, [categoryKey]: { status: "uploaded" } }));
+    } catch (err) {
+      setDocumentUploads((prev) => ({ ...prev, [categoryKey]: { status: "failed", error: getUploadErrorMessage(err) } }));
+    }
+  }
+
+  async function uploadAllDocuments(claimId) {
+    // Sequential, not Promise.all: keeps the per-file progress list
+    // predictable and avoids surprising the (already-created) claim with
+    // a burst of concurrent uploads.
+    for (const category of selectedFiles) {
+      await uploadOneDocument(claimId, category.key);
+    }
+  }
+
+  async function handleSubmit() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const payload = {
+        Policy_ID: policyId,
+        Vehicle_ID: vehicleId,
+        Claim_Date: incident.incidentDate,
+        Claim_Type: incident.claimType,
+        Claim_Amount: incident.claimAmount,
+        Claim_Description: incident.description,
+        Place_of_Accident: incident.placeOfAccident,
+        Accident_Pincode: incident.accidentPincode,
+        Accident_Time: incident.incidentTime || null,
+        Third_Party_Involved: incident.thirdPartyInvolved === "yes",
+        Injury_Reported: incident.injuryReported === "yes",
+        Police_Report_Available: Boolean(incident.policeStation.trim()),
+        FIR_Number: null,
+      };
+      // The claim must exist before any document can be linked to it, so
+      // document upload only ever starts after createClaim() succeeds.
+      const claim = await createClaim(payload);
+      setSubmittedClaim(claim);
+      if (selectedFiles.length > 0) {
+        await uploadAllDocuments(claim.Claim_ID);
+      }
+    } catch (err) {
+      setSubmitError(getSubmitErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   if (isLoading) return <LoadingState label="Loading your vehicles and policies..." />;
   if (error) return <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />;
@@ -104,6 +209,122 @@ export default function NewClaimPage() {
           title="No vehicle or policy on file"
           message="A claim needs at least one registered vehicle and an active policy. Please contact support if you believe this is incorrect."
         />
+      </div>
+    );
+  }
+
+  if (submittedClaim) {
+    const totalSelected = selectedFiles.length;
+    const uploadedCount = selectedFiles.filter((c) => documentUploads[c.key]?.status === "uploaded").length;
+    const failedCount = selectedFiles.filter((c) => documentUploads[c.key]?.status === "failed").length;
+    const stillUploading = selectedFiles.some((c) => (documentUploads[c.key]?.status ?? "uploading") === "uploading");
+
+    let documentSummary = null;
+    if (totalSelected > 0 && !stillUploading) {
+      documentSummary =
+        failedCount === 0
+          ? `All ${totalSelected} document${totalSelected === 1 ? "" : "s"} uploaded.`
+          : `${uploadedCount} of ${totalSelected} document${totalSelected === 1 ? "" : "s"} uploaded. ${failedCount} document${failedCount === 1 ? "" : "s"} failed and need${failedCount === 1 ? "s" : ""} retry.`;
+    }
+
+    return (
+      <div>
+        <PageHeader title="New Claim (FNOL)" subtitle="File a new motor insurance claim in a few steps." />
+        <Card>
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <CheckCircle2 className="h-12 w-12 text-success" aria-hidden="true" />
+            <div>
+              <h2 className="text-lg font-semibold text-ink">Claim submitted successfully</h2>
+              <p className="mt-1 text-sm text-muted">
+                Your claim has been recorded and is now waiting for a Claims Officer to review it.
+              </p>
+            </div>
+            <div className="w-full max-w-sm space-y-3 rounded-card border border-border bg-surface p-4 text-left text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted">Claim Number</span>
+                <span className="font-semibold text-ink">{submittedClaim.Claim_Number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Status</span>
+                <StatusBadge label={submittedClaim.Claim_Status} tone={getStatusTone(submittedClaim.Claim_Status)} />
+              </div>
+              {totalSelected > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted">Documents Uploaded</span>
+                  <span className="font-semibold text-ink">
+                    {uploadedCount} / {totalSelected}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {totalSelected > 0 && (
+              <div className="w-full max-w-sm space-y-2 text-left">
+                {selectedFiles.map((category) => {
+                  const state = documentUploads[category.key] ?? { status: "uploading" };
+                  const file = files[category.key];
+                  return (
+                    <div
+                      key={category.key}
+                      className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-ink">{category.label}</p>
+                        <p className="truncate text-xs text-muted">
+                          {file.name} &middot; {formatFileSize(file.size)}
+                        </p>
+                        {state.status === "failed" && <p className="mt-0.5 text-xs text-danger">{state.error}</p>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {state.status === "uploading" && (
+                          <Loader2 className="h-4 w-4 animate-spin text-brand-600" aria-hidden="true" />
+                        )}
+                        {state.status === "uploaded" && <StatusBadge label="Uploaded" tone="success" />}
+                        {state.status === "failed" && (
+                          <>
+                            <StatusBadge label="Failed" tone="danger" />
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => uploadOneDocument(submittedClaim.Claim_ID, category.key)}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                              Retry
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {documentSummary && (
+              <div
+                className={`flex max-w-sm gap-3 rounded-card border p-4 text-left text-sm ${
+                  failedCount === 0
+                    ? "border-green-200 bg-green-50 text-green-900"
+                    : "border-amber-200 bg-amber-50 text-amber-900"
+                }`}
+              >
+                {failedCount === 0 ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                )}
+                <p>{documentSummary}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="secondary" onClick={() => navigate("/customer/claims")}>
+                Back to My Claims
+              </Button>
+              <Button onClick={() => navigate(`/customer/claims/${submittedClaim.Claim_ID}`)}>View Claim</Button>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -135,15 +356,54 @@ export default function NewClaimPage() {
                 />
               </Field>
             </div>
-            <Field label="Place of Accident" required>
-              <input
-                type="text"
-                value={incident.placeOfAccident}
-                onChange={(e) => updateIncident("placeOfAccident", e.target.value)}
-                className="input"
-                placeholder="e.g. Anna Nagar, Chennai"
-              />
-            </Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Claim Type" required>
+                <select
+                  value={incident.claimType}
+                  onChange={(e) => updateIncident("claimType", e.target.value)}
+                  className="input"
+                >
+                  <option value="">Select a claim type</option>
+                  {CLAIM_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Estimated Claim Amount (INR)" required>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={incident.claimAmount}
+                  onChange={(e) => updateIncident("claimAmount", e.target.value)}
+                  className="input"
+                  placeholder="e.g. 45000"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Place of Accident" required>
+                <input
+                  type="text"
+                  value={incident.placeOfAccident}
+                  onChange={(e) => updateIncident("placeOfAccident", e.target.value)}
+                  className="input"
+                  placeholder="e.g. Anna Nagar, Chennai"
+                />
+              </Field>
+              <Field label="Accident Pincode" required>
+                <input
+                  type="text"
+                  value={incident.accidentPincode}
+                  onChange={(e) => updateIncident("accidentPincode", e.target.value)}
+                  className="input"
+                  placeholder="e.g. 600040"
+                  maxLength={10}
+                />
+              </Field>
+            </div>
             <Field label="Description of Accident" required>
               <textarea
                 value={incident.description}
@@ -240,7 +500,10 @@ export default function NewClaimPage() {
             <ReviewSection title="Incident Details">
               <ReviewRow label="Date of Incident" value={incident.incidentDate} />
               <ReviewRow label="Time of Incident" value={incident.incidentTime || "-"} />
+              <ReviewRow label="Claim Type" value={incident.claimType || "-"} />
+              <ReviewRow label="Estimated Claim Amount" value={incident.claimAmount ? `₹${incident.claimAmount}` : "-"} />
               <ReviewRow label="Place of Accident" value={incident.placeOfAccident} />
+              <ReviewRow label="Accident Pincode" value={incident.accidentPincode} />
               <ReviewRow label="Description" value={incident.description} />
               <ReviewRow label="Police Station" value={incident.policeStation || "-"} />
               <ReviewRow label="Third Party Involved" value={incident.thirdPartyInvolved === "yes" ? "Yes" : "No"} />
@@ -251,26 +514,17 @@ export default function NewClaimPage() {
               <ReviewRow label="Policy" value={selectedPolicy ? `${selectedPolicy.Policy_Number} (${selectedPolicy.Policy_Type})` : "-"} />
             </ReviewSection>
             <ReviewSection title="Documents">
-              {DOCUMENT_CATEGORIES.filter((c) => files[c.key]).length === 0 ? (
+              {selectedFiles.length === 0 ? (
                 <p className="text-sm text-muted">No documents selected.</p>
               ) : (
-                DOCUMENT_CATEGORIES.filter((c) => files[c.key]).map((c) => (
-                  <ReviewRow key={c.key} label={c.label} value={files[c.key].name} />
-                ))
+                selectedFiles.map((c) => <ReviewRow key={c.key} label={c.label} value={files[c.key].name} />)
               )}
             </ReviewSection>
 
-            {submitAttempted && (
-              <div className="flex gap-3 rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-                <div>
-                  <p className="font-medium">Claim submission is not yet connected to the backend</p>
-                  <p className="mt-1 text-amber-800">
-                    The CI-MICOP API does not currently expose a claim-creation endpoint (only claim
-                    retrieval). Your information above has not been saved anywhere. This will be wired
-                    up once that backend endpoint is available.
-                  </p>
-                </div>
+            {submitError && (
+              <div className="flex gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+                <p>{submitError}</p>
               </div>
             )}
           </div>
@@ -279,6 +533,7 @@ export default function NewClaimPage() {
         <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
           <Button
             variant="secondary"
+            disabled={isSubmitting}
             onClick={() => (step === 1 ? navigate("/customer/claims") : setStep((s) => s - 1))}
           >
             {step === 1 ? "Cancel" : "Back"}
@@ -291,7 +546,9 @@ export default function NewClaimPage() {
               Next
             </Button>
           ) : (
-            <Button onClick={() => setSubmitAttempted(true)}>Submit Claim</Button>
+            <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Claim"}
+            </Button>
           )}
         </div>
       </Card>
