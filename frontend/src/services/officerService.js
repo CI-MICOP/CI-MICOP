@@ -13,6 +13,24 @@ export async function getClaimProcessingDetail(claimId) {
   return response.data;
 }
 
+// Live AI/ML -> FastAPI -> React integration (Step 5.8.10). Read-only:
+// this call cannot create, update, or influence Claim.Final_Decision -
+// see services/claim_decision.py, which remains the only decision
+// write path.
+export async function getAiAnalysis(claimId) {
+  const response = await apiClient.get(`/officer/claims/${claimId}/ai-analysis`);
+  return response.data;
+}
+
+// On-demand live analysis of this claim's actual current data (Step
+// 5.8.11). Analyze-only, not persisted server-side - see
+// services/ai_pipeline.py, which cannot touch Claim.Final_Decision or
+// Approved_Amount.
+export async function runAiAnalysis(claimId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/ai-analysis/run`);
+  return response.data;
+}
+
 export async function getSurveyors() {
   const response = await apiClient.get("/officer/surveyors");
   return response.data;

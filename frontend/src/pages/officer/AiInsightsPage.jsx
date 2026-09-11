@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import Breadcrumbs from "../../components/common/Breadcrumbs";
@@ -6,25 +6,39 @@ import Card from "../../components/common/Card";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import AIInsightCard from "../../components/officer/ai/AIInsightCard";
+import LiveAiAnalysisPanel from "../../components/officer/ai/LiveAiAnalysisPanel";
+import LiveRunPanel from "../../components/officer/ai/LiveRunPanel";
 import ClaimTabs from "../../components/officer/ClaimTabs";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
+import { useFetch } from "../../hooks/useFetch";
 import { getAiInsightsForClaim, listDemonstrationExamples } from "../../services/aiRiskService";
+import { getAiAnalysis } from "../../services/officerService";
 
 /**
- * Step 5.5: read-only "AI Risk Insights" surface, wired to the Step 5.4
- * risk-fusion research prototype (ai_ml/risk_fusion, ai_ml/experiments/
- * run_risk_fusion_experiment.py) via a static, bundled export of its
- * ACTUAL output - see src/services/aiRiskService.js. No backend AI
- * endpoint exists or was added for this step; nothing on this page is
- * connected to any decision action. See
- * docs/project_documentation/AI_OFFICER_INTEGRATION.md.
+ * Step 5.8.10: the currently-open claim's AI analysis is now live -
+ * GET /officer/claims/{claimId}/ai-analysis (see
+ * services/officerService.js, backend app/services/ai_analysis.py) -
+ * replacing the Step 5.5 static per-claim lookup. The "AI Demonstration
+ * Examples" section below remains backed by the Step 5.4 static export
+ * (src/services/aiRiskService.js) because it deliberately lets an
+ * officer browse the 4 representative research examples by their
+ * original dataset Claim_ID, independent of which real claim is
+ * currently open - those example claims do not exist in the live
+ * `claims` table, so the live endpoint cannot serve them. See
+ * docs/project_documentation/AI_BACKEND_INTEGRATION.md.
  */
 export default function AiInsightsPage() {
   const { claimId } = useParams();
   const { data, isLoading, error, reload } = useClaimWorkspace(claimId);
   const examples = useMemo(() => listDemonstrationExamples(), []);
   const [selectedExampleKey, setSelectedExampleKey] = useState("");
+
+  const fetchAiAnalysis = useCallback(() => getAiAnalysis(claimId), [claimId]);
+  const { data: analysis, isLoading: isAnalysisLoading, error: analysisError, reload: reloadAnalysis } = useFetch(
+    fetchAiAnalysis,
+    [fetchAiAnalysis]
+  );
 
   if (isLoading) return <LoadingState label="Loading claim..." />;
   if (error) {
@@ -37,7 +51,6 @@ export default function AiInsightsPage() {
   }
 
   const { claim } = data;
-  const insight = getAiInsightsForClaim(claim.Claim_ID);
   const selectedExample = examples.find((example) => example.key === selectedExampleKey) ?? null;
   const exampleInsight = selectedExample ? getAiInsightsForClaim(selectedExample.claimId) : null;
 
@@ -50,7 +63,15 @@ export default function AiInsightsPage() {
       />
       <ClaimTabs claimId={claim.Claim_ID} />
 
-      <AIInsightCard insight={insight} />
+      <LiveRunPanel claimId={claim.Claim_ID} onAfterRun={reloadAnalysis} />
+
+      {isAnalysisLoading ? (
+        <LoadingState label="Loading AI analysis..." />
+      ) : analysisError ? (
+        <ClaimWorkspaceError error={analysisError} onRetry={reloadAnalysis} />
+      ) : (
+        <LiveAiAnalysisPanel analysis={analysis} />
+      )}
 
       <Card className="mt-6">
         <h3 className="mb-1 text-sm font-semibold text-ink">AI Demonstration Examples</h3>

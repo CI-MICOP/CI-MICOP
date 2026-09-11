@@ -20,10 +20,12 @@ from app.schemas.claim_detail import (
     RepairEstimateOut,
     VehicleDamageOut,
 )
+from app.schemas.ai_analysis import AiClaimAnalysisOut
+from app.schemas.ai_pipeline import LiveAiAnalysisRunOut
 from app.schemas.document import DocumentOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
 from app.schemas.surveyor import SurveyorInspectionOut
-from app.services import claim_decision, surveyor_assignment
+from app.services import ai_analysis, ai_pipeline, claim_decision, surveyor_assignment
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/officer", tags=["officer"])
@@ -121,3 +123,33 @@ def read_claim_processing_detail(
             ClaimDecisionAuditOut.model_validate(a) for a in crud_audit.list_by_claim(db, claim_id)
         ],
     }
+
+
+@router.get("/claims/{claim_id}/ai-analysis", response_model=AiClaimAnalysisOut)
+def read_ai_analysis(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Read-only aggregation of existing AI/ML artifacts for this claim -
+    the Step 5.4 risk-fusion research prototype plus the fraud_risk_analysis/
+    cross_document_consistency/repair_estimates tables. Computes nothing
+    live and has no write path - see services/ai_analysis.py and
+    docs/project_documentation/AI_BACKEND_INTEGRATION.md."""
+    return ai_analysis.get_ai_analysis_for_claim(db, claim_id)
+
+
+@router.post("/claims/{claim_id}/ai-analysis/run", response_model=LiveAiAnalysisRunOut)
+def run_live_ai_analysis(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """On-demand live AI analysis for THIS claim's actual current data -
+    the "NEW/LIVE CLAIM DATA -> AI processing -> AI result" pipeline that
+    the read-only GET /ai-analysis endpoint (Step 5.8.10) does not
+    provide. Analyze-only: has no write path, cannot touch
+    Claim.Final_Decision/Approved_Amount, and its result is never
+    persisted - see services/ai_pipeline.py and
+    docs/project_documentation/LIVE_AI_PIPELINE.md."""
+    return ai_pipeline.run_claim_ai_analysis(db, claim_id)

@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     EVIDENCE_STORAGE_ROOT: str = str(_REPO_ROOT / "infra" / "storage" / "evidence")
     EVIDENCE_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 MB
 
+    # Step 5.4 risk-fusion research-prototype artifacts (read-only static
+    # files, same source frontend/src/data/aiRiskFusionDemo.json was
+    # hand-exported from - see docs/project_documentation/
+    # AI_BACKEND_INTEGRATION.md). Never written to by the API.
+    RISK_FUSION_ARTIFACTS_ROOT: str = str(_REPO_ROOT / "ai_ml" / "model_artifacts")
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
