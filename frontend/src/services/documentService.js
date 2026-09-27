@@ -11,6 +11,14 @@ export async function getDocumentById(documentId) {
   return response.data;
 }
 
+// Step 5.8.12: on-demand OCR/completeness analysis for one document. Never
+// approves/rejects anything - purely returns the genuinely extracted/
+// computed result (see backend/app/services/document_analysis.py).
+export async function analyzeDocument(documentId) {
+  const response = await apiClient.post(`/documents/${documentId}/analyze`);
+  return response.data;
+}
+
 // multipart/form-data - Content-Type (with its boundary) is left for
 // Axios/the browser to set automatically; never set it manually here.
 // Customer_ID is never sent - the backend derives it from the JWT.

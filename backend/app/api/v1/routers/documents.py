@@ -2,10 +2,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_user, get_db, require_customer_id
+from app.crud import claim as crud_claim
 from app.crud import document as crud_document
 from app.db_models.authentication_user import AuthenticationUser
 from app.schemas.document import DocumentOut
-from app.services import document_upload
+from app.schemas.document_analysis import DocumentAnalysisOut, DocumentCompletenessOut
+from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
+from app.services import document_analysis, document_upload, entity_extraction
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -47,3 +50,70 @@ def read_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     get_claim_or_403(db, document.Claim_ID, current_user)
     return document
+
+
+@router.post("/{document_id}/analyze", response_model=DocumentAnalysisOut)
+def analyze_document(
+    document_id: str,
+    current_user: AuthenticationUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Step 5.8.12: on-demand OCR/text-extraction for this ONE document
+    (see services/document_analysis.py). Genuinely extracts and persists
+    Extracted_Text/OCR_Confidence_Score - never fabricates either. The
+    completeness figure returned here is computed live from the claim's
+    current documents but NOT persisted (see analyze_claim_documents in
+    officer.py for the claim-level endpoint that does persist it) - this
+    keeps a single-document view from silently rewriting every other
+    document row on the claim. Analysis-only: never touches
+    Final_Decision, Approved_Amount, or claim_decision_audit."""
+    document = crud_document.get(db, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    get_claim_or_403(db, document.Claim_ID, current_user)
+
+    result = document_analysis.analyze_document(db, document)
+
+    claim = crud_claim.get(db, document.Claim_ID)
+    documents = crud_document.list_by_claim(db, document.Claim_ID)
+    completeness = document_analysis.calculate_claim_document_completeness(claim.Claim_Type, documents)
+
+    # Step 5.8.13-A: best-effort, deterministic, read-time-only entity
+    # extraction from the text just produced above - never persisted, never
+    # compared against the claim's structured data (that is Step 5.8.13-B).
+    entities = entity_extraction.extract_entities(
+        result.text, document_type=document.Document_Type, ocr_confidence=result.confidence
+    )
+
+    return DocumentAnalysisOut(
+        Document_ID=document.Document_ID,
+        Document_Type=document.Document_Type,
+        extraction_status=result.status,
+        extracted_text=result.text,
+        ocr_confidence=result.confidence,
+        mismatch_indicator=document.Document_Mismatch_Indicator,
+        completeness=DocumentCompletenessOut(
+            available=completeness.available,
+            required_document_types=completeness.required,
+            present_document_types=completeness.present,
+            missing_document_types=completeness.missing,
+            completeness_ratio=completeness.ratio,
+            explanation=completeness.explanation,
+        ),
+        entities=EntityExtractionResultOut(
+            status=entities.status,
+            entities=[
+                EntityCandidateOut(
+                    entity_type=e.entity_type,
+                    value=e.value,
+                    normalized_value=e.normalized_value,
+                    confidence=e.confidence,
+                    source=e.source,
+                    reason=e.reason,
+                )
+                for e in entities.entities
+            ],
+            limitations=entities.limitations,
+        ),
+        limitations=result.limitations,
+    )

@@ -10,15 +10,21 @@ data that actually exists for a live claim, as opposed to data that only
 ever existed in the offline synthetic research dataset or as Step
 5.8.x's own honest "not yet analyzed" placeholders.
 
-Conclusion (see the docs for the full audit table): only 2 of 7 signal
-families are genuinely live-computable today -
+Conclusion (see the docs for the full audit table): as of Step 5.8.11,
+only 2 of 7 signal families were genuinely live-computable -
 `claim_pattern_anomaly` (claim-filed-vs-policy-start timing) and
 `repair_estimate_anomaly` (repair-estimate/claim-amount ratio only, NOT
 the Excessive_Claim_Amount_Indicator flag, which is always a placeholder
-for a live estimate). The other 5 depend on document OCR, cross-document
-consistency, or duplicate-evidence detection - none of which has a live
-computation path anywhere in this codebase - and are always reported
-explicitly unavailable, never fabricated from placeholder defaults.
+for a live estimate). Step 5.8.12 adds a genuine, deterministic
+`document_completeness` signal (see services/document_analysis.py) once a
+claim has at least one uploaded document - a rule-based required-vs-present
+Document_Type comparison, not machine learning - bringing the total to 3
+of 7. The remaining 4 (`document_consistency_mismatch`, `evidence_duplication`,
+`fraud_screening_rule_score`, `information_quality`) still depend on
+document OCR-derived entity extraction, cross-document consistency, or
+duplicate-evidence detection - none of which has a live computation path
+yet - and are always reported explicitly unavailable, never fabricated
+from placeholder defaults.
 
 The fusion/uncertainty math itself (`_fuse`, `_compute_uncertainty`) is
 ported faithfully from `ai_ml/risk_fusion/fusion_engine.py` and
@@ -45,7 +51,9 @@ from app.crud import repair_estimate as crud_repair_estimate
 from app.crud import surveyor_inspection as crud_inspection
 from app.crud import vehicle_damage as crud_vehicle_damage
 from app.db_models.claim import Claim
+from app.db_models.document import Document
 from app.schemas.ai_pipeline import EvidenceSummaryOut, LiveAiAnalysisRunOut, LiveSignalOut
+from app.services import document_analysis
 
 METHODOLOGY_SOURCE = (
     "Signal/fusion/uncertainty formulas ported faithfully from the Step 5.4 risk-fusion "
@@ -74,8 +82,14 @@ CONFIDENCE_BAND_THRESHOLDS = {"HIGH_CONFIDENCE": 0.70, "MEDIUM_CONFIDENCE": 0.45
 # ai_ml.risk_fusion.fusion_engine.RISK_BAND_THRESHOLDS, ported unchanged.
 RISK_BAND_THRESHOLDS = {"CRITICAL": 0.75, "HIGH": 0.50, "MEDIUM": 0.25}
 
-# The 5 signal families this live pipeline cannot compute today, and
-# exactly why - see this module's docstring and LIVE_AI_PIPELINE.md.
+# Signal families this live pipeline cannot compute today, and exactly
+# why - see this module's docstring and LIVE_AI_PIPELINE.md.
+# "document_completeness" is a special case as of Step 5.8.12: it has a
+# genuine live computation (document_analysis.calculate_claim_document_
+# completeness) and is normally computed by _document_completeness_signal
+# below - this entry is only used as its fallback for the one case that
+# function itself reports unavailable (a claim with zero documents, where
+# there is no analyzable document set at all - see Phase 10 of Step 5.8.12).
 _UNAVAILABLE_SIGNAL_REASONS: dict[str, tuple[str, str]] = {
     "document_consistency_mismatch": (
         "DOCUMENT_CONSISTENCY",
@@ -99,9 +113,9 @@ _UNAVAILABLE_SIGNAL_REASONS: dict[str, tuple[str, str]] = {
     ),
     "document_completeness": (
         "DOCUMENT_COMPLETENESS",
-        "OCR/document-completeness inference is not connected to the live document upload "
-        "pipeline - Document.Document_Completeness is always an honest 'not yet analyzed' "
-        "placeholder (0.0000) for documents uploaded through the live application.",
+        "No documents have been uploaded for this claim yet, so there is no document set to "
+        "compare against the required document types for its claim type - this is not the "
+        "same as 0% complete (see docs/project_documentation/DOCUMENT_COMPLETENESS_AND_OCR.md).",
     ),
     "information_quality": (
         "INFORMATION_QUALITY",
@@ -175,6 +189,36 @@ def _repair_estimate_ratio_signal(claim: Claim, repair_estimates: list) -> LiveS
             "always an honest 'not yet analyzed' placeholder rather than a genuine prediction (see "
             "SURVEYOR_REPAIR_ESTIMATE_WORKFLOW.md)."
         ),
+    )
+
+
+def _document_completeness_signal(claim: Claim, documents: list[Document]) -> LiveSignalOut:
+    """Step 5.8.12: a genuine, deterministic (not machine-learned) signal -
+    see document_analysis.calculate_claim_document_completeness. Reports
+    unavailable, via the same _unavailable_signal fallback as every other
+    unsupported signal, only when the claim has zero documents (no
+    analyzable document set at all - not the same as "0% complete")."""
+    result = document_analysis.calculate_claim_document_completeness(claim.Claim_Type, documents)
+    if not result.available:
+        return _unavailable_signal("document_completeness")
+
+    # Higher signal_value = more anomalous/concerning, matching the other
+    # two live signals' convention - so incompleteness (not completeness)
+    # is what raises this signal's contribution to the fused risk score.
+    incompleteness = round(1.0 - result.ratio, 4)
+    explanation = result.explanation
+    if result.missing:
+        explanation += f" Missing: {', '.join(result.missing)}."
+    else:
+        explanation += " All required document types are present."
+
+    return LiveSignalOut(
+        signal_name="document_completeness",
+        category="DOCUMENT_COMPLETENESS",
+        signal_value=incompleteness,
+        availability="available",
+        confidence=1.0,
+        explanation=explanation,
     )
 
 
@@ -272,13 +316,14 @@ def run_claim_ai_analysis(db: Session, claim_id: str) -> LiveAiAnalysisRunOut:
     signals = [
         _claim_timing_signal(claim, policy),
         _repair_estimate_ratio_signal(claim, repair_estimates),
+        _document_completeness_signal(claim, documents),
         _unavailable_signal("document_consistency_mismatch"),
         _unavailable_signal("evidence_duplication"),
         _unavailable_signal("fraud_screening_rule_score"),
-        _unavailable_signal("document_completeness"),
         _unavailable_signal("information_quality"),
     ]
     available_count = sum(1 for s in signals if s.availability == "available")
+    unavailable_names = [s.signal_name for s in signals if s.availability != "available"]
 
     confidence_score, confidence_band, uncertainty_reasons = _compute_uncertainty(signals)
 
@@ -286,10 +331,12 @@ def run_claim_ai_analysis(db: Session, claim_id: str) -> LiveAiAnalysisRunOut:
         "This is a research-prototype live pipeline validated only on a synthetic/de-identified "
         "dataset - see docs/project_documentation/AI_VS_NON_AI_RESULTS.md.",
         f"Only {available_count}/{TOTAL_DEFINED_SIGNALS} signal families defined by the Step 5.4 "
-        "research prototype could be computed live for this claim. Document consistency, evidence "
-        "duplication, document completeness, information quality/OCR, and fraud screening all "
-        "require analysis pipelines that do not exist in this application yet - see "
-        "docs/project_documentation/LIVE_AI_PIPELINE.md for exactly why.",
+        "research prototype could be computed live for this claim"
+        + (f" (unavailable: {', '.join(unavailable_names)})." if unavailable_names else ".")
+        + " Document consistency, evidence duplication, and fraud screening all require analysis "
+        "pipelines that do not exist in this application yet; information quality/OCR confidence "
+        "is not treated as validated just because text extraction exists - see "
+        "docs/project_documentation/LIVE_AI_PIPELINE.md and DOCUMENT_COMPLETENESS_AND_OCR.md for exactly why.",
     ]
 
     if confidence_band == "INSUFFICIENT_EVIDENCE":

@@ -19,6 +19,33 @@ def create(db: Session, document: Document) -> Document:
     return document
 
 
+# Fields Step 5.8.12's document-analysis service is allowed to write back -
+# every other Document column (Claim_ID, Document_Type, Document_Name, ...)
+# is set once at upload time and never mutated afterward.
+_UPDATABLE_FIELDS = frozenset(
+    {
+        "OCR_Confidence_Score",
+        "Extracted_Text",
+        "Document_Completeness",
+        "Document_Mismatch_Indicator",
+        "Verification_Status",
+        "Document_Status",
+    }
+)
+
+
+def update_analysis_fields(db: Session, document: Document, **fields) -> Document:
+    """Applies only the supplied Document_Analysis fields, leaving every
+    other column (and any field not passed) untouched."""
+    unknown = set(fields) - _UPDATABLE_FIELDS
+    if unknown:
+        raise ValueError(f"Cannot update non-analysis Document field(s): {sorted(unknown)}")
+    for name, value in fields.items():
+        setattr(document, name, value)
+    db.add(document)
+    return document
+
+
 def generate_document_id(db: Session, attempts: int = 20) -> str:
     """DOC-YYYYMMDD-XXXXXX, checked against the primary key before use -
     never accepted from the browser."""

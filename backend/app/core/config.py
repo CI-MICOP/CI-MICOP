@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     EVIDENCE_STORAGE_ROOT: str = str(_REPO_ROOT / "infra" / "storage" / "evidence")
     EVIDENCE_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 MB
 
+    # Step 5.8.12 document OCR - pytesseract is only a Python wrapper; the
+    # Tesseract executable itself is a separate system-level install. Empty
+    # string means "use whatever `tesseract` resolves to on PATH" (pytesseract's
+    # own default) - set this only if Tesseract is installed somewhere PATH
+    # does not cover. See docs/project_documentation/DOCUMENT_COMPLETENESS_AND_OCR.md.
+    TESSERACT_CMD: str = ""
+
     # Step 5.4 risk-fusion research-prototype artifacts (read-only static
     # files, same source frontend/src/data/aiRiskFusionDemo.json was
     # hand-exported from - see docs/project_documentation/

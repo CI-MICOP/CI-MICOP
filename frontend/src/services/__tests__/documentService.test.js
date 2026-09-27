@@ -8,7 +8,7 @@ vi.mock("../apiClient", () => ({
 }));
 
 import { apiClient } from "../apiClient";
-import { getDocumentById, listDocumentsByClaim, uploadDocument } from "../documentService";
+import { analyzeDocument, getDocumentById, listDocumentsByClaim, uploadDocument } from "../documentService";
 
 describe("documentService", () => {
   beforeEach(() => {
@@ -65,5 +65,13 @@ describe("documentService", () => {
     apiClient.get.mockResolvedValueOnce({ data: { Document_ID: "DOC-1" } });
     await getDocumentById("DOC-1");
     expect(apiClient.get).toHaveBeenCalledWith("/documents/DOC-1");
+  });
+
+  it("analyzeDocument() calls POST /documents/:id/analyze", async () => {
+    const result = { Document_ID: "DOC-1", extraction_status: "extracted_native" };
+    apiClient.post.mockResolvedValueOnce({ data: result });
+    const response = await analyzeDocument("DOC-1");
+    expect(apiClient.post).toHaveBeenCalledWith("/documents/DOC-1/analyze");
+    expect(response).toEqual(result);
   });
 });

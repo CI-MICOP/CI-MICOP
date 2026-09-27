@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_db, require_claims_officer_employee_id, require_roles
@@ -23,9 +23,11 @@ from app.schemas.claim_detail import (
 from app.schemas.ai_analysis import AiClaimAnalysisOut
 from app.schemas.ai_pipeline import LiveAiAnalysisRunOut
 from app.schemas.document import DocumentOut
+from app.schemas.document_analysis import ClaimDocumentAnalysisOut, DocumentAnalysisOut, DocumentCompletenessOut
+from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
 from app.schemas.surveyor import SurveyorInspectionOut
-from app.services import ai_analysis, ai_pipeline, claim_decision, surveyor_assignment
+from app.services import ai_analysis, ai_pipeline, claim_decision, document_analysis, entity_extraction, surveyor_assignment
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/officer", tags=["officer"])
@@ -153,3 +155,79 @@ def run_live_ai_analysis(
     persisted - see services/ai_pipeline.py and
     docs/project_documentation/LIVE_AI_PIPELINE.md."""
     return ai_pipeline.run_claim_ai_analysis(db, claim_id)
+
+
+@router.post("/claims/{claim_id}/documents/analyze", response_model=ClaimDocumentAnalysisOut)
+def analyze_claim_documents(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Step 5.8.12: OCRs every document currently on this claim and
+    persists ONE claim-level document-completeness ratio onto each of
+    those Document rows (the schema has no claim-level completeness
+    column - see services/document_analysis.py and
+    docs/project_documentation/DOCUMENT_COMPLETENESS_AND_OCR.md).
+    Analysis-only: never touches Final_Decision, Approved_Amount, or
+    claim_decision_audit, and never approves/rejects a claim."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    documents, results, completeness = document_analysis.analyze_claim_documents(db, claim)
+
+    def _entities_out(document, result) -> EntityExtractionResultOut:
+        # Step 5.8.13-A: best-effort, deterministic, read-time-only - never
+        # persisted, never compared against the claim's structured data.
+        entities = entity_extraction.extract_entities(
+            result.text, document_type=document.Document_Type, ocr_confidence=result.confidence
+        )
+        return EntityExtractionResultOut(
+            status=entities.status,
+            entities=[
+                EntityCandidateOut(
+                    entity_type=e.entity_type,
+                    value=e.value,
+                    normalized_value=e.normalized_value,
+                    confidence=e.confidence,
+                    source=e.source,
+                    reason=e.reason,
+                )
+                for e in entities.entities
+            ],
+            limitations=entities.limitations,
+        )
+
+    return ClaimDocumentAnalysisOut(
+        Claim_ID=claim_id,
+        documents_analyzed=len(documents),
+        documents=[
+            DocumentAnalysisOut(
+                Document_ID=document.Document_ID,
+                Document_Type=document.Document_Type,
+                extraction_status=result.status,
+                extracted_text=result.text,
+                ocr_confidence=result.confidence,
+                mismatch_indicator=document.Document_Mismatch_Indicator,
+                completeness=DocumentCompletenessOut(
+                    available=completeness.available,
+                    required_document_types=completeness.required,
+                    present_document_types=completeness.present,
+                    missing_document_types=completeness.missing,
+                    completeness_ratio=completeness.ratio,
+                    explanation=completeness.explanation,
+                ),
+                entities=_entities_out(document, result),
+                limitations=result.limitations,
+            )
+            for document, result in zip(documents, results)
+        ],
+        completeness=DocumentCompletenessOut(
+            available=completeness.available,
+            required_document_types=completeness.required,
+            present_document_types=completeness.present,
+            missing_document_types=completeness.missing,
+            completeness_ratio=completeness.ratio,
+            explanation=completeness.explanation,
+        ),
+    )
