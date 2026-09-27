@@ -7,8 +7,9 @@ from app.crud import document as crud_document
 from app.db_models.authentication_user import AuthenticationUser
 from app.schemas.document import DocumentOut
 from app.schemas.document_analysis import DocumentAnalysisOut, DocumentCompletenessOut
+from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
-from app.services import document_analysis, document_upload, entity_extraction
+from app.services import document_analysis, document_consistency, document_upload, entity_extraction
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -85,6 +86,13 @@ def analyze_document(
         result.text, document_type=document.Document_Type, ocr_confidence=result.confidence
     )
 
+    # Step 5.8.13-B: deterministic MATCH/MISMATCH/UNAVAILABLE comparison
+    # against the claim's own structured vehicle/policy data. Re-reads
+    # every relevant document's already-persisted Extracted_Text (the
+    # commit above already made this document's own text visible) - it
+    # does not re-run OCR/extraction itself.
+    consistency = document_consistency.compare_claim_documents(db, claim)
+
     return DocumentAnalysisOut(
         Document_ID=document.Document_ID,
         Document_Type=document.Document_Type,
@@ -114,6 +122,24 @@ def analyze_document(
                 for e in entities.entities
             ],
             limitations=entities.limitations,
+        ),
+        consistency=DocumentConsistencyOut(
+            registration=EntityConsistencyOut(
+                status=consistency.registration.status,
+                structured_value=consistency.registration.structured_value,
+                extracted_value=consistency.registration.extracted_value,
+                matched_document_type=consistency.registration.matched_document_type,
+                matched_document_id=consistency.registration.matched_document_id,
+                explanation=consistency.registration.explanation,
+            ),
+            policy=EntityConsistencyOut(
+                status=consistency.policy.status,
+                structured_value=consistency.policy.structured_value,
+                extracted_value=consistency.policy.extracted_value,
+                matched_document_type=consistency.policy.matched_document_type,
+                matched_document_id=consistency.policy.matched_document_id,
+                explanation=consistency.policy.explanation,
+            ),
         ),
         limitations=result.limitations,
     )

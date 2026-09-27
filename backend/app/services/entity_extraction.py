@@ -49,9 +49,17 @@ _REG_STRICT = re.compile(
 # value. Deliberately excludes spaces from the captured token (unlike the
 # strict pattern above) so it can never bleed into the next word of
 # ordinary sentence text (e.g. "reg no TN-01-AB-0001 noted" must not
-# capture "TN-01-AB-0001 n").
+# capture "TN-01-AB-0001 n"). The compound "vehicle registration"/"vehicle
+# reg" alternatives are listed BEFORE the bare "vehicle" one: without that
+# ordering, "Vehicle Registration Number: X" would match "vehicle" alone at
+# the first word and then wrongly capture the literal word "Registration"
+# as if it were the value (regex alternation does not backtrack to find a
+# "better" match elsewhere once one alternative lets the whole pattern
+# succeed) - confirmed by a Step 5.8.13-B integration test that failed
+# until this ordering was fixed.
 _REG_KEYWORD = re.compile(
-    r"(?:registration|reg\.?|vehicle)\s*(?:no\.?|number|#)?\s*[:\-]?\s*"
+    r"(?:vehicle\s+registration|vehicle\s+reg\.?|registration|reg\.?|vehicle)\s*"
+    r"(?:no\.?|number|#)?\s*[:\-]?\s*"
     r"([A-Za-z0-9][A-Za-z0-9\-]{3,13}[A-Za-z0-9])",
     re.IGNORECASE,
 )
@@ -123,16 +131,23 @@ class EntityExtractionResult:
     limitations: list[str]
 
 
-def _normalize_registration(raw: str) -> str:
+def normalize_registration(raw: str) -> str:
     """Uppercase, and collapse internal spaces/hyphens - the identifier
     itself is never altered beyond whitespace/case, per the no-aggressive-
-    mutation rule; the original `value` is always preserved alongside this."""
+    mutation rule; the original `value` is always preserved alongside this.
+
+    Public (not module-private) so Step 5.8.13-B's document_consistency.py
+    can normalize the structured vehicles.Registration_Number the exact
+    same way before comparing it to an extracted candidate - see that
+    module's docstring for why a second, possibly-diverging normalization
+    implementation must not exist."""
     return re.sub(r"[ \-]+", "", raw).upper()
 
 
-def _normalize_policy(raw: str) -> str:
+def normalize_policy(raw: str) -> str:
     """Uppercase and collapse whitespace only - hyphens are preserved
-    since they are part of this project's own POL-XXXXXX convention."""
+    since they are part of this project's own POL-XXXXXX convention.
+    Public for the same reason as normalize_registration above."""
     collapsed = re.sub(r"\s+", " ", raw).strip()
     return collapsed.upper()
 
@@ -149,7 +164,7 @@ def _extract_registration_candidates(text: str, document_type: str | None) -> li
 
     for match in _REG_STRICT.finditer(text):
         raw = match.group(0)
-        normalized = _normalize_registration(raw)
+        normalized = normalize_registration(raw)
         if normalized in seen_normalized:
             continue
         seen_normalized.add(normalized)
@@ -172,7 +187,7 @@ def _extract_registration_candidates(text: str, document_type: str | None) -> li
         raw = match.group(1).strip()
         if not any(ch.isdigit() for ch in raw):
             continue
-        normalized = _normalize_registration(raw)
+        normalized = normalize_registration(raw)
         if normalized in seen_normalized:
             continue
         seen_normalized.add(normalized)
@@ -197,7 +212,7 @@ def _extract_policy_candidates(text: str, document_type: str | None) -> list[Ent
 
     for match in _POLICY_STRICT.finditer(text):
         raw = match.group(0)
-        normalized = _normalize_policy(raw)
+        normalized = normalize_policy(raw)
         if normalized in seen_normalized:
             continue
         seen_normalized.add(normalized)
@@ -217,7 +232,7 @@ def _extract_policy_candidates(text: str, document_type: str | None) -> list[Ent
         raw = match.group(1).strip()
         if not any(ch.isdigit() for ch in raw):
             continue
-        normalized = _normalize_policy(raw)
+        normalized = normalize_policy(raw)
         if normalized in seen_normalized:
             continue
         seen_normalized.add(normalized)

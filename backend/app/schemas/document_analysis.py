@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from app.schemas.document_consistency import DocumentConsistencyOut
 from app.schemas.entity_extraction import EntityExtractionResultOut
 
 
@@ -30,6 +31,7 @@ class DocumentAnalysisOut(BaseModel):
     mismatch_indicator: bool
     completeness: DocumentCompletenessOut
     entities: EntityExtractionResultOut
+    consistency: DocumentConsistencyOut
     limitations: list[str]
 
 
@@ -40,3 +42,4 @@ class ClaimDocumentAnalysisOut(BaseModel):
     documents_analyzed: int
     documents: list[DocumentAnalysisOut]
     completeness: DocumentCompletenessOut
+    consistency: DocumentConsistencyOut

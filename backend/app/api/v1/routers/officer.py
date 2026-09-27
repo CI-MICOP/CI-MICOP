@@ -24,10 +24,19 @@ from app.schemas.ai_analysis import AiClaimAnalysisOut
 from app.schemas.ai_pipeline import LiveAiAnalysisRunOut
 from app.schemas.document import DocumentOut
 from app.schemas.document_analysis import ClaimDocumentAnalysisOut, DocumentAnalysisOut, DocumentCompletenessOut
+from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
 from app.schemas.surveyor import SurveyorInspectionOut
-from app.services import ai_analysis, ai_pipeline, claim_decision, document_analysis, entity_extraction, surveyor_assignment
+from app.services import (
+    ai_analysis,
+    ai_pipeline,
+    claim_decision,
+    document_analysis,
+    document_consistency,
+    entity_extraction,
+    surveyor_assignment,
+)
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/officer", tags=["officer"])
@@ -176,6 +185,31 @@ def analyze_claim_documents(
 
     documents, results, completeness = document_analysis.analyze_claim_documents(db, claim)
 
+    # Step 5.8.13-B: computed once for the whole claim - re-reads every
+    # relevant document's already-persisted Extracted_Text (all just
+    # written above), never re-runs OCR itself.
+    consistency = document_consistency.compare_claim_documents(db, claim)
+
+    def _consistency_out() -> DocumentConsistencyOut:
+        return DocumentConsistencyOut(
+            registration=EntityConsistencyOut(
+                status=consistency.registration.status,
+                structured_value=consistency.registration.structured_value,
+                extracted_value=consistency.registration.extracted_value,
+                matched_document_type=consistency.registration.matched_document_type,
+                matched_document_id=consistency.registration.matched_document_id,
+                explanation=consistency.registration.explanation,
+            ),
+            policy=EntityConsistencyOut(
+                status=consistency.policy.status,
+                structured_value=consistency.policy.structured_value,
+                extracted_value=consistency.policy.extracted_value,
+                matched_document_type=consistency.policy.matched_document_type,
+                matched_document_id=consistency.policy.matched_document_id,
+                explanation=consistency.policy.explanation,
+            ),
+        )
+
     def _entities_out(document, result) -> EntityExtractionResultOut:
         # Step 5.8.13-A: best-effort, deterministic, read-time-only - never
         # persisted, never compared against the claim's structured data.
@@ -218,6 +252,7 @@ def analyze_claim_documents(
                     explanation=completeness.explanation,
                 ),
                 entities=_entities_out(document, result),
+                consistency=_consistency_out(),
                 limitations=result.limitations,
             )
             for document, result in zip(documents, results)
@@ -230,4 +265,5 @@ def analyze_claim_documents(
             completeness_ratio=completeness.ratio,
             explanation=completeness.explanation,
         ),
+        consistency=_consistency_out(),
     )
