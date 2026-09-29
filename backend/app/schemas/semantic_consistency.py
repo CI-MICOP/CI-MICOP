@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+from pydantic import BaseModel
+
+from app.schemas.document_consistency import DocumentConsistencyOut
+
+
+class DocumentRefOut(BaseModel):
+    document_id: str
+    document_type: str
+
+
+class SemanticConsistencyOut(BaseModel):
+    """Response shape for the Step 5.8.13-C narrative-consistency RESEARCH
+    PROTOTYPE - see services/semantic_consistency.py and
+    docs/project_documentation/SEMANTIC_DOCUMENT_CONSISTENCY.md.
+
+    confidence is always null in this prototype - no calibrated
+    probability exists here, and a raw similarity score is never exposed
+    labelled as one."""
+
+    document_a: DocumentRefOut | None
+    document_b: DocumentRefOut | None
+    relationship: str  # "CONSISTENT" | "CONTRADICTION" | "INCONCLUSIVE"
+    confidence: float | None
+    explanation: str
+    limitations: list[str]
+
+
+class ClaimSemanticConsistencyOut(BaseModel):
+    """Response for POST /officer/claims/{claim_id}/documents/semantic-consistency.
+
+    `narrative` (this step) and `deterministic` (Step 5.8.13-B, returned
+    completely unmodified) are two SEPARATE dimensions and are never
+    merged - a CONTRADICTION on one must never override or hide a MATCH on
+    the other, or vice versa (Step 5.8.13-C brief, Section 9)."""
+
+    Claim_ID: str
+    narrative: SemanticConsistencyOut
+    deterministic: DocumentConsistencyOut

@@ -27,6 +27,7 @@ from app.schemas.document_analysis import ClaimDocumentAnalysisOut, DocumentAnal
 from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
+from app.schemas.semantic_consistency import ClaimSemanticConsistencyOut, DocumentRefOut, SemanticConsistencyOut
 from app.schemas.surveyor import SurveyorInspectionOut
 from app.services import (
     ai_analysis,
@@ -35,6 +36,7 @@ from app.services import (
     document_analysis,
     document_consistency,
     entity_extraction,
+    semantic_consistency,
     surveyor_assignment,
 )
 from app.services.claim_access import get_claim_or_403
@@ -266,4 +268,65 @@ def analyze_claim_documents(
             explanation=completeness.explanation,
         ),
         consistency=_consistency_out(),
+    )
+
+
+@router.post("/claims/{claim_id}/documents/semantic-consistency", response_model=ClaimSemanticConsistencyOut)
+def analyze_claim_semantic_consistency(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Step 5.8.13-C: read-only semantic narrative-consistency RESEARCH
+    PROTOTYPE - compares this claim's FIR and Survey Report narrative text
+    for a stated-location agreement/disagreement signal only (see
+    services/semantic_consistency.py and
+    docs/project_documentation/SEMANTIC_DOCUMENT_CONSISTENCY.md). This is
+    NOT fraud detection, NOT a risk score, and is NOT wired into
+    ai_pipeline.py - an investigative signal for a Claims Officer only.
+    The existing Step 5.8.13-B deterministic registration/policy result is
+    returned alongside it, UNCHANGED and un-merged, so neither dimension
+    can silently override the other. Analysis-only: never touches
+    Final_Decision, Approved_Amount, or claim_decision_audit, and never
+    approves/rejects a claim."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    narrative = semantic_consistency.compare_claim_narrative(db, claim)
+    deterministic = document_consistency.compare_claim_documents(db, claim)
+
+    def _ref_out(ref):
+        if ref is None:
+            return None
+        return DocumentRefOut(document_id=ref.document_id, document_type=ref.document_type)
+
+    return ClaimSemanticConsistencyOut(
+        Claim_ID=claim_id,
+        narrative=SemanticConsistencyOut(
+            document_a=_ref_out(narrative.document_a),
+            document_b=_ref_out(narrative.document_b),
+            relationship=narrative.relationship,
+            confidence=narrative.confidence,
+            explanation=narrative.explanation,
+            limitations=narrative.limitations,
+        ),
+        deterministic=DocumentConsistencyOut(
+            registration=EntityConsistencyOut(
+                status=deterministic.registration.status,
+                structured_value=deterministic.registration.structured_value,
+                extracted_value=deterministic.registration.extracted_value,
+                matched_document_type=deterministic.registration.matched_document_type,
+                matched_document_id=deterministic.registration.matched_document_id,
+                explanation=deterministic.registration.explanation,
+            ),
+            policy=EntityConsistencyOut(
+                status=deterministic.policy.status,
+                structured_value=deterministic.policy.structured_value,
+                extracted_value=deterministic.policy.extracted_value,
+                matched_document_type=deterministic.policy.matched_document_type,
+                matched_document_id=deterministic.policy.matched_document_id,
+                explanation=deterministic.policy.explanation,
+            ),
+        ),
     )
