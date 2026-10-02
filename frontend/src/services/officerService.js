@@ -31,6 +31,24 @@ export async function runAiAnalysis(claimId) {
   return response.data;
 }
 
+// OCRs every document on this claim and persists only each document's own
+// analysis fields (Extracted_Text, OCR_Confidence_Score,
+// Document_Completeness) - Step 5.8.12. Never touches Final_Decision,
+// Approved_Amount, or claim_decision_audit.
+export async function analyzeClaimDocuments(claimId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/documents/analyze`);
+  return response.data;
+}
+
+// Read-only (Step 5.8.13-B/C): returns the deterministic registration/policy
+// result and the FIR <-> Survey Report narrative result as two SEPARATE
+// fields - see services/semantic_consistency.py. Reads already-extracted
+// text only; never re-runs OCR and never writes to the database.
+export async function checkClaimConsistency(claimId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/documents/semantic-consistency`);
+  return response.data;
+}
+
 export async function getSurveyors() {
   const response = await apiClient.get("/officer/surveyors");
   return response.data;

@@ -8,6 +8,7 @@ import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import ClaimTabs from "../../components/officer/ClaimTabs";
+import ConsistencyFindingsPanel from "../../components/officer/ConsistencyFindingsPanel";
 import { getStatusTone } from "../../utils/statusTone";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
@@ -47,9 +48,22 @@ export default function DocumentConsistencyPage() {
       <PageHeader title={`Document Consistency — ${claim.Claim_Number}`} />
       <ClaimTabs claimId={claim.Claim_ID} />
 
+      <ConsistencyFindingsPanel claimId={claim.Claim_ID} />
+
+      {/* The cross_document_consistency row below comes from the seeded
+          synthetic dataset - it is NOT computed from this claim's uploaded
+          documents (see SEMANTIC_DOCUMENT_CONSISTENCY.md, Section 18). */}
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold text-ink">Recorded Dataset Values</h2>
+        <p className="mt-1 text-sm text-muted">
+          Stored consistency record from the synthetic research dataset - not computed from this claim's uploaded
+          documents.
+        </p>
+      </div>
+
       {!consistency ? (
         <Card>
-          <EmptyState icon={FileCheck2} title="No cross-document consistency data available for this claim yet" />
+          <EmptyState icon={FileCheck2} title="No recorded consistency data for this claim" />
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
