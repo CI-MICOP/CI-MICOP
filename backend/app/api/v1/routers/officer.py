@@ -26,6 +26,7 @@ from app.schemas.document import DocumentOut
 from app.schemas.document_analysis import ClaimDocumentAnalysisOut, DocumentAnalysisOut, DocumentCompletenessOut
 from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
+from app.schemas.evidence_duplication import ClaimEvidenceDuplicationOut, EvidenceDuplicationOut, EvidenceMatchOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
 from app.schemas.semantic_consistency import ClaimSemanticConsistencyOut, DocumentRefOut, SemanticConsistencyOut
 from app.schemas.surveyor import SurveyorInspectionOut
@@ -36,6 +37,7 @@ from app.services import (
     document_analysis,
     document_consistency,
     entity_extraction,
+    evidence_duplication,
     semantic_consistency,
     surveyor_assignment,
 )
@@ -329,4 +331,51 @@ def analyze_claim_semantic_consistency(
                 explanation=deterministic.policy.explanation,
             ),
         ),
+    )
+
+
+@router.post("/claims/{claim_id}/evidence/duplication-check", response_model=ClaimEvidenceDuplicationOut)
+def check_claim_evidence_duplication(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Step 5.8.14: read-only evidence duplication / reuse check - compares
+    each photo on this claim with every other stored evidence photo (this
+    claim and other claims) using SHA-256 and a 64-bit difference hash (see
+    services/evidence_duplication.py and
+    docs/project_documentation/EVIDENCE_DUPLICATION.md). This is NOT fraud
+    detection, NOT a risk score, and is NOT wired into ai_pipeline.py.
+    Analysis-only: never writes Evidence.Duplicate_Evidence_Indicator,
+    never touches Final_Decision, Approved_Amount, or claim_decision_audit."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    result = evidence_duplication.check_claim_evidence(db, claim)
+    return ClaimEvidenceDuplicationOut(
+        Claim_ID=claim_id,
+        photos_checked=result.photos_checked,
+        photos_compared_against=result.photos_compared_against,
+        results=[
+            EvidenceDuplicationOut(
+                evidence_id=r.evidence_id,
+                evidence_type=r.evidence_type,
+                file_name=r.file_name,
+                status=r.status,
+                matches=[
+                    EvidenceMatchOut(
+                        evidence_id=m.evidence_id,
+                        claim_id=m.claim_id,
+                        same_claim=m.same_claim,
+                        match_type=m.match_type,
+                        hash_distance=m.hash_distance,
+                    )
+                    for m in r.matches
+                ],
+                explanation=r.explanation,
+            )
+            for r in result.results
+        ],
+        limitations=result.limitations,
     )

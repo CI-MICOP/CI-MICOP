@@ -14,6 +14,10 @@ def list_by_claim(db: Session, claim_id: str) -> list[Evidence]:
     return db.query(Evidence).filter(Evidence.Claim_ID == claim_id).order_by(Evidence.Evidence_ID).all()
 
 
+def list_all(db: Session) -> list[Evidence]:
+    return db.query(Evidence).order_by(Evidence.Evidence_ID).all()
+
+
 def create(db: Session, evidence: Evidence) -> Evidence:
     db.add(evidence)
     return evidence
