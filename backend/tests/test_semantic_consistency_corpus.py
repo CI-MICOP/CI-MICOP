@@ -70,11 +70,13 @@ def test_agreement_summary_matches_validation_report():
     fails, the corpus or the prototype changed and the report must be
     updated to match."""
     outcomes = Counter((case.ideal, case.observed) for case in CORPUS)
-    assert len(CORPUS) == 18
-    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 8
-    assert outcomes[(CONSISTENT, CONTRADICTION)] == 3  # false contradiction
-    assert outcomes[(CONSISTENT, INCONCLUSIVE)] == 6  # missed agreement
-    assert outcomes[(CONTRADICTION, INCONCLUSIVE)] == 1  # missed contradiction
+    # Step 5.8.13-E: 18 cases, 8 agreeing. Step 5.8.17 fixed V12/V15/V17 and
+    # added held-out cases V19-V23.
+    assert len(CORPUS) == 23
+    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 15
+    assert outcomes[(CONSISTENT, CONTRADICTION)] == 2  # false contradiction (V10, V11)
+    assert outcomes[(CONSISTENT, INCONCLUSIVE)] == 5  # missed agreement
+    assert outcomes[(CONTRADICTION, INCONCLUSIVE)] == 1  # missed contradiction (V18)
     assert outcomes[(CONTRADICTION, CONSISTENT)] == 0  # false agreement - never observed
 
 

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, time
 
 from sqlalchemy.orm import Session
 
@@ -49,13 +49,18 @@ DATE_DOCUMENT_TYPES = ("FIR", "Survey Report")
 # A value right after an explicit FIR-number label. Requires a "No/Number/#"
 # word so that the bare document title "FIR" or a sentence such as "FIR was
 # lodged" is never read as a number, and at least one digit in the value
-# (checked after matching). "/" is allowed because Indian FIR numbers are
-# commonly written as serial/year, e.g. "123/2026".
+# (checked after matching). "/" and "-" are allowed because Indian FIR
+# numbers are commonly written as serial/year, e.g. "123/2026". Step 5.8.17:
+# spaces are also allowed around "/" when a number follows ("123 / 2026"),
+# which the first version cut short to "123" and so reported a false
+# MISMATCH (validation case F07). Spaces are not allowed around "-", so a
+# sentence like "FIR No: 123 - registered" can never pull in the next word.
 _FIR_NUMBER = re.compile(
     r"(?:\bF\.?\s?I\.?\s?R\.?|first\s+information\s+report)\s*(?:no\.?|number|#)\s*[:\-]?\s*"
-    r"([A-Za-z0-9][A-Za-z0-9/\-]{0,28}[A-Za-z0-9])",
+    r"([A-Za-z0-9]+(?:[/\-][A-Za-z0-9]+|\s*/\s*\d+)*)",
     re.IGNORECASE,
 )
+_MAX_FIR_NUMBER_LENGTH = 30  # accidents.FIR_Number is VARCHAR(30)
 
 
 def normalize_fir_number(raw: str) -> str:
@@ -72,7 +77,7 @@ def extract_fir_numbers(text: str | None) -> list[str]:
     seen: set[str] = set()
     for match in _FIR_NUMBER.finditer(text):
         raw = match.group(1)
-        if not any(ch.isdigit() for ch in raw):
+        if not any(ch.isdigit() for ch in raw) or len(normalize_fir_number(raw)) > _MAX_FIR_NUMBER_LENGTH:
             continue
         normalized = normalize_fir_number(raw)
         if normalized not in seen:
@@ -100,21 +105,25 @@ _MONTHS = {
 _MONTH_WORD = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 
 # Supported date shapes. Numeric day/month dates are read DAY-FIRST
-# (dd/mm/yyyy), the Indian convention - never month-first.
+# (dd/mm/yyyy), the Indian convention - never month-first. Step 5.8.17 adds
+# "-" and "/" between day, month name and year ("20-AUG-2026", case A12).
 _DATE = (
     r"(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}"  # 20/08/2026, 20-08-2026, 20.08.2026
     r"|\d{4}-\d{1,2}-\d{1,2}"  # 2026-08-20
-    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{_MONTH_WORD}\.?,?\s+\d{{4}}"  # 20 August 2026, 20th Aug 2026
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?[\s\-/]+{_MONTH_WORD}\.?,?[\s\-/]+\d{{4}}"  # 20 August 2026, 20-AUG-2026
     rf"|{_MONTH_WORD}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}})"  # August 20, 2026
 )
 
 # Only a date that is explicitly labelled as the accident/incident date is
 # used. Unlabelled dates (report date, policy dates, inspection date) are
 # deliberately ignored, so they can never be mistaken for the accident date.
+# Step 5.8.17: "<accident> occurred ... on <date>" may have a few words in
+# between ("occurred near Anna Salai on 20/08/2026", case A09) - up to 60
+# characters, never crossing a full stop or a line break.
 _LABELLED_DATE = re.compile(
     r"(?:date\s+of\s+(?:the\s+)?(?:accident|incident|occurrence|collision)"
     r"|(?:accident|incident|collision)\s+date"
-    r"|(?:accident|incident|collision)\s+(?:occurred|happened|took\s+place)\s+on)"
+    r"|(?:accident|incident|collision)\s+(?:occurred|happened|took\s+place)\b[^.\n]{0,60}?\bon)"
     rf"\s*[:\-]?\s*(?:on\s+)?({_DATE})",
     re.IGNORECASE,
 )
@@ -131,7 +140,7 @@ def parse_date(raw: str) -> date | None:
         m = re.fullmatch(r"(\d{4})-(\d{1,2})-(\d{1,2})", text)
         if m:
             return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        m = re.fullmatch(r"(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\.?\s+(\d{4})", text)
+        m = re.fullmatch(r"(\d{1,2})(?:st|nd|rd|th)?[\s\-/]+([a-z]+)\.?[\s\-/]+(\d{4})", text)
         if m and m.group(2) in _MONTHS:
             return date(int(m.group(3)), _MONTHS[m.group(2)], int(m.group(1)))
         m = re.fullmatch(r"([a-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\s+(\d{4})", text)
@@ -157,6 +166,73 @@ def extract_accident_dates(text: str | None) -> list[tuple[str, date]]:
 
 
 # ---------------------------------------------------------------------------
+# Accident time (Step 5.8.17)
+# ---------------------------------------------------------------------------
+
+# 18:30, 18.30, 6:30 pm, 6.30 p.m., 6 PM, 1830 hrs. The negative lookahead
+# stops "20.08" inside a date like 20.08.2026 being read as a time.
+_TIME = (
+    r"(?:\d{1,2}[:.]\d{2}(?![.:]?\d)\s*(?:[ap]\.?\s?m\b\.?|hrs?\b)?"
+    r"|\d{1,2}\s*[ap]\.?\s?m\b\.?"
+    r"|\d{4}\s*hrs?\b)"
+)
+_LABELLED_TIME = re.compile(
+    r"(?:time\s+of\s+(?:the\s+)?(?:accident|incident|occurrence|collision)\s*[:\-]?\s*(?:at\s+)?"
+    r"|(?:accident|incident|collision)\s+time\s*[:\-]?\s*(?:at\s+)?"
+    r"|(?:accident|incident|collision)\s+(?:occurred|happened|took\s+place)\b[^.\n]{0,60}?\bat\s+)"
+    rf"({_TIME})",
+    re.IGNORECASE,
+)
+
+# Times in reports are usually approximate ("around 6:30 PM"), so a stated
+# time within this many minutes of the record counts as a MATCH. A
+# documented design choice, not a measured value.
+TIME_TOLERANCE_MINUTES = 30
+
+# claim_creation.py stores 00:00 when the customer leaves the time blank, so
+# a recorded 00:00 is treated as "no time on record" rather than midnight.
+_UNRECORDED_TIME = time(0, 0)
+
+
+def parse_time(raw: str) -> time | None:
+    text = raw.strip().lower().replace(".", ":").replace(" ", "")
+    text = text.replace("hrs", "").replace("hr", "")
+    m = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?:?([ap])?:?m?:?", text)
+    if not m and re.fullmatch(r"\d{4}", text):
+        m = re.fullmatch(r"(\d{2})(\d{2})()", text)
+    if not m:
+        return None
+    hour, minute, meridiem = int(m.group(1)), int(m.group(2) or 0), m.group(3)
+    if meridiem:
+        if not 1 <= hour <= 12:
+            return None
+        hour = hour % 12 + (12 if meridiem == "p" else 0)
+    try:
+        return time(hour, minute)
+    except ValueError:
+        return None
+
+
+def extract_accident_times(text: str | None) -> list[tuple[str, time]]:
+    """(as written, parsed) for every distinct labelled accident time."""
+    if not text:
+        return []
+    found: list[tuple[str, time]] = []
+    seen: set[time] = set()
+    for match in _LABELLED_TIME.finditer(text):
+        parsed = parse_time(match.group(1))
+        if parsed is not None and parsed not in seen:
+            seen.add(parsed)
+            found.append((match.group(1).strip(), parsed))
+    return found
+
+
+def _minutes_apart(a: time, b: time) -> int:
+    diff = abs((a.hour * 60 + a.minute) - (b.hour * 60 + b.minute))
+    return min(diff, 24 * 60 - diff)
+
+
+# ---------------------------------------------------------------------------
 # Comparison
 # ---------------------------------------------------------------------------
 
@@ -164,6 +240,7 @@ def extract_accident_dates(text: str | None) -> list[tuple[str, date]]:
 class AccidentConsistencyResult:
     accident_date: ConsistencyResult
     fir_number: ConsistencyResult
+    accident_time: ConsistencyResult
 
 
 def _unavailable(structured_value: str | None, explanation: str) -> ConsistencyResult:
@@ -262,6 +339,48 @@ def compare_accident_date(reference: date | None, documents: list[Document]) -> 
     )
 
 
+def compare_accident_time(reference: time | None, documents: list[Document]) -> ConsistencyResult:
+    recorded = reference is not None and reference != _UNRECORDED_TIME
+    reference_text = reference.strftime("%H:%M") if recorded else None
+    sources = [d for d in documents if d.Document_Type in DATE_DOCUMENT_TYPES]
+    if not sources:
+        return _unavailable(
+            reference_text, "Accident time could not be compared because no FIR or Survey Report document exists for this claim."
+        )
+
+    stated = [(raw, parsed, d) for d in sources for raw, parsed in extract_accident_times(d.Extracted_Text)]
+    if not stated:
+        return _unavailable(
+            reference_text,
+            "Accident time could not be compared because no labelled accident time (e.g. 'Time of accident: ...') "
+            "was found in this claim's FIR or Survey Report text.",
+        )
+    if not recorded:
+        return _unavailable(
+            None,
+            "Accident time could not be compared because this claim has no accident time on record "
+            "(00:00 is stored when the time is left blank).",
+        )
+
+    differing = [(raw, p, d) for raw, p, d in stated if _minutes_apart(p, reference) > TIME_TOLERANCE_MINUTES]
+    if not differing:
+        raw, _, document = stated[0]
+        named = sorted({d.Document_Type for _, _, d in stated})
+        return _result(
+            STATUS_MATCH, reference_text, raw, document,
+            f"Accident time stated in the {' and '.join(named)} is within {TIME_TOLERANCE_MINUTES} minutes "
+            "of the accident record.",
+        )
+
+    raw, _, document = differing[0]
+    detail = "; ".join(f"{d.Document_Type} {d.Document_ID} states {p.strftime('%H:%M')}" for _, p, d in differing)
+    return _result(
+        STATUS_MISMATCH, reference_text, raw, document,
+        f"Accident time stated in this claim's documents is more than {TIME_TOLERANCE_MINUTES} minutes from the "
+        f"accident record ({reference_text}): {detail}.",
+    )
+
+
 def compare_claim_accident_details(db: Session, claim: Claim) -> AccidentConsistencyResult:
     """Entry point routers should call. Read-only."""
     accident = db.query(Accident).filter(Accident.Claim_ID == claim.Claim_ID).order_by(Accident.Accident_ID).first()
@@ -271,8 +390,10 @@ def compare_claim_accident_details(db: Session, claim: Claim) -> AccidentConsist
         return AccidentConsistencyResult(
             accident_date=_unavailable(None, f"Accident date could not be compared because {missing}."),
             fir_number=_unavailable(None, f"FIR number could not be compared because {missing}."),
+            accident_time=_unavailable(None, f"Accident time could not be compared because {missing}."),
         )
     return AccidentConsistencyResult(
         accident_date=compare_accident_date(accident.Accident_Date, documents),
         fir_number=compare_fir_number(accident.FIR_Number, documents),
+        accident_time=compare_accident_time(accident.Accident_Time, documents),
     )

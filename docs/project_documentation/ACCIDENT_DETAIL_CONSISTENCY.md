@@ -1,5 +1,10 @@
 # Accident-Detail Consistency (Step 5.8.16)
 
+> **Update (Step 5.8.17):** A09, A12 and F07 were fixed (the false mismatch
+> is gone), held-out cases A13-A15 and F09-F10 were added (22 / 25 agree), and
+> an accident-time check was added. The tables below record this step's
+> original results. See `CONSISTENCY_IMPROVEMENTS.md`.
+
 ## 1. Objective
 
 Roadmap item 6: strengthen document consistency where real extraction is

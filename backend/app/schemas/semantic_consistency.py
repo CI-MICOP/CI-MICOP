@@ -34,6 +34,7 @@ class AccidentDetailsConsistencyOut(BaseModel):
 
     accident_date: EntityConsistencyOut
     fir_number: EntityConsistencyOut
+    accident_time: EntityConsistencyOut  # Step 5.8.17
 
 
 class ClaimSemanticConsistencyOut(BaseModel):

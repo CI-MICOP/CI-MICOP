@@ -124,8 +124,8 @@ CORPUS: list[CorpusCase] = [
         "V12", "keyword at start of sentence",
         "At Anna Salai, the car hit a road divider.",
         "The vehicle was damaged near Anna Salai.",
-        ideal=CONSISTENT, observed=INCONCLUSIVE,
-        note="Keyword matching is case-sensitive, so 'At' is not recognised.",
+        ideal=CONSISTENT, observed=CONSISTENT,
+        note="Was INCONCLUSIVE in Step 5.8.13-E ('At' not recognised); fixed in Step 5.8.17.",
     ),
     CorpusCase(
         "V13", "abbreviated place name",
@@ -145,8 +145,8 @@ CORPUS: list[CorpusCase] = [
         "V15", "month name after 'in'",
         "The accident occurred in March near Anna Salai.",
         "The vehicle was damaged near Anna Salai.",
-        ideal=CONSISTENT, observed=INCONCLUSIVE,
-        note="'March' is captured as a second place, making the FIR ambiguous.",
+        ideal=CONSISTENT, observed=CONSISTENT,
+        note="Was INCONCLUSIVE in Step 5.8.13-E ('March' taken as a place); fixed in Step 5.8.17.",
     ),
     CorpusCase(
         "V16", "hospital name after 'at'",
@@ -159,8 +159,8 @@ CORPUS: list[CorpusCase] = [
         "V17", "capitalised word straight after the place",
         "The accident occurred near Anna Salai Monday morning.",
         "The vehicle was damaged near Anna Salai.",
-        ideal=CONSISTENT, observed=CONTRADICTION,
-        note="The capture runs on into 'Monday', so 'Anna Salai Monday' is compared with 'Anna Salai'.",
+        ideal=CONSISTENT, observed=CONSISTENT,
+        note="Was CONTRADICTION in Step 5.8.13-E ('Anna Salai Monday'); fixed in Step 5.8.17.",
     ),
     CorpusCase(
         "V18", "real disagreement hidden by a second mention",
@@ -168,6 +168,44 @@ CORPUS: list[CorpusCase] = [
         "The vehicle was damaged near Anna Salai.",
         ideal=CONTRADICTION, observed=INCONCLUSIVE,
         note="The FIR's two mentions make it ambiguous, so a genuine disagreement is not reported.",
+    ),
+    # ---------------------------------------------------------------- Step 5.8.17 held-out cases
+    # Written after the Step 5.8.17 fixes but BEFORE running them, with new
+    # wording, to check the fixes generalise beyond V12/V15/V17.
+    CorpusCase(
+        "V19", "capital 'At' starting the sentence (new wording)",
+        "At Gandhipuram, two cars collided.",
+        "Damage is consistent with an accident near Gandhipuram.",
+        ideal=CONSISTENT, observed=CONSISTENT,
+        note="Capitalised keyword recognised.",
+    ),
+    CorpusCase(
+        "V20", "day name after the place (new wording)",
+        "The accident occurred near Guindy Tuesday evening.",
+        "The vehicle was damaged near Guindy.",
+        ideal=CONSISTENT, observed=CONSISTENT,
+        note="Trailing day name removed from the place.",
+    ),
+    CorpusCase(
+        "V21", "month at the start of the sentence (new wording)",
+        "In April the vehicle met with an accident near Velachery.",
+        "The vehicle was damaged near Velachery.",
+        ideal=CONSISTENT, observed=CONSISTENT,
+        note="'April' alone is not treated as a place.",
+    ),
+    CorpusCase(
+        "V22", "capital 'At' with a different place",
+        "At Guindy the car hit a road divider.",
+        "The vehicle was damaged near Tambaram.",
+        ideal=CONTRADICTION, observed=CONTRADICTION,
+        note="The fix also exposes genuine disagreements.",
+    ),
+    CorpusCase(
+        "V23", "city and street, capital 'In'",
+        "In Chennai the accident happened near Guindy.",
+        "The vehicle was damaged near Guindy.",
+        ideal=CONSISTENT, observed=INCONCLUSIVE,
+        note="Still two place mentions (Chennai, Guindy) - not addressed by Step 5.8.17.",
     ),
 ]
 

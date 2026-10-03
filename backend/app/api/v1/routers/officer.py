@@ -355,6 +355,7 @@ def analyze_claim_semantic_consistency(
         accident_details=AccidentDetailsConsistencyOut(
             accident_date=_entity_out(accident.accident_date),
             fir_number=_entity_out(accident.fir_number),
+            accident_time=_entity_out(accident.accident_time),
         ),
     )
 

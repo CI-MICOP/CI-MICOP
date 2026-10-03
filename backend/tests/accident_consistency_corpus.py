@@ -14,7 +14,7 @@ Each case records:
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, time
 
 MATCH = "MATCH"
 MISMATCH = "MISMATCH"
@@ -53,11 +53,11 @@ CORPUS: list[AccidentCase] = [
     ),
     AccidentCase(
         "A09", "date", "place between 'occurred' and 'on'",
-        "The accident occurred near Anna Salai on 20/08/2026.", None, MATCH, UNAVAILABLE,
+        "The accident occurred near Anna Salai on 20/08/2026.", None, MATCH, MATCH,  # was UNAVAILABLE in 5.8.16
     ),
     AccidentCase("A10", "date", "month-first (US) order", "Date of accident: 08/20/2026", None, MATCH, UNAVAILABLE),
     AccidentCase("A11", "date", "two-digit year", "Date of accident: 20/08/26", None, MATCH, UNAVAILABLE),
-    AccidentCase("A12", "date", "dd-MON-yyyy", "DATE OF ACCIDENT : 20-AUG-2026", None, MATCH, UNAVAILABLE),
+    AccidentCase("A12", "date", "dd-MON-yyyy", "DATE OF ACCIDENT : 20-AUG-2026", None, MATCH, MATCH),  # was UNAVAILABLE in 5.8.16
     # ------------------------------------------------------------ FIR number (record: 123/2026)
     AccidentCase("F01", "fir", "'FIR No:'", "FIR No: 123/2026", None, MATCH, MATCH),
     AccidentCase("F02", "fir", "'F.I.R. No.'", "F.I.R. No. 123/2026 registered at Guindy.", None, MATCH, MATCH),
@@ -70,7 +70,54 @@ CORPUS: list[AccidentCase] = [
     ),
     AccidentCase(
         "F07", "fir", "spaces around the slash",
-        "First Information Report Number: 123 / 2026", None, MATCH, MISMATCH,
+        "First Information Report Number: 123 / 2026", None, MATCH, MATCH,  # was a false MISMATCH in 5.8.16
     ),
     AccidentCase("F08", "fir", "'Cr. No.' (crime number) label", "Cr. No. 123/2026, Guindy Police Station", None, MATCH, UNAVAILABLE),
+    # ------------------------------------------------------------ Step 5.8.17 held-out cases
+    # Written after the Step 5.8.17 fixes but BEFORE running them, with new
+    # wording, to check the fixes generalise beyond A09/A12/F07.
+    AccidentCase(
+        "A13", "date", "'happened at <place> on' + ordinal day and short month",
+        "The collision happened at Guindy junction on 20th Aug 2026.", None, MATCH, MATCH,
+    ),
+    AccidentCase(
+        "A14", "date", "labelled date plus an unlabelled dd-MON-yyyy report date",
+        "Date of accident: 20-08-2026. Report dated 25-AUG-2026.", None, MATCH, MATCH,
+    ),
+    AccidentCase(
+        "A15", "date", "a different date in the NEXT sentence must not be used",
+        "The accident occurred near Anna Salai. On 22/08/2026 the vehicle was towed.", None, UNAVAILABLE, UNAVAILABLE,
+    ),
+    AccidentCase("F09", "fir", "spaces around the slash, then more text", "FIR No: 123 / 2026 dated 20/08/2026", None, MATCH, MATCH),
+    AccidentCase("F10", "fir", "spaces around the slash, different number", "F.I.R. No. 77 / 2025", None, MISMATCH, MISMATCH),
+]
+
+
+# ---------------------------------------------------------------- accident time (Step 5.8.17)
+RECORD_TIME = time(18, 30)
+
+
+@dataclass(frozen=True)
+class TimeCase:
+    case_id: str
+    description: str
+    fir_text: str
+    survey_text: str | None
+    ideal: str
+    observed: str
+
+
+# All written BEFORE the time check was first run.
+TIME_CORPUS: list[TimeCase] = [
+    TimeCase("T01", "24-hour time", "Time of accident: 18:30", None, MATCH, MATCH),
+    TimeCase("T02", "12-hour time", "Time of accident: 6:30 PM", None, MATCH, MATCH),
+    TimeCase("T03", "'occurred near <place> at' + p.m.", "The accident occurred near Anna Salai at 6.30 p.m.", None, MATCH, MATCH),
+    TimeCase("T04", "'hrs', 15 minutes later", "Accident time: 1845 hrs", None, MATCH, MATCH),
+    TimeCase("T05", "45 minutes later", "Time of accident: 7:15 PM", None, MISMATCH, MISMATCH),
+    TimeCase("T06", "a.m. instead of p.m.", "Time of accident: 6:30 AM", None, MISMATCH, MISMATCH),
+    TimeCase("T07", "FIR right, Survey Report different", "Time of accident: 18:30", "Time of accident: 21:00", MISMATCH, MISMATCH),
+    TimeCase("T08", "only an unlabelled report time", "Report generated at 10:15 AM.", None, UNAVAILABLE, UNAVAILABLE),
+    TimeCase("T09", "'at around'", "The accident occurred at around 6:30 PM.", None, MATCH, UNAVAILABLE),
+    TimeCase("T10", "no time at all", "The accident occurred in the evening.", None, UNAVAILABLE, UNAVAILABLE),
+    TimeCase("T11", "a dotted date is not read as a time", "Date of accident: 20.08.2026", None, UNAVAILABLE, UNAVAILABLE),
 ]

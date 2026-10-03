@@ -18,7 +18,16 @@ import pytest
 from app.db.session import SessionLocal
 from app.db_models.accident import Accident
 from app.services import accident_consistency as ac
-from tests.accident_consistency_corpus import CORPUS, MATCH, MISMATCH, RECORD_DATE, RECORD_FIR, UNAVAILABLE
+from tests.accident_consistency_corpus import (
+    CORPUS,
+    MATCH,
+    MISMATCH,
+    RECORD_DATE,
+    RECORD_FIR,
+    RECORD_TIME,
+    TIME_CORPUS,
+    UNAVAILABLE,
+)
 from tests.conftest import auth_headers
 from tests.test_document_analysis import _text_pdf_bytes, _upload, analyzed_document_ids  # noqa: F401
 
@@ -103,11 +112,68 @@ def test_corpus_summary_matches_validation_report():
     """The counts quoted in ACCIDENT_DETAIL_CONSISTENCY.md. If this fails,
     the corpus or the checks changed and the report must be updated."""
     outcomes = Counter((case.ideal, case.observed) for case in CORPUS)
-    assert len(CORPUS) == 20
-    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 14
-    assert outcomes[(MATCH, UNAVAILABLE)] == 5  # missed - reported as unavailable
-    assert outcomes[(MATCH, MISMATCH)] == 1  # false mismatch
+    # Step 5.8.16: 20 cases, 14 agreeing, 1 false mismatch (F07). Step 5.8.17
+    # fixed A09/A12/F07 and added held-out cases A13-A15, F09-F10.
+    assert len(CORPUS) == 25
+    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 22
+    assert outcomes[(MATCH, UNAVAILABLE)] == 3  # missed - reported as unavailable (A10, A11, F08)
+    assert outcomes[(MATCH, MISMATCH)] == 0  # false mismatch - none since Step 5.8.17
     assert outcomes[(MISMATCH, MATCH)] == 0  # false match - never observed
+
+
+# ============================================================== accident time (Step 5.8.17)
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("18:30", time(18, 30)),
+        ("18.30", time(18, 30)),
+        ("6:30 PM", time(18, 30)),
+        ("6.30 p.m.", time(18, 30)),
+        ("6 PM", time(18, 0)),
+        ("12:15 AM", time(0, 15)),
+        ("12:15 PM", time(12, 15)),
+        ("1845 hrs", time(18, 45)),
+    ],
+)
+def test_parse_time_supported_shapes(raw, expected):
+    assert ac.parse_time(raw) == expected
+
+
+def test_parse_time_rejects_impossible_times():
+    assert ac.parse_time("25:00") is None
+    assert ac.parse_time("13:00 PM") is None
+
+
+def test_time_tolerance_boundary_and_midnight_wrap():
+    documents = [_doc("D1", "FIR", "Time of accident: 19:00")]
+    assert ac.compare_accident_time(time(18, 30), documents).status == MATCH  # exactly 30 minutes
+    assert ac.compare_accident_time(time(18, 29), documents).status == MISMATCH  # 31 minutes
+    late = [_doc("D1", "FIR", "Time of accident: 23:50")]
+    assert ac.compare_accident_time(time(0, 10), late).status == MATCH  # 20 minutes across midnight
+
+
+def test_recorded_midnight_is_treated_as_no_time_on_record():
+    result = ac.compare_accident_time(time(0, 0), [_doc("D1", "FIR", "Time of accident: 18:30")])
+    assert result.status == UNAVAILABLE
+    assert "00:00 is stored when the time is left blank" in result.explanation
+
+
+@pytest.mark.parametrize("case", TIME_CORPUS, ids=lambda case: case.case_id)
+def test_time_check_returns_recorded_result_for_corpus_case(case):
+    result = ac.compare_accident_time(RECORD_TIME, _case_documents(case))
+    assert result.status == case.observed, f"{case.case_id} ({case.description}): {result.explanation}"
+    assert "fraud" not in result.explanation.lower()
+
+
+def test_time_corpus_summary_matches_validation_report():
+    outcomes = Counter((case.ideal, case.observed) for case in TIME_CORPUS)
+    assert len(TIME_CORPUS) == 11
+    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 10
+    assert outcomes[(MATCH, UNAVAILABLE)] == 1  # missed - T09 "at around"
+    assert outcomes[(MATCH, MISMATCH)] == 0
+    assert outcomes[(MISMATCH, MATCH)] == 0
 
 
 # ============================================================== B: real end-to-end
@@ -191,7 +257,29 @@ def test_end_to_end_without_accident_record_is_unavailable(client, officer_token
     details = _check(client, officer_token, seed_data["claim1"])["accident_details"]
     assert details["accident_date"]["status"] == "UNAVAILABLE"
     assert details["fir_number"]["status"] == "UNAVAILABLE"
+    assert details["accident_time"]["status"] == "UNAVAILABLE"
     assert "no accident record" in details["accident_date"]["explanation"]
+
+
+def test_end_to_end_accident_time_match_and_mismatch(
+    client, customer1_token, officer_token, seed_data, claim1_accident, analyzed_document_ids
+):
+    fir_id = _upload_and_analyze(
+        client, customer1_token, seed_data["claim1"], "fir_copy", "fir.pdf",
+        "Time of accident: 6:30 PM.", analyzed_document_ids,
+    )
+    details = _check(client, officer_token, seed_data["claim1"])["accident_details"]
+    assert details["accident_time"]["status"] == "MATCH"
+    assert details["accident_time"]["structured_value"] == "18:30"
+    assert details["accident_time"]["matched_document_id"] == fir_id
+
+    _upload_and_analyze(
+        client, customer1_token, seed_data["claim1"], "survey_report", "survey.pdf",
+        "Time of accident: 21:00.", analyzed_document_ids,
+    )
+    details = _check(client, officer_token, seed_data["claim1"])["accident_details"]
+    assert details["accident_time"]["status"] == "MISMATCH"
+    assert "21:00" in details["accident_time"]["explanation"]
 
 
 def test_end_to_end_existing_registration_and_narrative_results_are_unchanged(

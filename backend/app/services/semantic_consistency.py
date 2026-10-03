@@ -72,7 +72,22 @@ _MAX_COMPARISON_TEXT_CHARS = 5000
 # like a proper noun (starts with an uppercase letter) specifically so
 # this never fires on ordinary lowercase prepositional phrases such as
 # "in an accident" or "at the scene".
-_LOCATION_KEYWORD = re.compile(r"\b(?:near|at|in|close to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})")
+#
+# Step 5.8.17: the keyword itself may start with a capital letter, so a
+# sentence that begins "At Anna Salai, ..." is recognised (validation case
+# V12). Only the first letter of the keyword is case-insensitive - the place
+# must still start with a capital letter.
+_LOCATION_KEYWORD = re.compile(r"\b(?:[Nn]ear|[Aa]t|[Ii]n|[Cc]lose to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})")
+
+# Step 5.8.17: day and month names are capitalised like place names, so they
+# were captured as places ("in March" -> a second location, case V15) or
+# stuck to the end of one ("near Anna Salai Monday", case V17). They are
+# removed from the end of a captured phrase, and a phrase made only of them
+# is ignored.
+_CALENDAR_WORDS = frozenset(
+    "monday tuesday wednesday thursday friday saturday sunday "
+    "january february march april may june july august september october november december".split()
+)
 
 _STANDARD_LIMITATIONS = [
     "This is a narrow, deterministic RESEARCH PROTOTYPE, not a general-purpose "
@@ -127,7 +142,10 @@ def _extract_location_candidates(text: str | None) -> list[LocationCandidate]:
     candidates: list[LocationCandidate] = []
     seen: set[str] = set()
     for match in _LOCATION_KEYWORD.finditer(bounded):
-        raw = match.group(1).strip()
+        words = match.group(1).split()
+        while words and words[-1].lower() in _CALENDAR_WORDS:
+            words.pop()
+        raw = " ".join(words)
         normalized = normalize_location(raw)
         if not normalized or normalized in seen:
             continue

@@ -1,5 +1,10 @@
 # Narrative Location-Consistency Validation (Step 5.8.13-E)
 
+> **Update (Step 5.8.17):** V12, V15 and V17 were fixed and held-out cases
+> V19-V23 were added - the corpus now agrees on 15 / 23 cases with 2 false
+> contradictions. The tables below record this step's original results. See
+> `CONSISTENCY_IMPROVEMENTS.md` for the before/after comparison.
+
 ## 1. Objective
 
 Step 5.8.13-C added a narrow research prototype

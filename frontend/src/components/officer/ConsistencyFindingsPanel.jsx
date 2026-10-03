@@ -168,9 +168,11 @@ const IDENTIFIERS = [
   ["policy", "Policy Number"],
 ];
 
-// Step 5.8.16 - same MATCH/MISMATCH/UNAVAILABLE shape as the identifiers.
+// Steps 5.8.16/5.8.17 - same MATCH/MISMATCH/UNAVAILABLE shape as the
+// identifiers. Rows missing from an older response are simply not shown.
 const ACCIDENT_DETAILS = [
   ["accident_date", "Accident Date"],
+  ["accident_time", "Accident Time"],
   ["fir_number", "FIR Number"],
 ];
 
@@ -195,7 +197,7 @@ function AccidentDetailsSection({ details }) {
 function FindingList({ findings, rows }) {
   return (
     <ul className="space-y-3">
-      {rows.map(([key, label]) => {
+      {rows.filter(([key]) => findings[key]).map(([key, label]) => {
         const finding = findings[key];
         return (
           <li key={key} className="rounded-card border border-border p-3 text-sm">

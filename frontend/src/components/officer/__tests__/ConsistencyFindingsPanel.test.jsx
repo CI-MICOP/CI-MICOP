@@ -285,6 +285,31 @@ describe("ConsistencyFindingsPanel", () => {
     expect(within(accident).getByText(/Source: FIR \(DOC-FIR-1\)/)).toBeInTheDocument();
   });
 
+  it("shows the accident time row when the response includes it", async () => {
+    checkClaimConsistency.mockResolvedValueOnce({
+      ...consistencyResult(),
+      accident_details: {
+        accident_time: entity({
+          status: "MISMATCH",
+          structured_value: "18:30",
+          extracted_value: "21:00",
+          matched_document_type: "Survey Report",
+          matched_document_id: "DOC-SR-1",
+          explanation: "Accident time stated in this claim's documents is more than 30 minutes from the accident record (18:30).",
+        }),
+      },
+    });
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+
+    const accident = await screen.findByRole("region", { name: /accident detail checks/i });
+    expect(within(accident).getByText("Accident Time")).toBeInTheDocument();
+    expect(within(accident).getByText("18:30")).toBeInTheDocument();
+    expect(within(accident).getByText("21:00")).toBeInTheDocument();
+    // Rows absent from the response are not rendered.
+    expect(within(accident).queryByText("FIR Number")).not.toBeInTheDocument();
+  });
+
   it("keeps identifier results unchanged when an accident detail mismatches", async () => {
     checkClaimConsistency.mockResolvedValueOnce({
       ...consistencyResult(),
