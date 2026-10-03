@@ -15,6 +15,16 @@ export function getAuthErrorMessage(error) {
   }
 }
 
+/** For a failed document upload (POST /documents). */
+export function getUploadErrorMessage(error) {
+  if (!error?.response) {
+    return "Unable to connect to the CI-MICOP server.";
+  }
+  // The backend's validation messages here (unsupported type, oversized
+  // file, ...) are already written to be shown directly to the customer.
+  return error.response.data?.detail || "This document could not be uploaded. Please try again.";
+}
+
 /** Same idea as getAuthErrorMessage, for general data-fetching calls. */
 export function getApiErrorMessage(error) {
   if (!error?.response) {

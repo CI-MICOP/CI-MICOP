@@ -16,7 +16,7 @@ import { createClaim } from "../../services/claimService";
 import { uploadDocument } from "../../services/documentService";
 import { getMyPolicies } from "../../services/policyService";
 import { getMyVehicles } from "../../services/vehicleService";
-import { getApiErrorMessage } from "../../utils/errors";
+import { getApiErrorMessage, getUploadErrorMessage } from "../../utils/errors";
 import { formatVehicleLabel } from "../../utils/format";
 import { getStatusTone } from "../../utils/statusTone";
 
@@ -82,15 +82,6 @@ function getSubmitErrorMessage(error) {
     default:
       return "Something went wrong while submitting your claim. Please try again.";
   }
-}
-
-function getUploadErrorMessage(error) {
-  if (!error?.response) {
-    return "Unable to connect to the CI-MICOP server.";
-  }
-  // The backend's validation messages here (unsupported type, oversized
-  // file, ...) are already written to be shown directly to the customer.
-  return error.response.data?.detail || "This document could not be uploaded. Please try again.";
 }
 
 function formatFileSize(bytes) {
