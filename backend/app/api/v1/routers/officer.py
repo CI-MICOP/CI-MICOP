@@ -27,6 +27,7 @@ from app.schemas.document_analysis import ClaimDocumentAnalysisOut, DocumentAnal
 from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
 from app.schemas.evidence_duplication import ClaimEvidenceDuplicationOut, EvidenceDuplicationOut, EvidenceMatchOut
+from app.schemas.evidence_quality import ClaimPhotoQualityOut, PhotoMeasurementsOut, PhotoQualityOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
 from app.schemas.semantic_consistency import ClaimSemanticConsistencyOut, DocumentRefOut, SemanticConsistencyOut
 from app.schemas.surveyor import SurveyorInspectionOut
@@ -38,6 +39,7 @@ from app.services import (
     document_consistency,
     entity_extraction,
     evidence_duplication,
+    evidence_quality,
     semantic_consistency,
     surveyor_assignment,
 )
@@ -373,6 +375,53 @@ def check_claim_evidence_duplication(
                     )
                     for m in r.matches
                 ],
+                explanation=r.explanation,
+            )
+            for r in result.results
+        ],
+        limitations=result.limitations,
+    )
+
+
+@router.post("/claims/{claim_id}/evidence/quality-check", response_model=ClaimPhotoQualityOut)
+def check_claim_photo_quality(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Step 5.8.15: read-only evidence photo quality check - measures each
+    photo on this claim for resolution, brightness, contrast and blur and
+    reports plain flags (see services/evidence_quality.py and
+    docs/project_documentation/EVIDENCE_PHOTO_QUALITY.md). NOT fraud
+    detection, NOT a risk score, NOT wired into ai_pipeline.py.
+    Analysis-only: never writes Evidence.Image_Quality, never touches
+    Final_Decision, Approved_Amount, or claim_decision_audit."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    result = evidence_quality.check_claim_photo_quality(db, claim)
+    return ClaimPhotoQualityOut(
+        Claim_ID=claim_id,
+        photos_checked=result.photos_checked,
+        results=[
+            PhotoQualityOut(
+                evidence_id=r.evidence_id,
+                evidence_type=r.evidence_type,
+                file_name=r.file_name,
+                status=r.status,
+                flags=r.flags,
+                measurements=(
+                    PhotoMeasurementsOut(
+                        width=r.measurements.width,
+                        height=r.measurements.height,
+                        brightness=r.measurements.brightness,
+                        contrast=r.measurements.contrast,
+                        reblur_ratio=r.measurements.reblur_ratio,
+                    )
+                    if r.measurements
+                    else None
+                ),
                 explanation=r.explanation,
             )
             for r in result.results

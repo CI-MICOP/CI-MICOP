@@ -58,6 +58,14 @@ export async function checkEvidenceDuplication(claimId) {
   return response.data;
 }
 
+// Read-only (Step 5.8.15): measures each evidence photo on this claim for
+// resolution, brightness, contrast and blur, returning plain flags - see
+// services/evidence_quality.py. Never writes to the database.
+export async function checkPhotoQuality(claimId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/evidence/quality-check`);
+  return response.data;
+}
+
 export async function getSurveyors() {
   const response = await apiClient.get("/officer/surveyors");
   return response.data;

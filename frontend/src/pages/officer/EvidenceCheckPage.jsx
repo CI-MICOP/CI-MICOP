@@ -6,6 +6,7 @@ import PageHeader from "../../components/common/PageHeader";
 import ClaimTabs from "../../components/officer/ClaimTabs";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
 import EvidenceDuplicationPanel from "../../components/officer/EvidenceDuplicationPanel";
+import PhotoQualityPanel from "../../components/officer/PhotoQualityPanel";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
 
 export default function EvidenceCheckPage() {
@@ -31,6 +32,7 @@ export default function EvidenceCheckPage() {
       <ClaimTabs claimId={claim.Claim_ID} />
 
       <EvidenceDuplicationPanel claimId={claim.Claim_ID} />
+      <PhotoQualityPanel claimId={claim.Claim_ID} />
     </div>
   );
 }
