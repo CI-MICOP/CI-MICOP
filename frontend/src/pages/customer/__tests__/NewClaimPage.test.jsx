@@ -181,6 +181,34 @@ describe("NewClaimPage", () => {
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
 
+  it("sends the FIR number the customer typed, and marks a police report as available", async () => {
+    createClaim.mockResolvedValueOnce({ Claim_ID: "CLM-1", Claim_Number: "CLM-2026-FIR", Claim_Status: "Under Review" });
+    renderPage();
+    fireEvent.change(await screen.findByLabelText(/fir number/i), { target: { value: " 123/2026 " } });
+    await fillStepOne();
+    await fillStepTwo();
+    fireEvent.click(await screen.findByRole("button", { name: /next/i }));
+    expect(await screen.findByText("123/2026")).toBeInTheDocument(); // shown on the review step
+
+    fireEvent.click(screen.getByRole("button", { name: /submit claim/i }));
+
+    await waitFor(() => expect(createClaim).toHaveBeenCalled());
+    const payload = createClaim.mock.calls[0][0];
+    expect(payload.FIR_Number).toBe("123/2026");
+    expect(payload.Police_Report_Available).toBe(true);
+  });
+
+  it("sends no FIR number when the field is left empty", async () => {
+    createClaim.mockResolvedValueOnce({ Claim_ID: "CLM-1", Claim_Number: "CLM-2026-NOFIR", Claim_Status: "Under Review" });
+    await reachReviewStep();
+    fireEvent.click(screen.getByRole("button", { name: /submit claim/i }));
+
+    await waitFor(() => expect(createClaim).toHaveBeenCalled());
+    const payload = createClaim.mock.calls[0][0];
+    expect(payload.FIR_Number).toBeNull();
+    expect(payload.Police_Report_Available).toBe(false);
+  });
+
   it("clearly shows a failed document without ever claiming all documents were uploaded", async () => {
     createClaim.mockResolvedValueOnce({
       Claim_ID: "CLM-1",

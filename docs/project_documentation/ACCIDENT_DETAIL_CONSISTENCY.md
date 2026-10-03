@@ -155,10 +155,12 @@ this corpus only and is not an accuracy rate.
 - Hand-written test text only; no real FIR or survey documents.
 - Only native-text PDFs were used (Tesseract is not installed in this
   environment), so OCR errors in scanned documents were not tested.
-- **Customer-filed claims currently store no FIR number**: the New Claim
-  form sends `FIR_Number: null`, so for those claims the FIR check reports
-  UNAVAILABLE ("no FIR number on record") until the form collects it.
-  Seeded and dataset claims do have FIR numbers.
+- Claims filed before the follow-up change below have no FIR number on
+  record, so their FIR check reports UNAVAILABLE. **Follow-up:** the
+  customer New Claim form now has an optional **FIR Number** field (sent as
+  `FIR_Number`, empty -> `null`; also sets `Police_Report_Available`), and
+  the backend rejects values longer than the 30-character column with a 422
+  instead of a database error.
 - Only one accident record per claim is used (the first by Accident_ID).
 - Not persisted and not connected to risk fusion.
 
@@ -178,5 +180,4 @@ this corpus only and is not an accuracy rate.
 - Accept `dd-MON-yyyy` and a date later in the same "occurred ... on"
   sentence (A12, A09).
 - Confirm with the team whether "Cr. No." should count as the FIR number.
-- Add an optional FIR-number field to the customer New Claim form.
 - Accident time and city are also stored and could be checked the same way.

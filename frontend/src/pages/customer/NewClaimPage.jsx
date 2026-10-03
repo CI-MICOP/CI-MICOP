@@ -62,6 +62,7 @@ const EMPTY_INCIDENT = {
   accidentPincode: "",
   description: "",
   policeStation: "",
+  firNumber: "",
   thirdPartyInvolved: "no",
   injuryReported: "no",
   claimType: "",
@@ -172,8 +173,10 @@ export default function NewClaimPage() {
         Accident_Time: incident.incidentTime || null,
         Third_Party_Involved: incident.thirdPartyInvolved === "yes",
         Injury_Reported: incident.injuryReported === "yes",
-        Police_Report_Available: Boolean(incident.policeStation.trim()),
-        FIR_Number: null,
+        Police_Report_Available: Boolean(incident.policeStation.trim() || incident.firNumber.trim()),
+        // Optional - stored in accidents.FIR_Number so the officer's
+        // accident-detail check can compare it with the uploaded FIR copy.
+        FIR_Number: incident.firNumber.trim() || null,
       };
       // The claim must exist before any document can be linked to it, so
       // document upload only ever starts after createClaim() succeeds.
@@ -404,14 +407,26 @@ export default function NewClaimPage() {
                 placeholder="Describe what happened"
               />
             </Field>
-            <Field label="Police Station">
-              <input
-                type="text"
-                value={incident.policeStation}
-                onChange={(e) => updateIncident("policeStation", e.target.value)}
-                className="input"
-              />
-            </Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Police Station">
+                <input
+                  type="text"
+                  value={incident.policeStation}
+                  onChange={(e) => updateIncident("policeStation", e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="FIR Number">
+                <input
+                  type="text"
+                  value={incident.firNumber}
+                  onChange={(e) => updateIncident("firNumber", e.target.value)}
+                  maxLength={30}
+                  className="input"
+                  placeholder="If a police report was filed, e.g. 123/2026"
+                />
+              </Field>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Third Party Involved">
                 <select
@@ -497,6 +512,7 @@ export default function NewClaimPage() {
               <ReviewRow label="Accident Pincode" value={incident.accidentPincode} />
               <ReviewRow label="Description" value={incident.description} />
               <ReviewRow label="Police Station" value={incident.policeStation || "-"} />
+              <ReviewRow label="FIR Number" value={incident.firNumber || "-"} />
               <ReviewRow label="Third Party Involved" value={incident.thirdPartyInvolved === "yes" ? "Yes" : "No"} />
               <ReviewRow label="Injury Reported" value={incident.injuryReported === "yes" ? "Yes" : "No"} />
             </ReviewSection>

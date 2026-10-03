@@ -36,7 +36,7 @@ class ClaimCreate(BaseModel):
     Third_Party_Involved: bool = False
     Injury_Reported: bool = False
     Police_Report_Available: bool = False
-    FIR_Number: str | None = None
+    FIR_Number: str | None = Field(default=None, max_length=30)  # accidents.FIR_Number is VARCHAR(30)
 
     @field_validator("Claim_Type")
     @classmethod

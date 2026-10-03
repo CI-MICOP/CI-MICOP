@@ -232,6 +232,28 @@ def test_accident_child_row_is_created_with_submitted_details(client, customer1_
         db.close()
 
 
+def test_fir_number_is_stored_on_the_accident_row(client, customer1_token, seed_data, created_claim_ids):
+    payload = _payload(seed_data["policy1"], seed_data["vehicle1"], FIR_Number="123/2026", Police_Report_Available=True)
+    response = client.post("/api/v1/claims", json=payload, headers=auth_headers(customer1_token))
+    assert response.status_code == 201, response.text
+    claim_id = response.json()["Claim_ID"]
+    created_claim_ids.append(claim_id)
+
+    db = SessionLocal()
+    try:
+        accident = db.query(Accident).filter(Accident.Claim_ID == claim_id).first()
+        assert accident.FIR_Number == "123/2026"
+        assert accident.Police_Report_Available is True
+    finally:
+        db.close()
+
+
+def test_fir_number_longer_than_the_column_is_rejected_cleanly(client, customer1_token, seed_data):
+    payload = _payload(seed_data["policy1"], seed_data["vehicle1"], FIR_Number="X" * 31)
+    response = client.post("/api/v1/claims", json=payload, headers=auth_headers(customer1_token))
+    assert response.status_code == 422
+
+
 # ---------------------------------------------------------------- L: rollback on child failure
 
 
