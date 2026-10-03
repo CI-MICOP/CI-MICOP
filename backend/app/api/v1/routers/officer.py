@@ -29,9 +29,15 @@ from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionRe
 from app.schemas.evidence_duplication import ClaimEvidenceDuplicationOut, EvidenceDuplicationOut, EvidenceMatchOut
 from app.schemas.evidence_quality import ClaimPhotoQualityOut, PhotoMeasurementsOut, PhotoQualityOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
-from app.schemas.semantic_consistency import ClaimSemanticConsistencyOut, DocumentRefOut, SemanticConsistencyOut
+from app.schemas.semantic_consistency import (
+    AccidentDetailsConsistencyOut,
+    ClaimSemanticConsistencyOut,
+    DocumentRefOut,
+    SemanticConsistencyOut,
+)
 from app.schemas.surveyor import SurveyorInspectionOut
 from app.services import (
+    accident_consistency,
     ai_analysis,
     ai_pipeline,
     claim_decision,
@@ -290,20 +296,33 @@ def analyze_claim_semantic_consistency(
     ai_pipeline.py - an investigative signal for a Claims Officer only.
     The existing Step 5.8.13-B deterministic registration/policy result is
     returned alongside it, UNCHANGED and un-merged, so neither dimension
-    can silently override the other. Analysis-only: never touches
-    Final_Decision, Approved_Amount, or claim_decision_audit, and never
-    approves/rejects a claim."""
+    can silently override the other. Step 5.8.16 adds `accident_details`
+    (accident date and FIR number vs the accident record - see
+    services/accident_consistency.py), also returned separately and
+    un-merged. Analysis-only: never touches Final_Decision, Approved_Amount,
+    or claim_decision_audit, and never approves/rejects a claim."""
     claim = crud_claim.get(db, claim_id)
     if claim is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
 
     narrative = semantic_consistency.compare_claim_narrative(db, claim)
     deterministic = document_consistency.compare_claim_documents(db, claim)
+    accident = accident_consistency.compare_claim_accident_details(db, claim)
 
     def _ref_out(ref):
         if ref is None:
             return None
         return DocumentRefOut(document_id=ref.document_id, document_type=ref.document_type)
+
+    def _entity_out(result):
+        return EntityConsistencyOut(
+            status=result.status,
+            structured_value=result.structured_value,
+            extracted_value=result.extracted_value,
+            matched_document_type=result.matched_document_type,
+            matched_document_id=result.matched_document_id,
+            explanation=result.explanation,
+        )
 
     return ClaimSemanticConsistencyOut(
         Claim_ID=claim_id,
@@ -332,6 +351,10 @@ def analyze_claim_semantic_consistency(
                 matched_document_id=deterministic.policy.matched_document_id,
                 explanation=deterministic.policy.explanation,
             ),
+        ),
+        accident_details=AccidentDetailsConsistencyOut(
+            accident_date=_entity_out(accident.accident_date),
+            fir_number=_entity_out(accident.fir_number),
         ),
     )
 

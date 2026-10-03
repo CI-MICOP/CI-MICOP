@@ -252,6 +252,64 @@ describe("ConsistencyFindingsPanel", () => {
     expect(await screen.findByText(/document analysis failed/i)).toBeInTheDocument();
   });
 
+  it("shows the accident date and FIR number checks in their own section", async () => {
+    checkClaimConsistency.mockResolvedValueOnce({
+      ...consistencyResult(),
+      accident_details: {
+        accident_date: entity({
+          status: "MISMATCH",
+          structured_value: "2026-08-20",
+          extracted_value: "22/08/2026",
+          matched_document_type: "Survey Report",
+          matched_document_id: "DOC-SR-1",
+          explanation: "Accident date stated in this claim's documents does not match the accident record (2026-08-20).",
+        }),
+        fir_number: entity({
+          structured_value: "123/2026",
+          extracted_value: "123/2026",
+          matched_document_type: "FIR",
+          matched_document_id: "DOC-FIR-1",
+          explanation: "FIR number in the FIR document matches the accident record.",
+        }),
+      },
+    });
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+
+    const accident = await screen.findByRole("region", { name: /accident detail checks/i });
+    expect(within(accident).getByText("Accident Date")).toBeInTheDocument();
+    expect(within(accident).getByText("Mismatch").className).toContain("bg-amber-50");
+    expect(within(accident).getByText("22/08/2026")).toBeInTheDocument();
+    expect(within(accident).getByText("FIR Number")).toBeInTheDocument();
+    expect(within(accident).getByText("Match")).toBeInTheDocument();
+    expect(within(accident).getByText(/Source: FIR \(DOC-FIR-1\)/)).toBeInTheDocument();
+  });
+
+  it("keeps identifier results unchanged when an accident detail mismatches", async () => {
+    checkClaimConsistency.mockResolvedValueOnce({
+      ...consistencyResult(),
+      accident_details: {
+        accident_date: entity({ status: "MISMATCH", structured_value: "2026-08-20", extracted_value: "21/08/2026" }),
+        fir_number: entity({ status: "UNAVAILABLE", extracted_value: null, matched_document_id: null }),
+      },
+    });
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+
+    const identifiers = await screen.findByRole("region", { name: /identifier checks/i });
+    expect(within(identifiers).getAllByText("Match")).toHaveLength(2);
+    expect(within(identifiers).queryByText("Mismatch")).not.toBeInTheDocument();
+  });
+
+  it("omits the accident section when the response has no accident details", async () => {
+    checkClaimConsistency.mockResolvedValueOnce(consistencyResult());
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+
+    await screen.findByRole("region", { name: /identifier checks/i });
+    expect(screen.queryByRole("region", { name: /accident detail checks/i })).not.toBeInTheDocument();
+  });
+
   it("never touches the human decision workflow", async () => {
     checkClaimConsistency.mockResolvedValueOnce(consistencyResult());
     analyzeClaimDocuments.mockResolvedValueOnce(analysisResult());

@@ -120,6 +120,7 @@ export default function ConsistencyFindingsPanel({ claimId }) {
         <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 lg:grid-cols-2">
           <IdentifierSection deterministic={check.result.deterministic} />
           <NarrativeSection narrative={check.result.narrative} />
+          {check.result.accident_details && <AccidentDetailsSection details={check.result.accident_details} />}
         </div>
       )}
     </Card>
@@ -167,34 +168,55 @@ const IDENTIFIERS = [
   ["policy", "Policy Number"],
 ];
 
+// Step 5.8.16 - same MATCH/MISMATCH/UNAVAILABLE shape as the identifiers.
+const ACCIDENT_DETAILS = [
+  ["accident_date", "Accident Date"],
+  ["fir_number", "FIR Number"],
+];
+
 function IdentifierSection({ deterministic }) {
   return (
     <section aria-label="Identifier checks">
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Identifier Checks</p>
-      <ul className="space-y-3">
-        {IDENTIFIERS.map(([key, label]) => {
-          const finding = deterministic[key];
-          return (
-            <li key={key} className="rounded-card border border-border p-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-ink">{label}</span>
-                <FindingBadge status={finding.status} />
-              </div>
-              <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Detail label="On Record" value={finding.structured_value ?? "—"} />
-                <Detail label="Found in Document" value={finding.extracted_value ?? "—"} />
-              </dl>
-              {finding.matched_document_id && (
-                <p className="mt-2 text-xs text-muted">
-                  Source: {finding.matched_document_type} ({finding.matched_document_id})
-                </p>
-              )}
-              <p className="mt-2 text-ink">{finding.explanation}</p>
-            </li>
-          );
-        })}
-      </ul>
+      <FindingList findings={deterministic} rows={IDENTIFIERS} />
     </section>
+  );
+}
+
+function AccidentDetailsSection({ details }) {
+  return (
+    <section aria-label="Accident detail checks">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Accident Details</p>
+      <FindingList findings={details} rows={ACCIDENT_DETAILS} />
+    </section>
+  );
+}
+
+function FindingList({ findings, rows }) {
+  return (
+    <ul className="space-y-3">
+      {rows.map(([key, label]) => {
+        const finding = findings[key];
+        return (
+          <li key={key} className="rounded-card border border-border p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium text-ink">{label}</span>
+              <FindingBadge status={finding.status} />
+            </div>
+            <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Detail label="On Record" value={finding.structured_value ?? "—"} />
+              <Detail label="Found in Document" value={finding.extracted_value ?? "—"} />
+            </dl>
+            {finding.matched_document_id && (
+              <p className="mt-2 text-xs text-muted">
+                Source: {finding.matched_document_type} ({finding.matched_document_id})
+              </p>
+            )}
+            <p className="mt-2 text-ink">{finding.explanation}</p>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

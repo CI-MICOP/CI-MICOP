@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from app.schemas.document_consistency import DocumentConsistencyOut
+from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 
 
 class DocumentRefOut(BaseModel):
@@ -27,6 +27,15 @@ class SemanticConsistencyOut(BaseModel):
     limitations: list[str]
 
 
+class AccidentDetailsConsistencyOut(BaseModel):
+    """Step 5.8.16 deterministic accident-detail checks - see
+    services/accident_consistency.py. Same MATCH/MISMATCH/UNAVAILABLE shape
+    as the registration/policy checks."""
+
+    accident_date: EntityConsistencyOut
+    fir_number: EntityConsistencyOut
+
+
 class ClaimSemanticConsistencyOut(BaseModel):
     """Response for POST /officer/claims/{claim_id}/documents/semantic-consistency.
 
@@ -38,3 +47,4 @@ class ClaimSemanticConsistencyOut(BaseModel):
     Claim_ID: str
     narrative: SemanticConsistencyOut
     deterministic: DocumentConsistencyOut
+    accident_details: AccidentDetailsConsistencyOut
