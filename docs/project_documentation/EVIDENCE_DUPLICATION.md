@@ -194,10 +194,30 @@ this step.
 - Seeded development rows (e.g. `DEV-EVD-001`) have no physical file and
   report `UNAVAILABLE`.
 
-## 10. Possible Next Steps (not implemented)
+## 10. Officer UI
 
-- An officer UI panel for these results, as Step 5.8.13-D did for document
-  consistency.
+An **Evidence Check** tab on the officer's claim workspace
+(`/officer/claims/{claim_id}/evidence`) shows these results, following the
+Step 5.8.13-D pattern:
+
+- `frontend/src/pages/officer/EvidenceCheckPage.jsx` and
+  `frontend/src/components/officer/EvidenceDuplicationPanel.jsx`;
+  `checkEvidenceDuplication()` in `services/officerService.js`.
+- One explicit **Check Photos** button; nothing runs on page load.
+- Each photo shows its status, the explanation, and every match (evidence
+  ID, "same claim" or the other claim's ID, exact or near, and differing
+  fingerprint bits), followed by the limitations list.
+- Badge tones: a copy found is amber ("needs review"), never red; "No copy
+  found" and "Unavailable" are grey, because not finding a copy does not
+  prove a photo is original.
+- The same notice as the consistency panel: findings are for officer review
+  only and are not an accusation; the officer makes the final decision.
+- 9 frontend tests, including: no automatic run, exact match on another
+  claim, near match with bit distance, no photos, error, no "fraud" text,
+  and no call to the decision workflow.
+
+## 11. Possible Next Steps (not implemented)
+
 - Also comparing mirrored versions, which is cheap and would catch D11-type
   reuse.
 - Once validated, feeding the result to the `evidence_duplication` signal in

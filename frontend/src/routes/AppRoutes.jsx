@@ -27,6 +27,7 @@ import OfficerDashboardPage from "../pages/officer/DashboardPage";
 import DecisionPage from "../pages/officer/DecisionPage";
 import DocumentConsistencyPage from "../pages/officer/DocumentConsistencyPage";
 import EscalationsPage from "../pages/officer/EscalationsPage";
+import EvidenceCheckPage from "../pages/officer/EvidenceCheckPage";
 import EstimateAnalysisPage from "../pages/officer/EstimateAnalysisPage";
 import FraudRiskPage from "../pages/officer/FraudRiskPage";
 import OfficerNotificationsPage from "../pages/officer/NotificationsPage";
@@ -120,6 +121,7 @@ export default function AppRoutes() {
             <Route path="claims/:claimId/fraud-risk" element={<FraudRiskPage />} />
             <Route path="claims/:claimId/ai-insights" element={<AiInsightsPage />} />
             <Route path="claims/:claimId/consistency" element={<DocumentConsistencyPage />} />
+            <Route path="claims/:claimId/evidence" element={<EvidenceCheckPage />} />
             <Route path="claims/:claimId/estimate" element={<EstimateAnalysisPage />} />
             <Route path="claims/:claimId/decision" element={<DecisionPage />} />
             <Route path="escalations" element={<EscalationsPage />} />

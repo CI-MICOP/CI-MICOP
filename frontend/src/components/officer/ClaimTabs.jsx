@@ -5,6 +5,7 @@ const TABS = [
   { key: "fraud-risk", label: "Fraud Risk", path: "fraud-risk" },
   { key: "ai-insights", label: "AI Insights", path: "ai-insights" },
   { key: "consistency", label: "Document Consistency", path: "consistency" },
+  { key: "evidence", label: "Evidence Check", path: "evidence" },
   { key: "estimate", label: "Estimate Analysis", path: "estimate" },
   { key: "decision", label: "Make Decision", path: "decision" },
 ];

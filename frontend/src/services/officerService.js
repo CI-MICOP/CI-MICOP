@@ -49,6 +49,15 @@ export async function checkClaimConsistency(claimId) {
   return response.data;
 }
 
+// Read-only (Step 5.8.14): compares each evidence photo on this claim with
+// every other stored evidence photo (this claim and other claims) by
+// SHA-256 and a 64-bit difference hash - see
+// services/evidence_duplication.py. Never writes to the database.
+export async function checkEvidenceDuplication(claimId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/evidence/duplication-check`);
+  return response.data;
+}
+
 export async function getSurveyors() {
   const response = await apiClient.get("/officer/surveyors");
   return response.data;
