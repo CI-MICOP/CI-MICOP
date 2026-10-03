@@ -1,5 +1,12 @@
 # Live Claim AI Analysis Pipeline (Step 5.8.11)
 
+> **Update (Step 5.8.18):** `document_consistency_mismatch`,
+> `evidence_duplication` and `information_quality` (photo part) are now
+> computed live from the checks built in Steps 5.8.13-B to 5.8.17, so a claim
+> can reach 6 of 7 signals. Fraud screening is still never computed live.
+> The audit below describes the Step 5.8.11 state. See
+> `LIVE_SIGNAL_INTEGRATION.md`.
+
 **This is a research-prototype live pipeline using synthetic/de-identified reference data. It does not claim production-grade AI, real insurer validation, universal AI superiority, or measured real-world fraud-detection accuracy.**
 
 ---

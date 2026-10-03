@@ -19,12 +19,13 @@ for a live estimate). Step 5.8.12 adds a genuine, deterministic
 `document_completeness` signal (see services/document_analysis.py) once a
 claim has at least one uploaded document - a rule-based required-vs-present
 Document_Type comparison, not machine learning - bringing the total to 3
-of 7. The remaining 4 (`document_consistency_mismatch`, `evidence_duplication`,
-`fraud_screening_rule_score`, `information_quality`) still depend on
-document OCR-derived entity extraction, cross-document consistency, or
-duplicate-evidence detection - none of which has a live computation path
-yet - and are always reported explicitly unavailable, never fabricated
-from placeholder defaults.
+of 7. Step 5.8.18 (roadmap item 8) feeds three more from the live checks
+built since: `document_consistency_mismatch` (Steps 5.8.13-B/C, 5.8.16-17),
+`evidence_duplication` (Step 5.8.14) and `information_quality` (Step
+5.8.15, photo part) - up to 6 of 7, each reported unavailable whenever its
+check could not run. `fraud_screening_rule_score` is still never computed
+live (see its reason below), so status never reaches "completed". See
+docs/project_documentation/LIVE_SIGNAL_INTEGRATION.md.
 
 The fusion/uncertainty math itself (`_fuse`, `_compute_uncertainty`) is
 ported faithfully from `ai_ml/risk_fusion/fusion_engine.py` and
@@ -53,7 +54,14 @@ from app.crud import vehicle_damage as crud_vehicle_damage
 from app.db_models.claim import Claim
 from app.db_models.document import Document
 from app.schemas.ai_pipeline import EvidenceSummaryOut, LiveAiAnalysisRunOut, LiveSignalOut
-from app.services import document_analysis
+from app.services import (
+    accident_consistency,
+    document_analysis,
+    document_consistency,
+    evidence_duplication,
+    evidence_quality,
+    semantic_consistency,
+)
 
 METHODOLOGY_SOURCE = (
     "Signal/fusion/uncertainty formulas ported faithfully from the Step 5.4 risk-fusion "
@@ -91,25 +99,25 @@ RISK_BAND_THRESHOLDS = {"CRITICAL": 0.75, "HIGH": 0.50, "MEDIUM": 0.25}
 # function itself reports unavailable (a claim with zero documents, where
 # there is no analyzable document set at all - see Phase 10 of Step 5.8.12).
 _UNAVAILABLE_SIGNAL_REASONS: dict[str, tuple[str, str]] = {
+    # Step 5.8.18: the three entries below are now only fallbacks - each
+    # signal is normally computed by its own function further down and
+    # passes a more specific reason when it cannot be.
     "document_consistency_mismatch": (
         "DOCUMENT_CONSISTENCY",
-        "No cross-document consistency analysis pipeline is connected to live claims yet - "
-        "the cross_document_consistency table has no live-writing code path in this "
-        "application (its only populated row today is a hand-seeded development example).",
+        "No document consistency check could compare anything for this claim yet.",
     ),
     "evidence_duplication": (
         "EVIDENCE_DUPLICATION",
-        "Duplicate-evidence detection is not connected to the live evidence upload pipeline - "
-        "Evidence.Duplicate_Evidence_Indicator is always an honest 'not yet analyzed' "
-        "placeholder for evidence uploaded through the live application.",
+        "No readable evidence photos exist for this claim, so duplication cannot be assessed.",
     ),
     "fraud_screening_rule_score": (
         "FRAUD_SCREENING",
-        "The trained fraud model and the full rule-based screener both require inputs "
-        "(document consistency, evidence duplication, document completeness) that have no "
-        "live computation path yet. Running them on placeholder 'nothing detected' values "
-        "would misrepresent every live claim as low-risk regardless of its true risk, so "
-        "this signal is not computed live.",
+        "The trained fraud model and the full rule-based screener were built on the synthetic "
+        "dataset's own indicator columns (e.g. Duplicate_Evidence_Indicator, cross-document "
+        "mismatch flags), which live uploads still store as 'not yet analyzed' placeholders. "
+        "Running them on those placeholders would misrepresent every live claim as low-risk, "
+        "and their live inputs have not been validated (roadmap item 9), so this signal is not "
+        "computed live.",
     ),
     "document_completeness": (
         "DOCUMENT_COMPLETENESS",
@@ -222,9 +230,135 @@ def _document_completeness_signal(claim: Claim, documents: list[Document]) -> Li
     )
 
 
-def _unavailable_signal(signal_name: str) -> LiveSignalOut:
-    category, reason = _UNAVAILABLE_SIGNAL_REASONS[signal_name]
-    return LiveSignalOut(signal_name=signal_name, category=category, availability="unavailable", explanation=reason)
+def _unavailable_signal(signal_name: str, reason: str | None = None) -> LiveSignalOut:
+    category, default_reason = _UNAVAILABLE_SIGNAL_REASONS[signal_name]
+    return LiveSignalOut(
+        signal_name=signal_name, category=category, availability="unavailable", explanation=reason or default_reason
+    )
+
+
+# ---------------------------------------------------------------------------
+# Step 5.8.18: signals fed by the live analysis checks built in Steps
+# 5.8.13-B to 5.8.17 (roadmap item 8). Each reuses the existing check's own
+# result unchanged and turns it into a 0-1 value with the same "higher =
+# more concerning" convention as the research signal_builder. A check that
+# could not run (UNAVAILABLE / INCONCLUSIVE) never contributes a number.
+# ---------------------------------------------------------------------------
+
+_CONSISTENCY_DISAGREE = {document_consistency.STATUS_MISMATCH, semantic_consistency.STATUS_CONTRADICTION}
+_CONSISTENCY_AGREE = {document_consistency.STATUS_MATCH, semantic_consistency.STATUS_CONSISTENT}
+
+
+def _document_consistency_signal(db: Session, claim: Claim) -> LiveSignalOut:
+    """Share of the claim's document consistency checks that found a
+    disagreement, out of those that could actually compare something -
+    the live counterpart of signal_builder's mean of three mismatch flags."""
+    identifiers = document_consistency.compare_claim_documents(db, claim)
+    accident = accident_consistency.compare_claim_accident_details(db, claim)
+    narrative = semantic_consistency.compare_claim_narrative(db, claim)
+    checks = {
+        "registration number": identifiers.registration.status,
+        "policy number": identifiers.policy.status,
+        "accident date": accident.accident_date.status,
+        "accident time": accident.accident_time.status,
+        "FIR number": accident.fir_number.status,
+        "FIR vs Survey Report location": narrative.relationship,
+    }
+    compared = {name: s for name, s in checks.items() if s in _CONSISTENCY_AGREE | _CONSISTENCY_DISAGREE}
+    if not compared:
+        return _unavailable_signal(
+            "document_consistency_mismatch",
+            "None of this claim's document consistency checks (registration, policy, accident date/time, FIR "
+            "number, FIR vs Survey Report location) could compare anything yet. Upload the relevant documents "
+            "and run 'Analyze Documents' so their text is extracted.",
+        )
+    disagreeing = [name for name, s in compared.items() if s in _CONSISTENCY_DISAGREE]
+    value = round(len(disagreeing) / len(compared), 4)
+    explanation = (
+        f"{len(disagreeing)}/{len(compared)} document consistency check(s) that could run found a disagreement"
+        + (f" ({', '.join(disagreeing)})." if disagreeing else ".")
+        + f" Not comparable yet: {', '.join(n for n in checks if n not in compared) or 'none'}."
+        " Deterministic text checks validated only on controlled test documents - a disagreement is for "
+        "officer review, not an accusation."
+    )
+    return LiveSignalOut(
+        signal_name="document_consistency_mismatch",
+        category="DOCUMENT_CONSISTENCY",
+        signal_value=value,
+        availability="available",
+        confidence=1.0,
+        explanation=explanation,
+    )
+
+
+def _evidence_duplication_signal(db: Session, claim: Claim) -> LiveSignalOut:
+    """1 if any readable photo on the claim is an exact or near copy of
+    another stored photo, else 0 - binary, like signal_builder's
+    evidence_any_duplicate_flag."""
+    result = evidence_duplication.check_claim_evidence(db, claim)
+    if result.photos_checked == 0:
+        return _unavailable_signal(
+            "evidence_duplication", "No evidence photos have been uploaded for this claim, so duplication cannot be assessed."
+        )
+    copied = [
+        r.evidence_id
+        for r in result.results
+        if r.status in (evidence_duplication.STATUS_EXACT_DUPLICATE, evidence_duplication.STATUS_NEAR_DUPLICATE)
+    ]
+    checked = [r for r in result.results if r.status != evidence_duplication.STATUS_UNAVAILABLE]
+    if not copied and not checked:
+        return _unavailable_signal(
+            "evidence_duplication",
+            "None of this claim's evidence photos could be read, so duplication cannot be assessed.",
+        )
+    value = 1.0 if copied else 0.0
+    explanation = (
+        f"Copy found for {len(copied)} of {result.photos_checked} evidence photo(s) ({', '.join(copied)})."
+        if copied
+        else f"No exact or near copy found for {len(checked)} readable evidence photo(s) among "
+        f"{result.photos_compared_against} stored photo(s)."
+    ) + " Image-fingerprint check (SHA-256 + 64-bit difference hash), not an image-recognition model."
+    return LiveSignalOut(
+        signal_name="evidence_duplication",
+        category="EVIDENCE_DUPLICATION",
+        signal_value=value,
+        availability="available",
+        confidence=1.0,
+        explanation=explanation,
+    )
+
+
+def _information_quality_signal(db: Session, claim: Claim, inspections: list) -> LiveSignalOut:
+    """Share of the claim's readable evidence photos with at least one
+    quality flag. The research signal also averaged document OCR confidence;
+    that part stays out because native PDF text has no OCR confidence and
+    Tesseract is not installed in this environment. Confidence 1.0 with a
+    surveyor inspection on record, else 0.85 - ported from signal_builder."""
+    result = evidence_quality.check_claim_photo_quality(db, claim)
+    measured = [r for r in result.results if r.status != evidence_quality.STATUS_UNAVAILABLE]
+    if not measured:
+        return _unavailable_signal(
+            "information_quality",
+            "No readable evidence photos exist for this claim, so photo quality cannot be assessed. Document "
+            "OCR confidence is not used: OCR remains a research/prototype component in this environment.",
+        )
+    with_issues = [r for r in measured if r.status == evidence_quality.STATUS_ISSUES_FOUND]
+    value = round(len(with_issues) / len(measured), 4)
+    has_inspection = bool(inspections)
+    explanation = (
+        f"{len(with_issues)}/{len(measured)} readable evidence photo(s) have a quality issue (low resolution, "
+        "too dark/bright, low contrast or blurry). "
+        + ("A surveyor inspection is on record." if has_inspection else "No surveyor inspection is on record for this claim, reducing corroborating evidence.")
+        + " Document OCR confidence is not included (OCR remains a research/prototype component here)."
+    )
+    return LiveSignalOut(
+        signal_name="information_quality",
+        category="INFORMATION_QUALITY",
+        signal_value=value,
+        availability="available",
+        confidence=1.0 if has_inspection else 0.85,
+        explanation=explanation,
+    )
 
 
 def _fuse(signals: list[LiveSignalOut]) -> tuple[float | None, str | None]:
@@ -317,10 +451,10 @@ def run_claim_ai_analysis(db: Session, claim_id: str) -> LiveAiAnalysisRunOut:
         _claim_timing_signal(claim, policy),
         _repair_estimate_ratio_signal(claim, repair_estimates),
         _document_completeness_signal(claim, documents),
-        _unavailable_signal("document_consistency_mismatch"),
-        _unavailable_signal("evidence_duplication"),
+        _document_consistency_signal(db, claim),
+        _evidence_duplication_signal(db, claim),
         _unavailable_signal("fraud_screening_rule_score"),
-        _unavailable_signal("information_quality"),
+        _information_quality_signal(db, claim, inspections),
     ]
     available_count = sum(1 for s in signals if s.availability == "available")
     unavailable_names = [s.signal_name for s in signals if s.availability != "available"]
@@ -333,10 +467,10 @@ def run_claim_ai_analysis(db: Session, claim_id: str) -> LiveAiAnalysisRunOut:
         f"Only {available_count}/{TOTAL_DEFINED_SIGNALS} signal families defined by the Step 5.4 "
         "research prototype could be computed live for this claim"
         + (f" (unavailable: {', '.join(unavailable_names)})." if unavailable_names else ".")
-        + " Document consistency, evidence duplication, and fraud screening all require analysis "
-        "pipelines that do not exist in this application yet; information quality/OCR confidence "
-        "is not treated as validated just because text extraction exists - see "
-        "docs/project_documentation/LIVE_AI_PIPELINE.md and DOCUMENT_COMPLETENESS_AND_OCR.md for exactly why.",
+        + " Fraud screening is never computed live: the trained model and full rule screener are not "
+        "validated for live inputs. Document consistency, evidence duplication and information quality "
+        "(Step 5.8.18) come from deterministic rule/fingerprint checks validated only on controlled test "
+        "documents and generated images - see docs/project_documentation/LIVE_SIGNAL_INTEGRATION.md.",
     ]
 
     if confidence_band == "INSUFFICIENT_EVIDENCE":
