@@ -1,0 +1,107 @@
+{
+  "rule_baseline": {
+    "accuracy": 0.15671641791044777,
+    "precision": 0.14615384615384616,
+    "recall": 0.9047619047619048,
+    "f1": 0.25165562913907286,
+    "roc_auc": 0.5263379688158448,
+    "pr_auc": 0.16715211026144638,
+    "confusion_matrix": [
+      [
+        2,
+        111
+      ],
+      [
+        2,
+        19
+      ]
+    ],
+    "n_test": 134,
+    "n_positive_actual": 21,
+    "n_positive_predicted": 130
+  },
+  "logistic_regression_0.5": {
+    "accuracy": 0.7089552238805971,
+    "precision": 0.2,
+    "recall": 0.2857142857142857,
+    "f1": 0.23529411764705882,
+    "roc_auc": 0.6346396965865992,
+    "pr_auc": 0.22171219503727221,
+    "confusion_matrix": [
+      [
+        89,
+        24
+      ],
+      [
+        15,
+        6
+      ]
+    ],
+    "n_test": 134,
+    "n_positive_actual": 21,
+    "n_positive_predicted": 30
+  },
+  "logistic_regression_calibrated": {
+    "accuracy": 0.6865671641791045,
+    "precision": 0.2,
+    "recall": 0.3333333333333333,
+    "f1": 0.25,
+    "roc_auc": 0.6346396965865992,
+    "pr_auc": 0.22171219503727221,
+    "confusion_matrix": [
+      [
+        85,
+        28
+      ],
+      [
+        14,
+        7
+      ]
+    ],
+    "n_test": 134,
+    "n_positive_actual": 21,
+    "n_positive_predicted": 35
+  },
+  "random_forest_0.5": {
+    "accuracy": 0.835820895522388,
+    "precision": 0.3333333333333333,
+    "recall": 0.047619047619047616,
+    "f1": 0.08333333333333333,
+    "roc_auc": 0.5541508638853772,
+    "pr_auc": 0.23345331139100906,
+    "confusion_matrix": [
+      [
+        111,
+        2
+      ],
+      [
+        20,
+        1
+      ]
+    ],
+    "n_test": 134,
+    "n_positive_actual": 21,
+    "n_positive_predicted": 3
+  },
+  "random_forest_calibrated": {
+    "accuracy": 0.26865671641791045,
+    "precision": 0.16521739130434782,
+    "recall": 0.9047619047619048,
+    "f1": 0.27941176470588236,
+    "roc_auc": 0.5541508638853772,
+    "pr_auc": 0.23345331139100906,
+    "confusion_matrix": [
+      [
+        17,
+        96
+      ],
+      [
+        2,
+        19
+      ]
+    ],
+    "n_test": 134,
+    "n_positive_actual": 21,
+    "n_positive_predicted": 115
+  }
+}

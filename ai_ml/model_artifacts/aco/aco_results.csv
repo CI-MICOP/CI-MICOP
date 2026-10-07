@@ -1,0 +1,8 @@
+Metric,Baseline (greedy),ACO,Difference (ACO-Baseline),Interpretation
+Total Cost,13.299084090446058,13.307003619510365,0.007919529064306374,ACO higher (worse)
+Total Distance,935.9714098760942,953.2328446965623,17.26143482046814,ACO higher (worse)
+Workload Imbalance (std),0.20636624905655596,0.20098285868741125,-0.005383390369144703,ACO lower (better)
+Max Workload Ratio,1.0,1.0,0.0,No difference
+Priority Handling Score (lower=better),0.1298863732442062,0.12963880835653976,-0.000247564887666446,ACO lower (better)
+Runtime (s),0.011145580000447807,11.504555319999781,11.493409739999333,ACO is slower (expected - it evaluates many candidate solutions).
+Unassigned Claims,0.0,0.0,0.0,No difference

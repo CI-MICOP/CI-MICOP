@@ -1,0 +1,43 @@
+{
+  "aco_parameters": {
+    "n_ants": 15,
+    "n_iterations": 60,
+    "alpha": 1.0,
+    "beta": 2.0,
+    "evaporation_rate": 0.3,
+    "pheromone_deposit_q": 1.0,
+    "initial_pheromone": 1.0,
+    "random_seed": 42
+  },
+  "cost_weights": {
+    "distance_weight": 0.5,
+    "workload_weight": 0.3,
+    "priority_weight": 0.2
+  },
+  "note": "Research prototype parameters - not claimed to be globally optimal, not tuned on the evaluation scenarios (see docstrings in aco_optimizer.py / cost_function.py).",
+  "evaluation_seeds": [
+    101,
+    202,
+    303,
+    404,
+    505
+  ],
+  "main_scenario_size": {
+    "n_claims": 50,
+    "n_surveyors": 20
+  },
+  "stress_test_sizes": [
+    {
+      "n_surveyors": 20,
+      "n_claims": 50
+    },
+    {
+      "n_surveyors": 30,
+      "n_claims": 100
+    },
+    {
+      "n_surveyors": 40,
+      "n_claims": 150
+    }
+  ]
+}

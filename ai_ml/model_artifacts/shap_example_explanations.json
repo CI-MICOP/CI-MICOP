@@ -1,0 +1,312 @@
+[
+  {
+    "claim_id": "CLM-000640",
+    "fraud_screening_risk": "HIGH",
+    "contributing_factors": [
+      {
+        "code": "DOCUMENT_INCONSISTENCY",
+        "description": "Information across submitted documents is inconsistent."
+      },
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "logistic_regression",
+    "probability": 0.9997641805771144,
+    "top_shap_features": [
+      [
+        "numeric__document_ocr_confidence_min",
+        1.2909170104094498
+      ],
+      [
+        "categorical__veh_Vehicle_Type_Commercial \u2013 Taxi",
+        1.0721856069349798
+      ],
+      [
+        "categorical__pol_Class_Code_CL04",
+        0.941587706735053
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000144",
+    "fraud_screening_risk": "MINIMAL",
+    "contributing_factors": [
+      {
+        "code": "DOCUMENT_INCONSISTENCY",
+        "description": "Information across submitted documents is inconsistent."
+      },
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "logistic_regression",
+    "probability": 0.07628096115193342,
+    "top_shap_features": [
+      [
+        "numeric__document_any_mismatch",
+        2.6265596809862526
+      ],
+      [
+        "categorical__veh_Class_Code_CL05",
+        0.843494344445388
+      ],
+      [
+        "categorical__pol_Class_Code_CL01",
+        0.6703427941124425
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000649",
+    "fraud_screening_risk": "HIGH",
+    "contributing_factors": [
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      },
+      {
+        "code": "DOCUMENT_INCONSISTENCY",
+        "description": "Information across submitted documents is inconsistent."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "logistic_regression",
+    "probability": 0.8471876485523926,
+    "top_shap_features": [
+      [
+        "numeric__pol_Premium_Amount",
+        0.7954624221522641
+      ],
+      [
+        "categorical__cdc_Accident_Date_Match_Mismatch",
+        0.7281946376798717
+      ],
+      [
+        "categorical__cust_Driver_Experience_Code_DE04",
+        0.7267127747382472
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000605",
+    "fraud_screening_risk": "MINIMAL",
+    "contributing_factors": [
+      {
+        "code": "REPAIR_ESTIMATE_ANOMALY",
+        "description": "The repair estimate contains an unusual cost pattern."
+      },
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "logistic_regression",
+    "probability": 0.20043775252073298,
+    "top_shap_features": [
+      [
+        "numeric__est_Painting_Cost",
+        1.015092152870836
+      ],
+      [
+        "categorical__pol_Class_Code_CL04",
+        0.941587706735053
+      ],
+      [
+        "categorical__veh_Make_Mahindra",
+        0.7493739899881451
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000309",
+    "fraud_screening_risk": "HIGH",
+    "contributing_factors": [
+      {
+        "code": "DOCUMENT_INCONSISTENCY",
+        "description": "Information across submitted documents is inconsistent."
+      },
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "logistic_regression",
+    "probability": 0.7646147634266127,
+    "top_shap_features": [
+      [
+        "numeric__cdc_Document_Consistency_Score",
+        1.0526403744468595
+      ],
+      [
+        "categorical__pol_Class_Code_CL04",
+        0.941587706735053
+      ],
+      [
+        "categorical__acc_Accident_Type_Single Vehicle Accident",
+        0.8268905902877003
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000640",
+    "fraud_screening_risk": "MEDIUM",
+    "contributing_factors": [
+      {
+        "code": "REPAIR_ESTIMATE_ANOMALY",
+        "description": "The repair estimate contains an unusual cost pattern."
+      },
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "random_forest",
+    "probability": 0.5645374756879133,
+    "top_shap_features": [
+      [
+        "categorical__dmg_Damage_Type_Rear Damage",
+        0.011166270578622212
+      ],
+      [
+        "categorical__veh_Class_Code_CL05",
+        0.009709002247267456
+      ],
+      [
+        "categorical__veh_Vehicle_Type_Commercial \u2013 Taxi",
+        0.009204818712532948
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000144",
+    "fraud_screening_risk": "MEDIUM",
+    "contributing_factors": [
+      {
+        "code": "REPAIR_ESTIMATE_ANOMALY",
+        "description": "The repair estimate contains an unusual cost pattern."
+      },
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      },
+      {
+        "code": "DOCUMENT_INCONSISTENCY",
+        "description": "Information across submitted documents is inconsistent."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "random_forest",
+    "probability": 0.5219739984437805,
+    "top_shap_features": [
+      [
+        "numeric__est_Estimate_Anomaly_Score",
+        0.01526984089104421
+      ],
+      [
+        "numeric__veh_Manufacturing_Year",
+        0.012080925472610606
+      ],
+      [
+        "numeric__cdc_Document_Consistency_Score",
+        0.008702054690523387
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000649",
+    "fraud_screening_risk": "MEDIUM",
+    "contributing_factors": [
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      },
+      {
+        "code": "DOCUMENT_INCONSISTENCY",
+        "description": "Information across submitted documents is inconsistent."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "random_forest",
+    "probability": 0.50630173093832,
+    "top_shap_features": [
+      [
+        "numeric__pol_Premium_Amount",
+        0.010665611057999362
+      ],
+      [
+        "categorical__cust_Driver_Experience_Code_DE04",
+        0.008366383440978325
+      ],
+      [
+        "numeric__cdc_Document_Consistency_Score",
+        0.007537714198943132
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000605",
+    "fraud_screening_risk": "LOW",
+    "contributing_factors": [
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "random_forest",
+    "probability": 0.49889061425807874,
+    "top_shap_features": [
+      [
+        "numeric__veh_Vehicle_Value",
+        0.010170870071967814
+      ],
+      [
+        "numeric__days_since_policy_start",
+        0.008283394952191016
+      ],
+      [
+        "categorical__veh_Permit_Code_P02",
+        0.007119590312556757
+      ]
+    ]
+  },
+  {
+    "claim_id": "CLM-000309",
+    "fraud_screening_risk": "LOW",
+    "contributing_factors": [
+      {
+        "code": "UNUSUAL_CLAIM_PATTERN",
+        "description": "The claim contains a pattern that differs from typical claims."
+      },
+      {
+        "code": "REPAIR_ESTIMATE_ANOMALY",
+        "description": "The repair estimate contains an unusual cost pattern."
+      }
+    ],
+    "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+    "model": "random_forest",
+    "probability": 0.4980413271208372,
+    "top_shap_features": [
+      [
+        "numeric__veh_Vehicle_Value",
+        0.011826897100608379
+      ],
+      [
+        "numeric__est_Estimate_Anomaly_Score",
+        0.00935306354091786
+      ],
+      [
+        "categorical__cust_Driver_Experience_Code_DE04",
+        0.00921912234136975
+      ]
+    ]
+  }
+]

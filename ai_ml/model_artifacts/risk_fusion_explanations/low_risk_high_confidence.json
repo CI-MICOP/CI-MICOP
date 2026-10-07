@@ -1,0 +1,130 @@
+{
+  "claim_id": "CLM-000002",
+  "example_type": "low_risk_high_confidence",
+  "overall_risk_score": 0.23310666883844003,
+  "risk_band": "LOW",
+  "risk_band_label": "Prototype research risk band - workflow prioritization only, not a validated insurance risk threshold.",
+  "confidence_score": 0.6122342614592737,
+  "confidence_band": "HIGH_CONFIDENCE",
+  "uncertainty_reasons": [
+    "Includes a model/rule-screening-derived signal (fraud_screening_rule_score) which Step 5.2/5.3 found performs only marginally above chance under repeated grouped cross-validation - confidence is discounted accordingly."
+  ],
+  "signals": [
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "document_consistency_mismatch",
+      "category": "DOCUMENT_CONSISTENCY",
+      "signal_value": 0.6666666666666666,
+      "raw_value": 0.6666666666666666,
+      "signal_direction": "higher_is_riskier",
+      "confidence": 1.0,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "2/3 cross-document consistency checks (accident details, vehicle damage, overall document match) flagged a mismatch.",
+      "source_module": "ai_ml.common.feature_builder (cross_document_consistency)"
+    },
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "repair_estimate_anomaly",
+      "category": "REPAIR_ESTIMATE_ANOMALY",
+      "signal_value": 0.09839445530331119,
+      "raw_value": 1.2568779970388704,
+      "signal_direction": "higher_is_riskier",
+      "confidence": 1.0,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "Repair-estimate/claim-amount ratio 1.26 (reference median 0.84, 90th percentile 2.97); excessive-amount flag=not set.",
+      "source_module": "ai_ml.common.feature_builder (repair_estimates) + ai_ml.risk_fusion.signal_builder"
+    },
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "evidence_duplication",
+      "category": "EVIDENCE_DUPLICATION",
+      "signal_value": 0.0,
+      "raw_value": 0.0,
+      "signal_direction": "higher_is_riskier",
+      "confidence": 1.0,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "No duplicate evidence detected across 2 submitted evidence item(s).",
+      "source_module": "ai_ml.common.preprocessing (evidence aggregation)"
+    },
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "fraud_screening_rule_score",
+      "category": "FRAUD_SCREENING",
+      "signal_value": 0.2222222222222222,
+      "raw_value": 0.2222222222222222,
+      "signal_direction": "higher_is_riskier",
+      "confidence": 0.4,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "Transparent rule-based fraud screening score (ai_ml.baselines.rule_based_fraud), reason codes: DOCUMENT_INCONSISTENCY. Confidence fixed at 0.4 to reflect Step 5.2/5.3's finding that this signal performs only marginally above chance under repeated grouped cross-validation - it is treated as one weak, honestly-labeled input, not a verdict.",
+      "source_module": "ai_ml.baselines.rule_based_fraud.RuleBasedFraudScreener"
+    },
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "claim_pattern_anomaly",
+      "category": "CLAIM_PATTERN_ANOMALY",
+      "signal_value": 0.0,
+      "raw_value": 210.0,
+      "signal_direction": "lower_is_riskier",
+      "confidence": 1.0,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "Claim filed 210 day(s) after policy start (reference 10th percentile 29, median 158).",
+      "source_module": "ai_ml.common.feature_builder (claims + policies)"
+    },
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "document_completeness",
+      "category": "DOCUMENT_COMPLETENESS",
+      "signal_value": 0.274,
+      "raw_value": 0.726,
+      "signal_direction": "lower_is_riskier",
+      "confidence": 1.0,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "Mean document completeness 0.73 across 5 submitted document(s).",
+      "source_module": "ai_ml.common.preprocessing (document aggregation)"
+    },
+    {
+      "claim_id": "CLM-000002",
+      "signal_name": "information_quality",
+      "category": "INFORMATION_QUALITY",
+      "signal_value": 0.16500000000000004,
+      "raw_value": 0.835,
+      "signal_direction": "lower_is_riskier",
+      "confidence": 1.0,
+      "availability": "available",
+      "evidence_available": true,
+      "explanation": "Mean document/evidence quality score 0.83. A surveyor inspection is on record.",
+      "source_module": "ai_ml.common.preprocessing (document + evidence aggregation)"
+    }
+  ],
+  "contributing_signals": [
+    "document_consistency_mismatch",
+    "repair_estimate_anomaly",
+    "evidence_duplication",
+    "fraud_screening_rule_score",
+    "claim_pattern_anomaly",
+    "document_completeness",
+    "information_quality"
+  ],
+  "unavailable_signals": [],
+  "reason_codes": [
+    "DOCUMENT_INCONSISTENCY"
+  ],
+  "officer_explanations": [
+    {
+      "code": "DOCUMENT_INCONSISTENCY",
+      "title": "Document inconsistency detected",
+      "officer_explanation": "AI risk signal: document inconsistency detected.",
+      "detail": "Information across submitted documents is inconsistent.",
+      "severity": "MEDIUM"
+    }
+  ],
+  "review_priority": "LOW_REVIEW",
+  "human_review_required": true,
+  "explanation": "These are AI risk signals for review prioritization, not a fraud determination. The Claims Officer makes the final decision."
+}

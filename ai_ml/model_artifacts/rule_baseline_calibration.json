@@ -1,0 +1,15 @@
+{
+  "calibration_percentile": 0.9,
+  "overall_threshold": 1.0,
+  "weights": {
+    "cross_document_mismatch": 1.0,
+    "excessive_repair_estimate_flag": 1.0,
+    "duplicate_evidence": 1.0,
+    "high_repair_ratio": 0.5,
+    "early_claim_after_policy": 0.5,
+    "low_document_completeness": 0.5
+  },
+  "repair_ratio_threshold": 2.947661186972053,
+  "early_claim_days_threshold": 31.89999999999999,
+  "completeness_threshold": 0.6736607142857143
+}

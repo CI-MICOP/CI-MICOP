@@ -1,0 +1,556 @@
+{
+  "seed": 101,
+  "strategy": "aco",
+  "assignments": [
+    {
+      "claim_id": "CLM-000099",
+      "surveyor_id": "SUR-0005",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.18979797668123977,
+        "workload_cost": 0.1111111111111111,
+        "priority_cost": 0.18979797668123977,
+        "total": 0.16619191701020117
+      }
+    },
+    {
+      "claim_id": "CLM-000148",
+      "surveyor_id": "SUR-0018",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.1661739151643479,
+        "workload_cost": 0.3333333333333333,
+        "priority_cost": 0.1661739151643479,
+        "total": 0.21632174061504353
+      }
+    },
+    {
+      "claim_id": "CLM-000270",
+      "surveyor_id": "SUR-0018",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.19736528976088083,
+        "workload_cost": 0.4444444444444444,
+        "priority_cost": 0.19736528976088083,
+        "total": 0.2714890361659499
+      }
+    },
+    {
+      "claim_id": "CLM-000362",
+      "surveyor_id": "SUR-0012",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.033122032851667815,
+        "workload_cost": 0.5,
+        "priority_cost": 0.033122032851667815,
+        "total": 0.17318542299616746
+      }
+    },
+    {
+      "claim_id": "CLM-000510",
+      "surveyor_id": "SUR-0013",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.01586420955423108,
+        "workload_cost": 0.5555555555555556,
+        "priority_cost": 0.01586420955423108,
+        "total": 0.1777716133546284
+      }
+    },
+    {
+      "claim_id": "CLM-000033",
+      "surveyor_id": "SUR-0005",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.06302724804605918,
+        "workload_cost": 0.2222222222222222,
+        "priority_cost": 0.03151362402302959,
+        "total": 0.10448301549430217
+      }
+    },
+    {
+      "claim_id": "CLM-000034",
+      "surveyor_id": "SUR-0012",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.03154534371870408,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.01577267185935204,
+        "total": 0.21892720623122244
+      }
+    },
+    {
+      "claim_id": "CLM-000037",
+      "surveyor_id": "SUR-0011",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.3213774121230713,
+        "workload_cost": 0.4,
+        "priority_cost": 0.16068870606153565,
+        "total": 0.31282644727384273
+      }
+    },
+    {
+      "claim_id": "CLM-000065",
+      "surveyor_id": "SUR-0011",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.06594223392406764,
+        "workload_cost": 0.6,
+        "priority_cost": 0.03297111696203382,
+        "total": 0.21956534035444056
+      }
+    },
+    {
+      "claim_id": "CLM-000082",
+      "surveyor_id": "SUR-0006",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.12735951394011885,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.06367975697005943,
+        "total": 0.2764157083640713
+      }
+    },
+    {
+      "claim_id": "CLM-000108",
+      "surveyor_id": "SUR-0004",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.06107465234134968,
+        "workload_cost": 0.5,
+        "priority_cost": 0.03053732617067484,
+        "total": 0.1866447914048098
+      }
+    },
+    {
+      "claim_id": "CLM-000112",
+      "surveyor_id": "SUR-0018",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.1714379049478058,
+        "workload_cost": 0.5555555555555556,
+        "priority_cost": 0.0857189524739029,
+        "total": 0.26952940963535016
+      }
+    },
+    {
+      "claim_id": "CLM-000140",
+      "surveyor_id": "SUR-0009",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.08314104815876978,
+        "workload_cost": 0.5714285714285714,
+        "priority_cost": 0.04157052407938489,
+        "total": 0.22131320032383325
+      }
+    },
+    {
+      "claim_id": "CLM-000156",
+      "surveyor_id": "SUR-0020",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.1553826733046345,
+        "workload_cost": 0.375,
+        "priority_cost": 0.07769133665231726,
+        "total": 0.2057296039827807
+      }
+    },
+    {
+      "claim_id": "CLM-000177",
+      "surveyor_id": "SUR-0005",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.10751428978897147,
+        "workload_cost": 0.3333333333333333,
+        "priority_cost": 0.053757144894485735,
+        "total": 0.16450857387338286
+      }
+    },
+    {
+      "claim_id": "CLM-000187",
+      "surveyor_id": "SUR-0014",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.024329079242663046,
+        "workload_cost": 0.8333333333333334,
+        "priority_cost": 0.012164539621331523,
+        "total": 0.26459744754559783
+      }
+    },
+    {
+      "claim_id": "CLM-000249",
+      "surveyor_id": "SUR-0011",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.2316859008404256,
+        "workload_cost": 0.8,
+        "priority_cost": 0.1158429504202128,
+        "total": 0.37901154050425534
+      }
+    },
+    {
+      "claim_id": "CLM-000264",
+      "surveyor_id": "SUR-0004",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.030427043055000307,
+        "workload_cost": 0.625,
+        "priority_cost": 0.015213521527500154,
+        "total": 0.20575622583300018
+      }
+    },
+    {
+      "claim_id": "CLM-000292",
+      "surveyor_id": "SUR-0010",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.12371884577384047,
+        "workload_cost": 0.75,
+        "priority_cost": 0.061859422886920236,
+        "total": 0.29923130746430426
+      }
+    },
+    {
+      "claim_id": "CLM-000294",
+      "surveyor_id": "SUR-0010",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.03945593490530371,
+        "workload_cost": 0.875,
+        "priority_cost": 0.019727967452651856,
+        "total": 0.28617356094318225
+      }
+    },
+    {
+      "claim_id": "CLM-000316",
+      "surveyor_id": "SUR-0013",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.04179780598813269,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.020898902994066344,
+        "total": 0.2250786835928796
+      }
+    },
+    {
+      "claim_id": "CLM-000325",
+      "surveyor_id": "SUR-0015",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.10061063562592175,
+        "workload_cost": 0.5714285714285714,
+        "priority_cost": 0.050305317812960874,
+        "total": 0.23179495280412446
+      }
+    },
+    {
+      "claim_id": "CLM-000337",
+      "surveyor_id": "SUR-0019",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.036432027300308895,
+        "workload_cost": 0.5,
+        "priority_cost": 0.018216013650154447,
+        "total": 0.1718592163801853
+      }
+    },
+    {
+      "claim_id": "CLM-000383",
+      "surveyor_id": "SUR-0004",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.21467869706464784,
+        "workload_cost": 0.75,
+        "priority_cost": 0.10733934853232392,
+        "total": 0.3538072182387887
+      }
+    },
+    {
+      "claim_id": "CLM-000385",
+      "surveyor_id": "SUR-0020",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.07822949720689565,
+        "workload_cost": 0.5,
+        "priority_cost": 0.039114748603447824,
+        "total": 0.19693769832413738
+      }
+    },
+    {
+      "claim_id": "CLM-000386",
+      "surveyor_id": "SUR-0017",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.18479520794058046,
+        "workload_cost": 0.8333333333333334,
+        "priority_cost": 0.09239760397029023,
+        "total": 0.3608771247643483
+      }
+    },
+    {
+      "claim_id": "CLM-000392",
+      "surveyor_id": "SUR-0005",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.09032786878244503,
+        "workload_cost": 0.4444444444444444,
+        "priority_cost": 0.045163934391222516,
+        "total": 0.18753005460280034
+      }
+    },
+    {
+      "claim_id": "CLM-000425",
+      "surveyor_id": "SUR-0014",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.1362913851916683,
+        "workload_cost": 1.0,
+        "priority_cost": 0.06814569259583415,
+        "total": 0.38177483111500093
+      }
+    },
+    {
+      "claim_id": "CLM-000448",
+      "surveyor_id": "SUR-0010",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.14952904143792983,
+        "workload_cost": 1.0,
+        "priority_cost": 0.07476452071896492,
+        "total": 0.3897174248627579
+      }
+    },
+    {
+      "claim_id": "CLM-000449",
+      "surveyor_id": "SUR-0015",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.09441372322236871,
+        "workload_cost": 0.7142857142857143,
+        "priority_cost": 0.047206861611184356,
+        "total": 0.27093394821913547
+      }
+    },
+    {
+      "claim_id": "CLM-000514",
+      "surveyor_id": "SUR-0001",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.2556427107138515,
+        "workload_cost": 0.5555555555555556,
+        "priority_cost": 0.12782135535692574,
+        "total": 0.3200522930949775
+      }
+    },
+    {
+      "claim_id": "CLM-000518",
+      "surveyor_id": "SUR-0001",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.09229767365470438,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.04614883682735219,
+        "total": 0.2553786041928226
+      }
+    },
+    {
+      "claim_id": "CLM-000538",
+      "surveyor_id": "SUR-0001",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.2950055536617181,
+        "workload_cost": 0.7777777777777778,
+        "priority_cost": 0.14750277683085905,
+        "total": 0.4103366655303642
+      }
+    },
+    {
+      "claim_id": "CLM-000556",
+      "surveyor_id": "SUR-0004",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.1688904747078579,
+        "workload_cost": 0.875,
+        "priority_cost": 0.08444523735392895,
+        "total": 0.36383428482471475
+      }
+    },
+    {
+      "claim_id": "CLM-000590",
+      "surveyor_id": "SUR-0009",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.12476967134861276,
+        "workload_cost": 0.7142857142857143,
+        "priority_cost": 0.06238483567430638,
+        "total": 0.28914751709488196
+      }
+    },
+    {
+      "claim_id": "CLM-000592",
+      "surveyor_id": "SUR-0006",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.29800778857644317,
+        "workload_cost": 0.8333333333333334,
+        "priority_cost": 0.14900389428822158,
+        "total": 0.4288046731458659
+      }
+    },
+    {
+      "claim_id": "CLM-000634",
+      "surveyor_id": "SUR-0002",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.17014245996744226,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.08507122998372113,
+        "total": 0.30208547598046537
+      }
+    },
+    {
+      "claim_id": "CLM-000025",
+      "surveyor_id": "SUR-0016",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.018000409111162425,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.0,
+        "total": 0.2090002045555812
+      }
+    },
+    {
+      "claim_id": "CLM-000075",
+      "surveyor_id": "SUR-0020",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.07723510915169081,
+        "workload_cost": 0.625,
+        "priority_cost": 0.0,
+        "total": 0.2261175545758454
+      }
+    },
+    {
+      "claim_id": "CLM-000147",
+      "surveyor_id": "SUR-0018",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.11160070155673356,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.0,
+        "total": 0.25580035077836677
+      }
+    },
+    {
+      "claim_id": "CLM-000172",
+      "surveyor_id": "SUR-0002",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.048422896012302125,
+        "workload_cost": 0.7777777777777778,
+        "priority_cost": 0.0,
+        "total": 0.2575447813394844
+      }
+    },
+    {
+      "claim_id": "CLM-000185",
+      "surveyor_id": "SUR-0003",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.3387280899902374,
+        "workload_cost": 0.5714285714285714,
+        "priority_cost": 0.0,
+        "total": 0.3407926164236901
+      }
+    },
+    {
+      "claim_id": "CLM-000203",
+      "surveyor_id": "SUR-0005",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.37505610603720224,
+        "workload_cost": 0.5555555555555556,
+        "priority_cost": 0.0,
+        "total": 0.3541947196852678
+      }
+    },
+    {
+      "claim_id": "CLM-000228",
+      "surveyor_id": "SUR-0003",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.0956147651442753,
+        "workload_cost": 0.7142857142857143,
+        "priority_cost": 0.0,
+        "total": 0.2620930968578519
+      }
+    },
+    {
+      "claim_id": "CLM-000318",
+      "surveyor_id": "SUR-0003",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.32344988026755317,
+        "workload_cost": 0.8571428571428571,
+        "priority_cost": 0.0,
+        "total": 0.4188677972766337
+      }
+    },
+    {
+      "claim_id": "CLM-000366",
+      "surveyor_id": "SUR-0007",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.04572678500237022,
+        "workload_cost": 0.75,
+        "priority_cost": 0.0,
+        "total": 0.24786339250118508
+      }
+    },
+    {
+      "claim_id": "CLM-000374",
+      "surveyor_id": "SUR-0016",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.13982182277815303,
+        "workload_cost": 0.7777777777777778,
+        "priority_cost": 0.0,
+        "total": 0.30324424472240985
+      }
+    },
+    {
+      "claim_id": "CLM-000548",
+      "surveyor_id": "SUR-0016",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.061079655924254156,
+        "workload_cost": 0.8888888888888888,
+        "priority_cost": 0.0,
+        "total": 0.2972064946287937
+      }
+    },
+    {
+      "claim_id": "CLM-000578",
+      "surveyor_id": "SUR-0005",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.2368246125508252,
+        "workload_cost": 0.6666666666666666,
+        "priority_cost": 0.0,
+        "total": 0.3184123062754126
+      }
+    },
+    {
+      "claim_id": "CLM-000625",
+      "surveyor_id": "SUR-0020",
+      "reason": null,
+      "cost": {
+        "distance_cost": 0.09073859030410636,
+        "workload_cost": 0.75,
+        "priority_cost": 0.0,
+        "total": 0.27036929515205316
+      }
+    }
+  ]
+}

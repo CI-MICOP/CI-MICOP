@@ -1,0 +1,4223 @@
+{
+  "target_audits": {
+    "frd_Risk_Category": {
+      "target": "frd_Risk_Category",
+      "exists": true,
+      "dtype": "str",
+      "n_rows": 654,
+      "missing_values": 0,
+      "n_classes": 4,
+      "class_counts": {
+        "Medium": 213,
+        "Low": 198,
+        "High": 160,
+        "Critical": 83
+      },
+      "class_percentages": {
+        "Medium": 32.57,
+        "Low": 30.28,
+        "High": 24.46,
+        "Critical": 12.69
+      },
+      "min_class_size": 83,
+      "claim_id_unique": true
+    },
+    "cdc_Overall_Consistency_Status": {
+      "target": "cdc_Overall_Consistency_Status",
+      "exists": true,
+      "dtype": "str",
+      "n_rows": 654,
+      "missing_values": 0,
+      "n_classes": 3,
+      "class_counts": {
+        "Match": 394,
+        "Partial Match": 204,
+        "Mismatch": 56
+      },
+      "class_percentages": {
+        "Match": 60.24,
+        "Partial Match": 31.19,
+        "Mismatch": 8.56
+      },
+      "min_class_size": 56,
+      "claim_id_unique": true
+    },
+    "est_Excessive_Claim_Amount_Indicator": {
+      "target": "est_Excessive_Claim_Amount_Indicator",
+      "exists": true,
+      "dtype": "bool",
+      "n_rows": 654,
+      "missing_values": 0,
+      "n_classes": 2,
+      "class_counts": {
+        "false": 347,
+        "true": 307
+      },
+      "class_percentages": {
+        "false": 53.06,
+        "true": 46.94
+      },
+      "min_class_size": 307,
+      "claim_id_unique": true
+    }
+  },
+  "leakage_reports": {
+    "frd_Risk_Category": {
+      "target": "frd_Risk_Category",
+      "safe_features": [
+        "Accident_Pincode",
+        "Claim_Amount",
+        "Claim_Date",
+        "Claim_Description",
+        "Claim_Intimation_Date",
+        "Claim_Number",
+        "Claim_Number_Child",
+        "Claim_Type",
+        "Claim_Year",
+        "Claims_History_Code",
+        "Date_of_Disbursement",
+        "Fatal_NonFatal_Flag",
+        "Incurred_Claims_Code",
+        "Insurer_NOL_Code",
+        "Interim_Award_Flag",
+        "Nature_of_Injury_Code",
+        "Nature_of_Loss_Code",
+        "Place_of_Accident",
+        "Settlement_Basis_Code",
+        "TPPD_Statutory_Cover_Flag",
+        "acc_Accident_City",
+        "acc_Accident_Date",
+        "acc_Accident_Description",
+        "acc_Accident_Location",
+        "acc_Accident_Pincode",
+        "acc_Accident_State",
+        "acc_Accident_Time",
+        "acc_Accident_Type",
+        "acc_FIR_Number",
+        "acc_Injury_Reported",
+        "acc_Police_Report_Available",
+        "acc_Road_Condition",
+        "acc_Road_Type_Code",
+        "acc_Third_Party_Involved",
+        "acc_Weather_Condition",
+        "acc_Witness_Available",
+        "cdc_Accident_Date_Match",
+        "cdc_Accident_Details_Mismatch_Indicator",
+        "cdc_Accident_Location_Match",
+        "cdc_Claim_Amount_Match",
+        "cdc_Customer_Statement_Match",
+        "cdc_Damage_Description_Match",
+        "cdc_Document_Consistency_Score",
+        "cdc_Document_Mismatch_Indicator",
+        "cdc_FIR_Match",
+        "cdc_Overall_Consistency_Status",
+        "cdc_Repair_Estimate_Match",
+        "cdc_Surveyor_Report_Match",
+        "cdc_Vehicle_Damage_Mismatch_Indicator",
+        "cdc_Vehicle_Details_Match",
+        "cust_Address",
+        "cust_Age",
+        "cust_City",
+        "cust_Customer_Name",
+        "cust_Customer_Type",
+        "cust_Date_of_Birth",
+        "cust_Driver_Age_Code",
+        "cust_Driver_Experience_Code",
+        "cust_Driver_Qualification_Code",
+        "cust_Driver_Type_Code",
+        "cust_Driving_Experience_Years",
+        "cust_Email",
+        "cust_Gender",
+        "cust_Occupation",
+        "cust_Phone",
+        "cust_Pincode",
+        "cust_Previous_Claim_Count",
+        "cust_State",
+        "days_since_policy_start",
+        "distinct_document_types",
+        "distinct_evidence_types",
+        "dmg_Damage_Description",
+        "dmg_Damage_Location",
+        "dmg_Damage_Severity",
+        "dmg_Damage_Type",
+        "dmg_Damaged_Part",
+        "dmg_Estimated_Damage_Cost",
+        "dmg_Photo_Evidence_Available",
+        "dmg_Repair_or_Replace",
+        "dmg_Vehicle_Damage_Mismatch_Indicator",
+        "document_any_mismatch",
+        "document_completeness_mean",
+        "document_count",
+        "document_ocr_confidence_mean",
+        "document_ocr_confidence_min",
+        "est_Estimate_Anomaly_Score",
+        "est_Estimate_Date",
+        "est_Estimated_Repair_Days",
+        "est_Excessive_Claim_Amount_Indicator",
+        "est_Garage_ID",
+        "est_Labour_Cost",
+        "est_Painting_Cost",
+        "est_Parts_Cost",
+        "est_Repair_Cost",
+        "est_Repair_Estimate",
+        "est_Repaired_Parts_Count",
+        "est_Replacement_Parts_Count",
+        "evidence_any_damage_detected",
+        "evidence_any_duplicate_flag",
+        "evidence_confidence_mean",
+        "evidence_count",
+        "evidence_image_quality_mean",
+        "has_document_Accident_Photos",
+        "has_document_Damage_Photos",
+        "has_document_Driving_License",
+        "has_document_FIR",
+        "has_document_Garage_Bill",
+        "has_document_Insurance_Policy",
+        "has_document_RC",
+        "has_document_Repair_Estimate",
+        "has_evidence_Accident_Photo",
+        "has_evidence_Damage_Photo",
+        "has_evidence_Survey_Photo",
+        "insp_Damage_Observed",
+        "insp_Damage_Severity",
+        "insp_Inspection_Date",
+        "insp_Inspection_Location",
+        "insp_Inspection_Status",
+        "insp_Parts_Required",
+        "insp_Repair_Recommendation",
+        "insp_Survey_Report_Submitted",
+        "insp_Surveyor_Comments",
+        "insp_Surveyor_Confidence_Score",
+        "insp_Surveyor_ID",
+        "insp_Vehicle_Condition",
+        "pol_Anti_Theft_Discount_Flag",
+        "pol_Auto_Association_Discount_Flag",
+        "pol_Class_Code",
+        "pol_Coverage_Type",
+        "pol_Customer_ID",
+        "pol_Deductible_Amount",
+        "pol_Endorsement_Flag",
+        "pol_Endorsement_Number",
+        "pol_IDV",
+        "pol_NCB_Flag",
+        "pol_No_Claim_Bonus",
+        "pol_Office_Code",
+        "pol_Own_Premises_Discount_Flag",
+        "pol_Policy_Code",
+        "pol_Policy_End_Date",
+        "pol_Policy_Number",
+        "pol_Policy_Start_Date",
+        "pol_Policy_Status",
+        "pol_Policy_Type",
+        "pol_Policy_Year",
+        "pol_Premium_Amount",
+        "pol_Renewal_Status",
+        "pol_Side_Car_Discount_Flag",
+        "pol_Special_Design_Discount_Flag",
+        "pol_Special_Rating_Discount_Flag",
+        "pol_Sum_Insured",
+        "pol_TPPD_Statutory_Cover_Flag",
+        "pol_Vehicle_ID",
+        "pol_Vintage_Car_Discount_Flag",
+        "pol_Voluntary_Excess_Discount_Flag",
+        "repair_ratio",
+        "veh_CC_PCC_GVW_Code",
+        "veh_Chassis_Number",
+        "veh_Class_Code",
+        "veh_Customer_ID",
+        "veh_Engine_CC",
+        "veh_Engine_Number",
+        "veh_Fuel_Type",
+        "veh_GVW_KG",
+        "veh_Load_Capacity_KG",
+        "veh_Make",
+        "veh_Make_Code",
+        "veh_Manufacturing_Year",
+        "veh_Model",
+        "veh_Nature_of_Goods_Code",
+        "veh_Permit_Code",
+        "veh_Policy_End_Date",
+        "veh_Policy_ID",
+        "veh_Policy_Start_Date",
+        "veh_Previous_Claim_Count",
+        "veh_RTA_Location_Code",
+        "veh_Registration_Number",
+        "veh_Registration_Year",
+        "veh_Road_Type_Code",
+        "veh_Seating_Capacity",
+        "veh_Usage_Type",
+        "veh_Variant",
+        "veh_Vehicle_Age",
+        "veh_Vehicle_Color",
+        "veh_Vehicle_Driven_By_Code",
+        "veh_Vehicle_Subtype",
+        "veh_Vehicle_Type",
+        "veh_Vehicle_Value",
+        "veh_Zone_Code"
+      ],
+      "potential_leakage": [
+        "frd_Accident_Details_Mismatch_Indicator",
+        "frd_Anomaly_Score",
+        "frd_Claim_Immediately_After_Policy_Indicator",
+        "frd_Document_Mismatch_Indicator",
+        "frd_Duplicate_Claim_Indicator",
+        "frd_Evidence_Reuse_Indicator",
+        "frd_Excessive_Claim_Amount_Indicator",
+        "frd_Fraud_Risk_Score",
+        "frd_Overall_Risk_Score",
+        "frd_Previous_Similar_Claim",
+        "frd_Suspicious_Garage_Indicator",
+        "frd_Vehicle_Damage_Mismatch_Indicator"
+      ],
+      "definite_leakage": [
+        "frd_Fraud_Label",
+        "frd_Risk_Category"
+      ],
+      "n_safe": 189,
+      "n_potential_leakage": 12,
+      "n_definite_leakage": 2,
+      "restorations_applied": []
+    },
+    "cdc_Overall_Consistency_Status": {
+      "target": "cdc_Overall_Consistency_Status",
+      "safe_features": [
+        "Accident_Pincode",
+        "Claim_Amount",
+        "Claim_Date",
+        "Claim_Description",
+        "Claim_Intimation_Date",
+        "Claim_Number",
+        "Claim_Number_Child",
+        "Claim_Type",
+        "Claim_Year",
+        "Claims_History_Code",
+        "Date_of_Disbursement",
+        "Fatal_NonFatal_Flag",
+        "Incurred_Claims_Code",
+        "Insurer_NOL_Code",
+        "Interim_Award_Flag",
+        "Nature_of_Injury_Code",
+        "Nature_of_Loss_Code",
+        "Place_of_Accident",
+        "Settlement_Basis_Code",
+        "TPPD_Statutory_Cover_Flag",
+        "acc_Accident_City",
+        "acc_Accident_Date",
+        "acc_Accident_Description",
+        "acc_Accident_Location",
+        "acc_Accident_Pincode",
+        "acc_Accident_State",
+        "acc_Accident_Time",
+        "acc_Accident_Type",
+        "acc_FIR_Number",
+        "acc_Injury_Reported",
+        "acc_Police_Report_Available",
+        "acc_Road_Condition",
+        "acc_Road_Type_Code",
+        "acc_Third_Party_Involved",
+        "acc_Weather_Condition",
+        "acc_Witness_Available",
+        "cust_Address",
+        "cust_Age",
+        "cust_City",
+        "cust_Customer_Name",
+        "cust_Customer_Type",
+        "cust_Date_of_Birth",
+        "cust_Driver_Age_Code",
+        "cust_Driver_Experience_Code",
+        "cust_Driver_Qualification_Code",
+        "cust_Driver_Type_Code",
+        "cust_Driving_Experience_Years",
+        "cust_Email",
+        "cust_Gender",
+        "cust_Occupation",
+        "cust_Phone",
+        "cust_Pincode",
+        "cust_Previous_Claim_Count",
+        "cust_State",
+        "days_since_policy_start",
+        "distinct_document_types",
+        "distinct_evidence_types",
+        "dmg_Damage_Description",
+        "dmg_Damage_Location",
+        "dmg_Damage_Severity",
+        "dmg_Damage_Type",
+        "dmg_Damaged_Part",
+        "dmg_Estimated_Damage_Cost",
+        "dmg_Photo_Evidence_Available",
+        "dmg_Repair_or_Replace",
+        "dmg_Vehicle_Damage_Mismatch_Indicator",
+        "document_any_mismatch",
+        "document_completeness_mean",
+        "document_count",
+        "document_ocr_confidence_mean",
+        "document_ocr_confidence_min",
+        "est_Estimate_Anomaly_Score",
+        "est_Estimate_Date",
+        "est_Estimated_Repair_Days",
+        "est_Excessive_Claim_Amount_Indicator",
+        "est_Garage_ID",
+        "est_Labour_Cost",
+        "est_Painting_Cost",
+        "est_Parts_Cost",
+        "est_Repair_Cost",
+        "est_Repair_Estimate",
+        "est_Repaired_Parts_Count",
+        "est_Replacement_Parts_Count",
+        "evidence_any_damage_detected",
+        "evidence_any_duplicate_flag",
+        "evidence_confidence_mean",
+        "evidence_count",
+        "evidence_image_quality_mean",
+        "frd_Accident_Details_Mismatch_Indicator",
+        "frd_Anomaly_Score",
+        "frd_Claim_Immediately_After_Policy_Indicator",
+        "frd_Document_Mismatch_Indicator",
+        "frd_Duplicate_Claim_Indicator",
+        "frd_Evidence_Reuse_Indicator",
+        "frd_Excessive_Claim_Amount_Indicator",
+        "frd_Fraud_Label",
+        "frd_Fraud_Risk_Score",
+        "frd_Overall_Risk_Score",
+        "frd_Previous_Similar_Claim",
+        "frd_Risk_Category",
+        "frd_Suspicious_Garage_Indicator",
+        "frd_Vehicle_Damage_Mismatch_Indicator",
+        "has_document_Accident_Photos",
+        "has_document_Damage_Photos",
+        "has_document_Driving_License",
+        "has_document_FIR",
+        "has_document_Garage_Bill",
+        "has_document_Insurance_Policy",
+        "has_document_RC",
+        "has_document_Repair_Estimate",
+        "has_evidence_Accident_Photo",
+        "has_evidence_Damage_Photo",
+        "has_evidence_Survey_Photo",
+        "insp_Damage_Observed",
+        "insp_Damage_Severity",
+        "insp_Inspection_Date",
+        "insp_Inspection_Location",
+        "insp_Inspection_Status",
+        "insp_Parts_Required",
+        "insp_Repair_Recommendation",
+        "insp_Survey_Report_Submitted",
+        "insp_Surveyor_Comments",
+        "insp_Surveyor_Confidence_Score",
+        "insp_Surveyor_ID",
+        "insp_Vehicle_Condition",
+        "pol_Anti_Theft_Discount_Flag",
+        "pol_Auto_Association_Discount_Flag",
+        "pol_Class_Code",
+        "pol_Coverage_Type",
+        "pol_Customer_ID",
+        "pol_Deductible_Amount",
+        "pol_Endorsement_Flag",
+        "pol_Endorsement_Number",
+        "pol_IDV",
+        "pol_NCB_Flag",
+        "pol_No_Claim_Bonus",
+        "pol_Office_Code",
+        "pol_Own_Premises_Discount_Flag",
+        "pol_Policy_Code",
+        "pol_Policy_End_Date",
+        "pol_Policy_Number",
+        "pol_Policy_Start_Date",
+        "pol_Policy_Status",
+        "pol_Policy_Type",
+        "pol_Policy_Year",
+        "pol_Premium_Amount",
+        "pol_Renewal_Status",
+        "pol_Side_Car_Discount_Flag",
+        "pol_Special_Design_Discount_Flag",
+        "pol_Special_Rating_Discount_Flag",
+        "pol_Sum_Insured",
+        "pol_TPPD_Statutory_Cover_Flag",
+        "pol_Vehicle_ID",
+        "pol_Vintage_Car_Discount_Flag",
+        "pol_Voluntary_Excess_Discount_Flag",
+        "repair_ratio",
+        "veh_CC_PCC_GVW_Code",
+        "veh_Chassis_Number",
+        "veh_Class_Code",
+        "veh_Customer_ID",
+        "veh_Engine_CC",
+        "veh_Engine_Number",
+        "veh_Fuel_Type",
+        "veh_GVW_KG",
+        "veh_Load_Capacity_KG",
+        "veh_Make",
+        "veh_Make_Code",
+        "veh_Manufacturing_Year",
+        "veh_Model",
+        "veh_Nature_of_Goods_Code",
+        "veh_Permit_Code",
+        "veh_Policy_End_Date",
+        "veh_Policy_ID",
+        "veh_Policy_Start_Date",
+        "veh_Previous_Claim_Count",
+        "veh_RTA_Location_Code",
+        "veh_Registration_Number",
+        "veh_Registration_Year",
+        "veh_Road_Type_Code",
+        "veh_Seating_Capacity",
+        "veh_Usage_Type",
+        "veh_Variant",
+        "veh_Vehicle_Age",
+        "veh_Vehicle_Color",
+        "veh_Vehicle_Driven_By_Code",
+        "veh_Vehicle_Subtype",
+        "veh_Vehicle_Type",
+        "veh_Vehicle_Value",
+        "veh_Zone_Code"
+      ],
+      "potential_leakage": [
+        "cdc_Accident_Date_Match",
+        "cdc_Accident_Details_Mismatch_Indicator",
+        "cdc_Accident_Location_Match",
+        "cdc_Claim_Amount_Match",
+        "cdc_Customer_Statement_Match",
+        "cdc_Damage_Description_Match",
+        "cdc_Document_Consistency_Score",
+        "cdc_Document_Mismatch_Indicator",
+        "cdc_FIR_Match",
+        "cdc_Repair_Estimate_Match",
+        "cdc_Surveyor_Report_Match",
+        "cdc_Vehicle_Damage_Mismatch_Indicator",
+        "cdc_Vehicle_Details_Match"
+      ],
+      "definite_leakage": [
+        "cdc_Overall_Consistency_Status"
+      ],
+      "n_safe": 189,
+      "n_potential_leakage": 13,
+      "n_definite_leakage": 1,
+      "restorations_applied": []
+    },
+    "est_Excessive_Claim_Amount_Indicator": {
+      "target": "est_Excessive_Claim_Amount_Indicator",
+      "safe_features": [
+        "Accident_Pincode",
+        "Claim_Amount",
+        "Claim_Date",
+        "Claim_Description",
+        "Claim_Intimation_Date",
+        "Claim_Number",
+        "Claim_Number_Child",
+        "Claim_Type",
+        "Claim_Year",
+        "Claims_History_Code",
+        "Date_of_Disbursement",
+        "Fatal_NonFatal_Flag",
+        "Incurred_Claims_Code",
+        "Insurer_NOL_Code",
+        "Interim_Award_Flag",
+        "Nature_of_Injury_Code",
+        "Nature_of_Loss_Code",
+        "Place_of_Accident",
+        "Settlement_Basis_Code",
+        "TPPD_Statutory_Cover_Flag",
+        "acc_Accident_City",
+        "acc_Accident_Date",
+        "acc_Accident_Description",
+        "acc_Accident_Location",
+        "acc_Accident_Pincode",
+        "acc_Accident_State",
+        "acc_Accident_Time",
+        "acc_Accident_Type",
+        "acc_FIR_Number",
+        "acc_Injury_Reported",
+        "acc_Police_Report_Available",
+        "acc_Road_Condition",
+        "acc_Road_Type_Code",
+        "acc_Third_Party_Involved",
+        "acc_Weather_Condition",
+        "acc_Witness_Available",
+        "cdc_Accident_Date_Match",
+        "cdc_Accident_Details_Mismatch_Indicator",
+        "cdc_Accident_Location_Match",
+        "cdc_Claim_Amount_Match",
+        "cdc_Customer_Statement_Match",
+        "cdc_Damage_Description_Match",
+        "cdc_Document_Consistency_Score",
+        "cdc_Document_Mismatch_Indicator",
+        "cdc_FIR_Match",
+        "cdc_Overall_Consistency_Status",
+        "cdc_Repair_Estimate_Match",
+        "cdc_Surveyor_Report_Match",
+        "cdc_Vehicle_Damage_Mismatch_Indicator",
+        "cdc_Vehicle_Details_Match",
+        "cust_Address",
+        "cust_Age",
+        "cust_City",
+        "cust_Customer_Name",
+        "cust_Customer_Type",
+        "cust_Date_of_Birth",
+        "cust_Driver_Age_Code",
+        "cust_Driver_Experience_Code",
+        "cust_Driver_Qualification_Code",
+        "cust_Driver_Type_Code",
+        "cust_Driving_Experience_Years",
+        "cust_Email",
+        "cust_Gender",
+        "cust_Occupation",
+        "cust_Phone",
+        "cust_Pincode",
+        "cust_Previous_Claim_Count",
+        "cust_State",
+        "days_since_policy_start",
+        "distinct_document_types",
+        "distinct_evidence_types",
+        "dmg_Damage_Description",
+        "dmg_Damage_Location",
+        "dmg_Damage_Severity",
+        "dmg_Damage_Type",
+        "dmg_Damaged_Part",
+        "dmg_Estimated_Damage_Cost",
+        "dmg_Photo_Evidence_Available",
+        "dmg_Repair_or_Replace",
+        "dmg_Vehicle_Damage_Mismatch_Indicator",
+        "document_any_mismatch",
+        "document_completeness_mean",
+        "document_count",
+        "document_ocr_confidence_mean",
+        "document_ocr_confidence_min",
+        "est_Estimated_Repair_Days",
+        "est_Labour_Cost",
+        "est_Painting_Cost",
+        "est_Parts_Cost",
+        "est_Repair_Cost",
+        "est_Repair_Estimate",
+        "est_Repaired_Parts_Count",
+        "est_Replacement_Parts_Count",
+        "evidence_any_damage_detected",
+        "evidence_any_duplicate_flag",
+        "evidence_confidence_mean",
+        "evidence_count",
+        "evidence_image_quality_mean",
+        "frd_Accident_Details_Mismatch_Indicator",
+        "frd_Anomaly_Score",
+        "frd_Claim_Immediately_After_Policy_Indicator",
+        "frd_Document_Mismatch_Indicator",
+        "frd_Duplicate_Claim_Indicator",
+        "frd_Evidence_Reuse_Indicator",
+        "frd_Fraud_Label",
+        "frd_Fraud_Risk_Score",
+        "frd_Overall_Risk_Score",
+        "frd_Previous_Similar_Claim",
+        "frd_Risk_Category",
+        "frd_Suspicious_Garage_Indicator",
+        "frd_Vehicle_Damage_Mismatch_Indicator",
+        "has_document_Accident_Photos",
+        "has_document_Damage_Photos",
+        "has_document_Driving_License",
+        "has_document_FIR",
+        "has_document_Garage_Bill",
+        "has_document_Insurance_Policy",
+        "has_document_RC",
+        "has_document_Repair_Estimate",
+        "has_evidence_Accident_Photo",
+        "has_evidence_Damage_Photo",
+        "has_evidence_Survey_Photo",
+        "insp_Damage_Observed",
+        "insp_Damage_Severity",
+        "insp_Inspection_Date",
+        "insp_Inspection_Location",
+        "insp_Inspection_Status",
+        "insp_Parts_Required",
+        "insp_Repair_Recommendation",
+        "insp_Survey_Report_Submitted",
+        "insp_Surveyor_Comments",
+        "insp_Surveyor_Confidence_Score",
+        "insp_Surveyor_ID",
+        "insp_Vehicle_Condition",
+        "pol_Anti_Theft_Discount_Flag",
+        "pol_Auto_Association_Discount_Flag",
+        "pol_Class_Code",
+        "pol_Coverage_Type",
+        "pol_Customer_ID",
+        "pol_Deductible_Amount",
+        "pol_Endorsement_Flag",
+        "pol_Endorsement_Number",
+        "pol_IDV",
+        "pol_NCB_Flag",
+        "pol_No_Claim_Bonus",
+        "pol_Office_Code",
+        "pol_Own_Premises_Discount_Flag",
+        "pol_Policy_Code",
+        "pol_Policy_End_Date",
+        "pol_Policy_Number",
+        "pol_Policy_Start_Date",
+        "pol_Policy_Status",
+        "pol_Policy_Type",
+        "pol_Policy_Year",
+        "pol_Premium_Amount",
+        "pol_Renewal_Status",
+        "pol_Side_Car_Discount_Flag",
+        "pol_Special_Design_Discount_Flag",
+        "pol_Special_Rating_Discount_Flag",
+        "pol_Sum_Insured",
+        "pol_TPPD_Statutory_Cover_Flag",
+        "pol_Vehicle_ID",
+        "pol_Vintage_Car_Discount_Flag",
+        "pol_Voluntary_Excess_Discount_Flag",
+        "repair_ratio",
+        "veh_CC_PCC_GVW_Code",
+        "veh_Chassis_Number",
+        "veh_Class_Code",
+        "veh_Customer_ID",
+        "veh_Engine_CC",
+        "veh_Engine_Number",
+        "veh_Fuel_Type",
+        "veh_GVW_KG",
+        "veh_Load_Capacity_KG",
+        "veh_Make",
+        "veh_Make_Code",
+        "veh_Manufacturing_Year",
+        "veh_Model",
+        "veh_Nature_of_Goods_Code",
+        "veh_Permit_Code",
+        "veh_Policy_End_Date",
+        "veh_Policy_ID",
+        "veh_Policy_Start_Date",
+        "veh_Previous_Claim_Count",
+        "veh_RTA_Location_Code",
+        "veh_Registration_Number",
+        "veh_Registration_Year",
+        "veh_Road_Type_Code",
+        "veh_Seating_Capacity",
+        "veh_Usage_Type",
+        "veh_Variant",
+        "veh_Vehicle_Age",
+        "veh_Vehicle_Color",
+        "veh_Vehicle_Driven_By_Code",
+        "veh_Vehicle_Subtype",
+        "veh_Vehicle_Type",
+        "veh_Vehicle_Value",
+        "veh_Zone_Code"
+      ],
+      "potential_leakage": [
+        "est_Estimate_Anomaly_Score",
+        "est_Estimate_Date",
+        "est_Garage_ID"
+      ],
+      "definite_leakage": [
+        "est_Excessive_Claim_Amount_Indicator",
+        "frd_Excessive_Claim_Amount_Indicator"
+      ],
+      "n_safe": 198,
+      "n_potential_leakage": 3,
+      "n_definite_leakage": 2,
+      "restorations_applied": [
+        "est_Repair_Estimate",
+        "est_Repair_Cost",
+        "est_Parts_Cost",
+        "est_Labour_Cost",
+        "est_Painting_Cost",
+        "est_Replacement_Parts_Count",
+        "est_Repaired_Parts_Count",
+        "est_Estimated_Repair_Days"
+      ]
+    }
+  },
+  "relationship_analysis": {
+    "crosstabs": {
+      "frd_Risk_Category__vs__frd_Fraud_Label": {
+        "0": {
+          "Critical": 42,
+          "High": 102,
+          "Low": 198,
+          "Medium": 213
+        },
+        "1": {
+          "Critical": 41,
+          "High": 58,
+          "Low": 0,
+          "Medium": 0
+        }
+      },
+      "frd_Risk_Category__vs__est_Excessive_Claim_Amount_Indicator": {
+        "false": {
+          "Critical": 46,
+          "High": 88,
+          "Low": 98,
+          "Medium": 115
+        },
+        "true": {
+          "Critical": 37,
+          "High": 72,
+          "Low": 100,
+          "Medium": 98
+        }
+      },
+      "frd_Risk_Category__vs__cdc_Overall_Consistency_Status": {
+        "Match": {
+          "Critical": 45,
+          "High": 102,
+          "Low": 115,
+          "Medium": 132
+        },
+        "Mismatch": {
+          "Critical": 5,
+          "High": 13,
+          "Low": 17,
+          "Medium": 21
+        },
+        "Partial Match": {
+          "Critical": 33,
+          "High": 45,
+          "Low": 66,
+          "Medium": 60
+        }
+      },
+      "cdc_Overall_Consistency_Status__vs__est_Excessive_Claim_Amount_Indicator": {
+        "false": {
+          "Match": 201,
+          "Mismatch": 34,
+          "Partial Match": 112
+        },
+        "true": {
+          "Match": 193,
+          "Mismatch": 22,
+          "Partial Match": 92
+        }
+      },
+      "cdc_Overall_Consistency_Status__vs__frd_Fraud_Label": {
+        "0": {
+          "Match": 338,
+          "Mismatch": 44,
+          "Partial Match": 173
+        },
+        "1": {
+          "Match": 56,
+          "Mismatch": 12,
+          "Partial Match": 31
+        }
+      },
+      "est_Excessive_Claim_Amount_Indicator__vs__frd_Fraud_Label": {
+        "0": {
+          "false": 293,
+          "true": 262
+        },
+        "1": {
+          "false": 54,
+          "true": 45
+        }
+      }
+    },
+    "fraud_rate_low_medium_risk": 0.0,
+    "fraud_rate_high_critical_risk": 0.4074074074074074
+  },
+  "secondary_cv_results": {
+    "frd_Risk_Category": {
+      "meta": {
+        "skipped": false,
+        "n_splits": 5,
+        "n_repeats": 3,
+        "min_class_size": 83,
+        "n_classes": 4
+      },
+      "cv_rows": [
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.24427480916030533,
+          "macro_precision": 0.2282938076416337,
+          "macro_recall": 0.22008099415973903,
+          "macro_f1": 0.22229869027407229,
+          "weighted_f1": 0.248847093108294,
+          "roc_auc_ovr_macro": 0.5008962090434623
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.24427480916030533,
+          "macro_precision": 0.2232239558983949,
+          "macro_recall": 0.2232721465151356,
+          "macro_f1": 0.22125563063063064,
+          "weighted_f1": 0.24416133690942854,
+          "roc_auc_ovr_macro": 0.4883835915440679
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2748091603053435,
+          "macro_precision": 0.23302561960456697,
+          "macro_recall": 0.23474631914483146,
+          "macro_f1": 0.232736632203554,
+          "weighted_f1": 0.2712416818756995,
+          "roc_auc_ovr_macro": 0.46650910203329504
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2366412213740458,
+          "macro_precision": 0.21029534981147882,
+          "macro_recall": 0.20988328247220175,
+          "macro_f1": 0.20679143962726051,
+          "weighted_f1": 0.2297790099544685,
+          "roc_auc_ovr_macro": 0.5040437493465695
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.25190839694656486,
+          "macro_precision": 0.239970164970165,
+          "macro_recall": 0.2376453488372093,
+          "macro_f1": 0.2385580512271861,
+          "weighted_f1": 0.25234204829397694,
+          "roc_auc_ovr_macro": 0.5168291328728007
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "macro_precision": 0.26052862308808844,
+          "macro_recall": 0.2575218023255814,
+          "macro_f1": 0.25853304284676837,
+          "weighted_f1": 0.293114248809504,
+          "roc_auc_ovr_macro": 0.5124347032587679
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2595419847328244,
+          "macro_precision": 0.2392565359477124,
+          "macro_recall": 0.23491771708683473,
+          "macro_f1": 0.23567618499345605,
+          "weighted_f1": 0.25736928773104945,
+          "roc_auc_ovr_macro": 0.45336343005540003
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.29770992366412213,
+          "macro_precision": 0.26558465558887223,
+          "macro_recall": 0.26281950280112043,
+          "macro_f1": 0.25930375180375176,
+          "weighted_f1": 0.29133956798078936,
+          "roc_auc_ovr_macro": 0.5484571307349554
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.27692307692307694,
+          "macro_precision": 0.2637624985956634,
+          "macro_recall": 0.26927083333333335,
+          "macro_f1": 0.26433674684448677,
+          "weighted_f1": 0.27817661103681585,
+          "roc_auc_ovr_macro": 0.5064342624011327
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.26153846153846155,
+          "macro_precision": 0.2901158596751293,
+          "macro_recall": 0.2670386904761905,
+          "macro_f1": 0.2749887029805894,
+          "weighted_f1": 0.2631047217722206,
+          "roc_auc_ovr_macro": 0.4996306784276709
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "macro_precision": 0.287989390472228,
+          "macro_recall": 0.30133768064470867,
+          "macro_f1": 0.2921072619475931,
+          "weighted_f1": 0.28610754662912247,
+          "roc_auc_ovr_macro": 0.5243000872388581
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "macro_precision": 0.2727942692228406,
+          "macro_recall": 0.2674670718018871,
+          "macro_f1": 0.26430694908955776,
+          "weighted_f1": 0.2817193869301403,
+          "roc_auc_ovr_macro": 0.5337082255835113
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2824427480916031,
+          "macro_precision": 0.2877052481831894,
+          "macro_recall": 0.27933298319327726,
+          "macro_f1": 0.2761359351432881,
+          "weighted_f1": 0.28618470288878906,
+          "roc_auc_ovr_macro": 0.5341493840607335
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "macro_precision": 0.25519849319037957,
+          "macro_recall": 0.2562237394957983,
+          "macro_f1": 0.254499182424217,
+          "weighted_f1": 0.2864624876899555,
+          "roc_auc_ovr_macro": 0.533490256804483
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.26717557251908397,
+          "macro_precision": 0.22988542007712176,
+          "macro_recall": 0.23454134001543375,
+          "macro_f1": 0.23145558042057401,
+          "weighted_f1": 0.26266733045690893,
+          "roc_auc_ovr_macro": 0.5025863479623023
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.29770992366412213,
+          "macro_precision": 0.26229166666666665,
+          "macro_recall": 0.2603920034024343,
+          "macro_f1": 0.2553840550826144,
+          "weighted_f1": 0.28856421986013675,
+          "roc_auc_ovr_macro": 0.49226810134287546
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.22900763358778625,
+          "macro_precision": 0.21370924495924498,
+          "macro_recall": 0.21239098837209303,
+          "macro_f1": 0.21244619799139167,
+          "weighted_f1": 0.23030025080223862,
+          "roc_auc_ovr_macro": 0.483696990923356
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.17557251908396945,
+          "macro_precision": 0.15536175710594313,
+          "macro_recall": 0.14876453488372093,
+          "macro_f1": 0.15166991934010787,
+          "weighted_f1": 0.17815070892331386,
+          "roc_auc_ovr_macro": 0.46860190562162246
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.2692307692307692,
+          "macro_precision": 0.2475208899627504,
+          "macro_recall": 0.2407738095238095,
+          "macro_f1": 0.24156655425051868,
+          "weighted_f1": 0.27349989722622436,
+          "roc_auc_ovr_macro": 0.49085418667068104
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.3153846153846154,
+          "macro_precision": 0.27549603174603177,
+          "macro_recall": 0.27306547619047616,
+          "macro_f1": 0.2741624875756754,
+          "weighted_f1": 0.31691723835936364,
+          "roc_auc_ovr_macro": 0.5080677664805955
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2595419847328244,
+          "macro_precision": 0.2498798076923077,
+          "macro_recall": 0.25309436274509806,
+          "macro_f1": 0.25106943302904633,
+          "weighted_f1": 0.26054246672475373,
+          "roc_auc_ovr_macro": 0.5110578443816478
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2366412213740458,
+          "macro_precision": 0.23460409804947618,
+          "macro_recall": 0.22018557422969187,
+          "macro_f1": 0.22259374693831624,
+          "weighted_f1": 0.23382420757838887,
+          "roc_auc_ovr_macro": 0.5285602386106896
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.3076923076923077,
+          "macro_precision": 0.26697712418300656,
+          "macro_recall": 0.2658219537815126,
+          "macro_f1": 0.26492101307467597,
+          "weighted_f1": 0.3052025560304298,
+          "roc_auc_ovr_macro": 0.5066271088884887
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.27692307692307694,
+          "macro_precision": 0.2535333087964667,
+          "macro_recall": 0.250765931372549,
+          "macro_f1": 0.25138307255627634,
+          "weighted_f1": 0.27535756618713925,
+          "roc_auc_ovr_macro": 0.5212964925380674
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.25384615384615383,
+          "macro_precision": 0.2335293996879363,
+          "macro_recall": 0.23322432170542634,
+          "macro_f1": 0.23252324209242609,
+          "weighted_f1": 0.25349496547649075,
+          "roc_auc_ovr_macro": 0.44593178620856655
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.26153846153846155,
+          "macro_precision": 0.2308986303551521,
+          "macro_recall": 0.2254397734048897,
+          "macro_f1": 0.2266931241650343,
+          "weighted_f1": 0.26268441549340427,
+          "roc_auc_ovr_macro": 0.46254776525353536
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.27692307692307694,
+          "macro_precision": 0.24904023341523343,
+          "macro_recall": 0.24799107142857144,
+          "macro_f1": 0.24676371635610767,
+          "weighted_f1": 0.2774728459945851,
+          "roc_auc_ovr_macro": 0.5293966246785795
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.33076923076923076,
+          "macro_precision": 0.28703835479968687,
+          "macro_recall": 0.28616071428571427,
+          "macro_f1": 0.28343371725781646,
+          "weighted_f1": 0.3233931301811968,
+          "roc_auc_ovr_macro": 0.5025436273991255
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 521,
+          "n_val": 133,
+          "accuracy": 0.24812030075187969,
+          "macro_precision": 0.22017268445839874,
+          "macro_recall": 0.22095588235294117,
+          "macro_f1": 0.21943989713839046,
+          "weighted_f1": 0.24562863441327545,
+          "roc_auc_ovr_macro": 0.4941148437169894
+        },
+        {
+          "target": "frd_Risk_Category",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 521,
+          "n_val": 133,
+          "accuracy": 0.2932330827067669,
+          "macro_precision": 0.26507304366974177,
+          "macro_recall": 0.25980949197860964,
+          "macro_f1": 0.2597883752845093,
+          "weighted_f1": 0.2877064800171536,
+          "roc_auc_ovr_macro": 0.5269591855146282
+        }
+      ],
+      "stability": {
+        "logistic_regression": {
+          "accuracy": {
+            "n": 15,
+            "mean": 0.2661009540880975,
+            "std": 0.01983139976692499,
+            "min": 0.22900763358778625,
+            "max": 0.3076923076923077,
+            "ci95": [
+              0.2551186909537806,
+              0.27708321722241436
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_precision": {
+            "n": 15,
+            "mean": 0.24604787132341058,
+            "std": 0.022317790871992572,
+            "min": 0.21370924495924498,
+            "max": 0.287989390472228,
+            "ci95": [
+              0.2336886906899962,
+              0.25840705195682495
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_recall": {
+            "n": 15,
+            "mean": 0.24574170708832135,
+            "std": 0.024246862261089908,
+            "min": 0.21239098837209303,
+            "max": 0.30133768064470867,
+            "ci95": [
+              0.23231424232726397,
+              0.25916917184937877
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_f1": {
+            "n": 15,
+            "mean": 0.24413567579911782,
+            "std": 0.022113651407180475,
+            "min": 0.21244619799139167,
+            "max": 0.2921072619475931,
+            "ci95": [
+              0.2318895438332213,
+              0.25638180776501435
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "weighted_f1": {
+            "n": 15,
+            "mean": 0.26593852791257694,
+            "std": 0.019187276373350066,
+            "min": 0.23030025080223862,
+            "max": 0.3052025560304298,
+            "ci95": [
+              0.255312968424112,
+              0.2765640874010419
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc_ovr_macro": {
+            "n": 15,
+            "mean": 0.4977831560757529,
+            "std": 0.026253540308853626,
+            "min": 0.44593178620856655,
+            "max": 0.5341493840607335,
+            "ci95": [
+              0.48324443005198053,
+              0.5123218820995252
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        },
+        "random_forest": {
+          "accuracy": {
+            "n": 15,
+            "mean": 0.2732110369876541,
+            "std": 0.03861690051996925,
+            "min": 0.17557251908396945,
+            "max": 0.33076923076923076,
+            "ci95": [
+              0.25182571028724837,
+              0.2945963636880598
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_precision": {
+            "n": 15,
+            "mean": 0.2494692065109566,
+            "std": 0.034609819802816987,
+            "min": 0.15536175710594313,
+            "max": 0.2901158596751293,
+            "ci95": [
+              0.23030292714727033,
+              0.2686354858746429
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_recall": {
+            "n": 15,
+            "mean": 0.2445873157090667,
+            "std": 0.03435578933790636,
+            "min": 0.14876453488372093,
+            "max": 0.28616071428571427,
+            "ci95": [
+              0.22556171372784306,
+              0.2636129176902903
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_f1": {
+            "n": 15,
+            "mean": 0.24431914650687503,
+            "std": 0.033816043063611245,
+            "min": 0.15166991934010787,
+            "max": 0.28343371725781646,
+            "ci95": [
+              0.22559244604948442,
+              0.26304584696426564
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "weighted_f1": {
+            "n": 15,
+            "mean": 0.27041858177644024,
+            "std": 0.03709610035589359,
+            "min": 0.17815070892331386,
+            "max": 0.3233931301811968,
+            "ci95": [
+              0.24987544613530843,
+              0.29096171741757204
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc_ovr_macro": {
+            "n": 15,
+            "mean": 0.5087328945640777,
+            "std": 0.02432504816678978,
+            "min": 0.46254776525353536,
+            "max": 0.5484571307349554,
+            "ci95": [
+              0.49526213189163315,
+              0.5222036572365222
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        }
+      }
+    },
+    "cdc_Overall_Consistency_Status": {
+      "meta": {
+        "skipped": false,
+        "n_splits": 5,
+        "n_repeats": 3,
+        "min_class_size": 56,
+        "n_classes": 3
+      },
+      "cv_rows": [
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4351145038167939,
+          "macro_precision": 0.34573829531812733,
+          "macro_recall": 0.35133365142627265,
+          "macro_f1": 0.3458503401360544,
+          "weighted_f1": 0.44595315988991013,
+          "roc_auc_ovr_macro": 0.5359439423965512
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5190839694656488,
+          "macro_precision": 0.3336071558963125,
+          "macro_recall": 0.35340125553154267,
+          "macro_f1": 0.3432098765432099,
+          "weighted_f1": 0.5048911506926774,
+          "roc_auc_ovr_macro": 0.541973622754728
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4732824427480916,
+          "macro_precision": 0.31555555555555553,
+          "macro_recall": 0.3266624973942047,
+          "macro_f1": 0.32028591711341214,
+          "weighted_f1": 0.47056132685512664,
+          "roc_auc_ovr_macro": 0.5346168108410603
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5038167938931297,
+          "macro_precision": 0.2909090909090909,
+          "macro_recall": 0.31676047529706064,
+          "macro_f1": 0.30073426027183253,
+          "weighted_f1": 0.46848715193594515,
+          "roc_auc_ovr_macro": 0.49213581365932413
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4351145038167939,
+          "macro_precision": 0.34079537612146305,
+          "macro_recall": 0.34351230739004746,
+          "macro_f1": 0.33990079967608056,
+          "weighted_f1": 0.44714019792156856,
+          "roc_auc_ovr_macro": 0.5339753065362821
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4961832061068702,
+          "macro_precision": 0.31716867469879517,
+          "macro_recall": 0.32510033961099105,
+          "macro_f1": 0.32098765432098764,
+          "weighted_f1": 0.48760720007539343,
+          "roc_auc_ovr_macro": 0.5203683013269305
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4580152671755725,
+          "macro_precision": 0.33769379844961245,
+          "macro_recall": 0.33399758623593145,
+          "macro_f1": 0.3344779658245442,
+          "weighted_f1": 0.4699814824176586,
+          "roc_auc_ovr_macro": 0.5935098125434649
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5343511450381679,
+          "macro_precision": 0.3384615384615384,
+          "macro_recall": 0.35010805804260575,
+          "macro_f1": 0.34241486068111454,
+          "weighted_f1": 0.5126131448963676,
+          "roc_auc_ovr_macro": 0.5638836713010841
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.4307692307692308,
+          "macro_precision": 0.2978118783745382,
+          "macro_recall": 0.30210970464135023,
+          "macro_f1": 0.2973962973962974,
+          "weighted_f1": 0.4366818212972059,
+          "roc_auc_ovr_macro": 0.518936067586477
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.47692307692307695,
+          "macro_precision": 0.34063143445435823,
+          "macro_recall": 0.3205983889528194,
+          "macro_f1": 0.32102295856061225,
+          "weighted_f1": 0.4522592983422993,
+          "roc_auc_ovr_macro": 0.4695644895216749
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4351145038167939,
+          "macro_precision": 0.32384976525821596,
+          "macro_recall": 0.3213393583878301,
+          "macro_f1": 0.320976800976801,
+          "weighted_f1": 0.44200766154964627,
+          "roc_auc_ovr_macro": 0.5407689357056445
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5419847328244275,
+          "macro_precision": 0.3416666666666666,
+          "macro_recall": 0.3621488113615314,
+          "macro_f1": 0.3512481210418669,
+          "weighted_f1": 0.5208660992970238,
+          "roc_auc_ovr_macro": 0.5360177342810871
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4580152671755725,
+          "macro_precision": 0.2946085325832161,
+          "macro_recall": 0.3040032931974889,
+          "macro_f1": 0.2990874300853694,
+          "weighted_f1": 0.45339960944434576,
+          "roc_auc_ovr_macro": 0.5636776685402806
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4961832061068702,
+          "macro_precision": 0.2964912280701754,
+          "macro_recall": 0.31727899557476585,
+          "macro_f1": 0.30584475569869923,
+          "weighted_f1": 0.472541439844115,
+          "roc_auc_ovr_macro": 0.5110651823448983
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.46564885496183206,
+          "macro_precision": 0.368476430976431,
+          "macro_recall": 0.3682112885570743,
+          "macro_f1": 0.3672260968190724,
+          "weighted_f1": 0.47221343372854097,
+          "roc_auc_ovr_macro": 0.5654075167968345
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.46564885496183206,
+          "macro_precision": 0.278978978978979,
+          "macro_recall": 0.2964906864258516,
+          "macro_f1": 0.2866535174227482,
+          "weighted_f1": 0.4442236174473403,
+          "roc_auc_ovr_macro": 0.527296036496407
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.48091603053435117,
+          "macro_precision": 0.3700083542188805,
+          "macro_recall": 0.3705344585091421,
+          "macro_f1": 0.3671227186400463,
+          "weighted_f1": 0.4965332050124938,
+          "roc_auc_ovr_macro": 0.6074940427323152
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5190839694656488,
+          "macro_precision": 0.41775699656836607,
+          "macro_recall": 0.39163150492264415,
+          "macro_f1": 0.399291904459945,
+          "weighted_f1": 0.5142770358251004,
+          "roc_auc_ovr_macro": 0.5450032366078531
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.4076923076923077,
+          "macro_precision": 0.2843137254901961,
+          "macro_recall": 0.2843443819053575,
+          "macro_f1": 0.28221163390907283,
+          "weighted_f1": 0.41517157648783615,
+          "roc_auc_ovr_macro": 0.4700280225566704
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "macro_precision": 0.37192529608259944,
+          "macro_recall": 0.3380995698068869,
+          "macro_f1": 0.3414913762219151,
+          "weighted_f1": 0.472988224733964,
+          "roc_auc_ovr_macro": 0.419843595333161
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4351145038167939,
+          "macro_precision": 0.3025863025863026,
+          "macro_recall": 0.3017859982972672,
+          "macro_f1": 0.30216755847943016,
+          "weighted_f1": 0.43657197956019145,
+          "roc_auc_ovr_macro": 0.4906062589143787
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4122137404580153,
+          "macro_precision": 0.25718085106382976,
+          "macro_recall": 0.2708654934650612,
+          "macro_f1": 0.2636268343815514,
+          "weighted_f1": 0.40442412021700513,
+          "roc_auc_ovr_macro": 0.4868671835636949
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.40458015267175573,
+          "macro_precision": 0.29494891232696113,
+          "macro_recall": 0.2927297052026907,
+          "macro_f1": 0.29277148980640133,
+          "weighted_f1": 0.4133945350829051,
+          "roc_auc_ovr_macro": 0.4738919262846401
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5114503816793893,
+          "macro_precision": 0.347462061747776,
+          "macro_recall": 0.34006941910615884,
+          "macro_f1": 0.335094770966261,
+          "weighted_f1": 0.4792922007463867,
+          "roc_auc_ovr_macro": 0.4920868983851386
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.47692307692307695,
+          "macro_precision": 0.36937756944128397,
+          "macro_recall": 0.3754794783275796,
+          "macro_f1": 0.37118368209680824,
+          "weighted_f1": 0.48457036242134527,
+          "roc_auc_ovr_macro": 0.5601803501096129
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "macro_precision": 0.28996648925685004,
+          "macro_recall": 0.3111814345991561,
+          "macro_f1": 0.29975579975579975,
+          "weighted_f1": 0.4695548041701888,
+          "roc_auc_ovr_macro": 0.5110949100264067
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.48091603053435117,
+          "macro_precision": 0.37304964539007096,
+          "macro_recall": 0.3766501071224752,
+          "macro_f1": 0.3727862517795404,
+          "weighted_f1": 0.49248699402447027,
+          "roc_auc_ovr_macro": 0.5528604535551125
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.4961832061068702,
+          "macro_precision": 0.30334071613141383,
+          "macro_recall": 0.3211896675928785,
+          "macro_f1": 0.31200701139351444,
+          "weighted_f1": 0.4815917468940463,
+          "roc_auc_ovr_macro": 0.5291525082124032
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.48854961832061067,
+          "macro_precision": 0.3230301246197625,
+          "macro_recall": 0.3313529289139045,
+          "macro_f1": 0.327115559599636,
+          "weighted_f1": 0.48344087963381005,
+          "roc_auc_ovr_macro": 0.48512872119163236
+        },
+        {
+          "target": "cdc_Overall_Consistency_Status",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5267175572519084,
+          "macro_precision": 0.3082706766917293,
+          "macro_recall": 0.33729414217219095,
+          "macro_f1": 0.31999797180813305,
+          "weighted_f1": 0.48983968768941727,
+          "roc_auc_ovr_macro": 0.5181215419054136
+        }
+      ],
+      "stability": {
+        "logistic_regression": {
+          "accuracy": {
+            "n": 15,
+            "mean": 0.451051086318262,
+            "std": 0.026899868486247404,
+            "min": 0.40458015267175573,
+            "max": 0.48854961832061067,
+            "ci95": [
+              0.43615443568005574,
+              0.4659477369564683
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_precision": {
+            "n": 15,
+            "mean": 0.3294562844473745,
+            "std": 0.03111610309872546,
+            "min": 0.2843137254901961,
+            "max": 0.37304964539007096,
+            "ci95": [
+              0.312224760905871,
+              0.34668780798887805
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_recall": {
+            "n": 15,
+            "mean": 0.3322697830339078,
+            "std": 0.03132249656060153,
+            "min": 0.2843443819053575,
+            "max": 0.3766501071224752,
+            "ci95": [
+              0.3149239626029176,
+              0.349615603464898
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_f1": {
+            "n": 15,
+            "mean": 0.32937070282257114,
+            "std": 0.03082326722965899,
+            "min": 0.28221163390907283,
+            "max": 0.3727862517795404,
+            "ci95": [
+              0.3123013463800647,
+              0.3464400592650776
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "weighted_f1": {
+            "n": 15,
+            "mean": 0.457340548355137,
+            "std": 0.026459876457521035,
+            "min": 0.4133945350829051,
+            "max": 0.4965332050124938,
+            "ci95": [
+              0.44268755718087505,
+              0.47199353952939893
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc_ovr_macro": {
+            "n": 15,
+            "mean": 0.5351350557527306,
+            "std": 0.04147762219686975,
+            "min": 0.4700280225566704,
+            "max": 0.6074940427323152,
+            "ci95": [
+              0.5121655141921029,
+              0.5581045973133583
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        },
+        "random_forest": {
+          "accuracy": {
+            "n": 15,
+            "mean": 0.49896261499314937,
+            "std": 0.031730448529640756,
+            "min": 0.4122137404580153,
+            "max": 0.5419847328244275,
+            "ci95": [
+              0.4813908782918602,
+              0.5165343516944385
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_precision": {
+            "n": 15,
+            "mean": 0.3222545237118987,
+            "std": 0.040271154137707106,
+            "min": 0.25718085106382976,
+            "max": 0.41775699656836607,
+            "ci95": [
+              0.29995310189292285,
+              0.3445559455308746
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_recall": {
+            "n": 15,
+            "mean": 0.33014788283080965,
+            "std": 0.028666610969034934,
+            "min": 0.2708654934650612,
+            "max": 0.39163150492264415,
+            "ci95": [
+              0.3142728428169371,
+              0.34602292284468217
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "macro_f1": {
+            "n": 15,
+            "mean": 0.322892111568546,
+            "std": 0.03185485054228765,
+            "min": 0.2636268343815514,
+            "max": 0.399291904459945,
+            "ci95": [
+              0.3052514833289195,
+              0.34053273980817256
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "weighted_f1": {
+            "n": 15,
+            "mean": 0.47836379485381797,
+            "std": 0.030182017488599788,
+            "min": 0.40442412021700513,
+            "max": 0.5208660992970238,
+            "ci95": [
+              0.46164955068144337,
+              0.4950780390261926
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc_ovr_macro": {
+            "n": 15,
+            "mean": 0.5109649817146803,
+            "std": 0.035450219810850926,
+            "min": 0.419843595333161,
+            "max": 0.5638836713010841,
+            "ci95": [
+              0.49133330433901384,
+              0.5305966590903467
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        }
+      }
+    },
+    "est_Excessive_Claim_Amount_Indicator": {
+      "meta": {
+        "skipped": false,
+        "n_splits": 5,
+        "n_repeats": 3,
+        "min_class_size": 307
+      },
+      "cv_rows": [
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5454545454545454,
+          "precision": 0.5178571428571429,
+          "recall": 0.46774193548387094,
+          "f1": 0.4915254237288136,
+          "roc_auc": 0.5502304147465439,
+          "pr_auc": 0.5071724461841307
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5454545454545454,
+          "precision": 0.5333333333333333,
+          "recall": 0.25806451612903225,
+          "f1": 0.34782608695652173,
+          "roc_auc": 0.4956221198156682,
+          "pr_auc": 0.4702632302673766
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.4461538461538462,
+          "precision": 0.417910447761194,
+          "recall": 0.45901639344262296,
+          "f1": 0.4375,
+          "roc_auc": 0.44095984794487997,
+          "pr_auc": 0.42473685462251964
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5153846153846153,
+          "precision": 0.45,
+          "recall": 0.14754098360655737,
+          "f1": 0.2222222222222222,
+          "roc_auc": 0.44642432881919697,
+          "pr_auc": 0.49324940290712826
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.4015151515151515,
+          "precision": 0.3448275862068966,
+          "recall": 0.32786885245901637,
+          "f1": 0.33613445378151263,
+          "roc_auc": 0.43800507965827756,
+          "pr_auc": 0.4105305525031345
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.44696969696969696,
+          "precision": 0.25,
+          "recall": 0.09836065573770492,
+          "f1": 0.1411764705882353,
+          "roc_auc": 0.4248441468483029,
+          "pr_auc": 0.4206277124551777
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.46153846153846156,
+          "recall": 0.3870967741935484,
+          "f1": 0.42105263157894735,
+          "roc_auc": 0.47343453510436434,
+          "pr_auc": 0.5138789071878264
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5384615384615384,
+          "precision": 0.5454545454545454,
+          "recall": 0.1935483870967742,
+          "f1": 0.2857142857142857,
+          "roc_auc": 0.4926470588235294,
+          "pr_auc": 0.4831803052794299
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.4461538461538462,
+          "precision": 0.42028985507246375,
+          "recall": 0.47540983606557374,
+          "f1": 0.4461538461538462,
+          "roc_auc": 0.39866951770016623,
+          "pr_auc": 0.4244256999531807
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.46153846153846156,
+          "precision": 0.32,
+          "recall": 0.13114754098360656,
+          "f1": 0.18604651162790697,
+          "roc_auc": 0.4478498455690188,
+          "pr_auc": 0.43675538724220775
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5038167938931297,
+          "precision": 0.46875,
+          "recall": 0.4918032786885246,
+          "f1": 0.48,
+          "roc_auc": 0.5042154566744731,
+          "pr_auc": 0.4544420406835209
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.48854961832061067,
+          "precision": 0.36363636363636365,
+          "recall": 0.13114754098360656,
+          "f1": 0.1927710843373494,
+          "roc_auc": 0.4494145199063232,
+          "pr_auc": 0.4779259876503481
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.48484848484848486,
+          "precision": 0.4482758620689655,
+          "recall": 0.41935483870967744,
+          "f1": 0.43333333333333335,
+          "roc_auc": 0.49308755760368667,
+          "pr_auc": 0.4651066273589698
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5378787878787878,
+          "precision": 0.5263157894736842,
+          "recall": 0.16129032258064516,
+          "f1": 0.24691358024691357,
+          "roc_auc": 0.515668202764977,
+          "pr_auc": 0.49455966378789296
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.46153846153846156,
+          "recall": 0.4918032786885246,
+          "f1": 0.47619047619047616,
+          "roc_auc": 0.48871465906391065,
+          "pr_auc": 0.4579192342862224
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5230769230769231,
+          "precision": 0.4782608695652174,
+          "recall": 0.18032786885245902,
+          "f1": 0.2619047619047619,
+          "roc_auc": 0.5184129246851984,
+          "pr_auc": 0.49264134224773687
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.46153846153846156,
+          "precision": 0.42105263157894735,
+          "recall": 0.39344262295081966,
+          "f1": 0.4067796610169492,
+          "roc_auc": 0.4447612259444049,
+          "pr_auc": 0.46271674314149835
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.3684210526315789,
+          "recall": 0.11475409836065574,
+          "f1": 0.175,
+          "roc_auc": 0.44927536231884063,
+          "pr_auc": 0.44811100855606245
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.549618320610687,
+          "precision": 0.5223880597014925,
+          "recall": 0.5645161290322581,
+          "f1": 0.5426356589147286,
+          "roc_auc": 0.564516129032258,
+          "pr_auc": 0.5726928280491492
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.48091603053435117,
+          "precision": 0.375,
+          "recall": 0.14516129032258066,
+          "f1": 0.20930232558139536,
+          "roc_auc": 0.41351098644226275,
+          "pr_auc": 0.43003190995419355
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5454545454545454,
+          "precision": 0.5161290322580645,
+          "recall": 0.5161290322580645,
+          "f1": 0.5161290322580645,
+          "roc_auc": 0.5622119815668203,
+          "pr_auc": 0.5604171494385355
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.49242424242424243,
+          "precision": 0.4074074074074074,
+          "recall": 0.1774193548387097,
+          "f1": 0.24719101123595505,
+          "roc_auc": 0.47626728110599076,
+          "pr_auc": 0.448263254762205
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.44696969696969696,
+          "precision": 0.4098360655737705,
+          "recall": 0.4032258064516129,
+          "f1": 0.4065040650406504,
+          "roc_auc": 0.40184331797235023,
+          "pr_auc": 0.40566021321122614
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.49242424242424243,
+          "precision": 0.3684210526315789,
+          "recall": 0.11290322580645161,
+          "f1": 0.1728395061728395,
+          "roc_auc": 0.39101382488479264,
+          "pr_auc": 0.4364419957649322
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.4576271186440678,
+          "recall": 0.4426229508196721,
+          "f1": 0.45,
+          "roc_auc": 0.47398431931575197,
+          "pr_auc": 0.47673512400780266
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5230769230769231,
+          "precision": 0.48,
+          "recall": 0.19672131147540983,
+          "f1": 0.27906976744186046,
+          "roc_auc": 0.42504157757186983,
+          "pr_auc": 0.43946030044749795
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.4307692307692308,
+          "precision": 0.4057971014492754,
+          "recall": 0.45901639344262296,
+          "f1": 0.4307692307692308,
+          "roc_auc": 0.4580660489427417,
+          "pr_auc": 0.46439798200499083
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5153846153846153,
+          "precision": 0.45,
+          "recall": 0.14754098360655737,
+          "f1": 0.2222222222222222,
+          "roc_auc": 0.4970301734378712,
+          "pr_auc": 0.4619374755270431
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.47692307692307695,
+          "precision": 0.4520547945205479,
+          "recall": 0.5409836065573771,
+          "f1": 0.4925373134328358,
+          "roc_auc": 0.46590639106676174,
+          "pr_auc": 0.4423366320530995
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.4,
+          "recall": 0.16393442622950818,
+          "f1": 0.23255813953488372,
+          "roc_auc": 0.421240199572345,
+          "pr_auc": 0.4299898706978962
+        }
+      ],
+      "stability": {
+        "logistic_regression": {
+          "accuracy": {
+            "n": 15,
+            "mean": 0.48107593848051866,
+            "std": 0.043719142109952265,
+            "min": 0.4015151515151515,
+            "max": 0.549618320610687,
+            "ci95": [
+              0.4568650845669758,
+              0.5052867923940616
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "precision": {
+            "n": 15,
+            "mean": 0.4483915080513167,
+            "std": 0.04798863139288901,
+            "min": 0.3448275862068966,
+            "max": 0.5223880597014925,
+            "ci95": [
+              0.4218162897809744,
+              0.47496672632165904
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "recall": {
+            "n": 15,
+            "mean": 0.45600211528291906,
+            "std": 0.06273278101015001,
+            "min": 0.32786885245901637,
+            "max": 0.5645161290322581,
+            "ci95": [
+              0.4212618591084669,
+              0.4907423714573712
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "f1": {
+            "n": 15,
+            "mean": 0.45114967507995923,
+            "std": 0.05101551779848546,
+            "min": 0.33613445378151263,
+            "max": 0.5426356589147286,
+            "ci95": [
+              0.422898222989784,
+              0.47940112717013444
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc": {
+            "n": 15,
+            "mean": 0.4772404321558261,
+            "std": 0.05179982126917787,
+            "min": 0.39866951770016623,
+            "max": 0.564516129032258,
+            "ci95": [
+              0.4485546472805962,
+              0.5059262170310561
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "pr_auc": {
+            "n": 15,
+            "mean": 0.4695446023123872,
+            "std": 0.05009569495791448,
+            "min": 0.40566021321122614,
+            "max": 0.5726928280491492,
+            "ci95": [
+              0.44180253113282997,
+              0.49728667349194444
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        },
+        "random_forest": {
+          "accuracy": {
+            "n": 15,
+            "mean": 0.5030770417029958,
+            "std": 0.02853141937377245,
+            "min": 0.44696969696969696,
+            "max": 0.5454545454545454,
+            "ci95": [
+              0.4872768682991544,
+              0.5188772151068373
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "precision": {
+            "n": 15,
+            "mean": 0.4210833609422473,
+            "std": 0.0839405686377465,
+            "min": 0.25,
+            "max": 0.5454545454545454,
+            "ci95": [
+              0.37459862344220446,
+              0.46756809844229014
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "recall": {
+            "n": 15,
+            "mean": 0.15732416710735062,
+            "std": 0.040512145172940765,
+            "min": 0.09836065573770492,
+            "max": 0.25806451612903225,
+            "ci95": [
+              0.13488928890137974,
+              0.17975904531332149
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "f1": {
+            "n": 15,
+            "mean": 0.2281838650524902,
+            "std": 0.052780351709951254,
+            "min": 0.1411764705882353,
+            "max": 0.34782608695652173,
+            "ci95": [
+              0.19895508051821748,
+              0.2574126495867629
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc": {
+            "n": 15,
+            "mean": 0.4576175035044125,
+            "std": 0.0394933645382235,
+            "min": 0.39101382488479264,
+            "max": 0.5184129246851984,
+            "ci95": [
+              0.4357468072088518,
+              0.4794881997999732
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "pr_auc": {
+            "n": 15,
+            "mean": 0.4575625898364752,
+            "std": 0.025896955978132713,
+            "min": 0.4206277124551777,
+            "max": 0.49455966378789296,
+            "ci95": [
+              0.4432213336330673,
+              0.47190384603988306
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        }
+      }
+    }
+  },
+  "rule_baseline_results": {
+    "frd_Risk_Category": {
+      "implemented": false,
+      "statement": "No defensible non-AI baseline was implemented for this target because the available fields do not provide an independent rule definition without target leakage."
+    },
+    "cdc_Overall_Consistency_Status": {
+      "implemented": false,
+      "statement": "No defensible non-AI baseline was implemented for this target because the available fields do not provide an independent rule definition without target leakage."
+    },
+    "est_Excessive_Claim_Amount_Indicator": {
+      "implemented": true,
+      "meta": {
+        "skipped": false,
+        "n_splits": 5,
+        "n_repeats": 3,
+        "min_class_size": 307
+      },
+      "cv_rows": [
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.48484848484848486,
+          "precision": 0.3125,
+          "recall": 0.08064516129032258,
+          "f1": 0.1282051282051282,
+          "roc_auc": 0.39746543778801846,
+          "pr_auc": 0.4105804386059668
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.3076923076923077,
+          "recall": 0.06557377049180328,
+          "f1": 0.10810810810810811,
+          "roc_auc": 0.4687574245664053,
+          "pr_auc": 0.4791212863563218
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5606060606060606,
+          "precision": 0.6363636363636364,
+          "recall": 0.11475409836065574,
+          "f1": 0.19444444444444445,
+          "roc_auc": 0.5380974370815054,
+          "pr_auc": 0.512228154325897
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5230769230769231,
+          "precision": 0.5,
+          "recall": 0.08064516129032258,
+          "f1": 0.1388888888888889,
+          "roc_auc": 0.4986954459203036,
+          "pr_auc": 0.48833117783236424
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5615384615384615,
+          "precision": 0.625,
+          "recall": 0.16393442622950818,
+          "f1": 0.2597402597402597,
+          "roc_auc": 0.4549774293181278,
+          "pr_auc": 0.48654081751218403
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5419847328244275,
+          "precision": 0.5384615384615384,
+          "recall": 0.11475409836065574,
+          "f1": 0.1891891891891892,
+          "roc_auc": 0.4314988290398127,
+          "pr_auc": 0.45333139687519786
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5075757575757576,
+          "precision": 0.36363636363636365,
+          "recall": 0.06451612903225806,
+          "f1": 0.1095890410958904,
+          "roc_auc": 0.4640552995391705,
+          "pr_auc": 0.44993601937827676
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5076923076923077,
+          "precision": 0.4117647058823529,
+          "recall": 0.11475409836065574,
+          "f1": 0.1794871794871795,
+          "roc_auc": 0.41470658113566167,
+          "pr_auc": 0.4363312016564739
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5230769230769231,
+          "precision": 0.46153846153846156,
+          "recall": 0.09836065573770492,
+          "f1": 0.16216216216216217,
+          "roc_auc": 0.491328106438584,
+          "pr_auc": 0.4865832773199382
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5190839694656488,
+          "precision": 0.4666666666666667,
+          "recall": 0.11290322580645161,
+          "f1": 0.18181818181818182,
+          "roc_auc": 0.5520102851799906,
+          "pr_auc": 0.5247662023188586
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.4772727272727273,
+          "precision": 0.26666666666666666,
+          "recall": 0.06451612903225806,
+          "f1": 0.1038961038961039,
+          "roc_auc": 0.45357142857142857,
+          "pr_auc": 0.44236531784177247
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 522,
+          "n_val": 132,
+          "accuracy": 0.5606060606060606,
+          "precision": 0.7,
+          "recall": 0.11290322580645161,
+          "f1": 0.19444444444444445,
+          "roc_auc": 0.4518433179723502,
+          "pr_auc": 0.5053009135655213
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5307692307692308,
+          "precision": 0.5,
+          "recall": 0.13114754098360656,
+          "f1": 0.2077922077922078,
+          "roc_auc": 0.45153243050605846,
+          "pr_auc": 0.4620501809389441
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.5461538461538461,
+          "precision": 0.5714285714285714,
+          "recall": 0.13114754098360656,
+          "f1": 0.21333333333333335,
+          "roc_auc": 0.4997624138750297,
+          "pr_auc": 0.4872135199041038
+        },
+        {
+          "target": "est_Excessive_Claim_Amount_Indicator",
+          "model": "rule_baseline",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.49230769230769234,
+          "precision": 0.3076923076923077,
+          "recall": 0.06557377049180328,
+          "f1": 0.10810810810810811,
+          "roc_auc": 0.49501069137562365,
+          "pr_auc": 0.4623936029904549
+        }
+      ],
+      "stability": {
+        "accuracy": {
+          "n": 15,
+          "mean": 0.5219267246748163,
+          "std": 0.028248115406657927,
+          "min": 0.4772727272727273,
+          "max": 0.5615384615384615,
+          "ci95": [
+            0.5062834397786149,
+            0.5375700095710176
+          ],
+          "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+        },
+        "precision": {
+          "n": 15,
+          "mean": 0.4646274150685915,
+          "std": 0.13484625546913714,
+          "min": 0.26666666666666666,
+          "max": 0.7,
+          "ci95": [
+            0.38995204784064275,
+            0.5393027822965403
+          ],
+          "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+        },
+        "recall": {
+          "n": 15,
+          "mean": 0.10107526881720429,
+          "std": 0.030044123414950857,
+          "min": 0.06451612903225806,
+          "max": 0.16393442622950818,
+          "ci95": [
+            0.08443738783750765,
+            0.11771314979690092
+          ],
+          "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+        },
+        "f1": {
+          "n": 15,
+          "mean": 0.16528045204757535,
+          "std": 0.04726427186090759,
+          "min": 0.1038961038961039,
+          "max": 0.2597402597402597,
+          "ci95": [
+            0.13910637071550094,
+            0.19145453337964977
+          ],
+          "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+        },
+        "roc_auc": {
+          "n": 15,
+          "mean": 0.47088750388720474,
+          "std": 0.042380020470076794,
+          "min": 0.39746543778801846,
+          "max": 0.5520102851799906,
+          "ci95": [
+            0.447418230819735,
+            0.4943567769546745
+          ],
+          "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+        },
+        "pr_auc": {
+          "n": 15,
+          "mean": 0.47247156716148503,
+          "std": 0.03097306223171589,
+          "min": 0.4105804386059668,
+          "max": 0.5247662023188586,
+          "ci95": [
+            0.4553192570118208,
+            0.48962387731114926
+          ],
+          "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+        }
+      }
+    }
+  },
+  "fraud_robustness": {
+    "test_set_single_split": {
+      "rule_baseline_v1": {
+        "accuracy": 0.15671641791044777,
+        "precision": 0.14615384615384616,
+        "recall": 0.9047619047619048,
+        "f1": 0.25165562913907286,
+        "roc_auc": 0.5263379688158448,
+        "pr_auc": 0.16715211026144638,
+        "confusion_matrix": [
+          [
+            2,
+            111
+          ],
+          [
+            2,
+            19
+          ]
+        ],
+        "n_test": 134,
+        "n_positive_actual": 21,
+        "n_positive_predicted": 130
+      },
+      "rule_baseline_v2": {
+        "accuracy": 0.27611940298507465,
+        "precision": 0.16071428571428573,
+        "recall": 0.8571428571428571,
+        "f1": 0.2706766917293233,
+        "roc_auc": 0.5263379688158448,
+        "pr_auc": 0.16715211026144638,
+        "confusion_matrix": [
+          [
+            19,
+            94
+          ],
+          [
+            3,
+            18
+          ]
+        ],
+        "n_test": 134,
+        "n_positive_actual": 21,
+        "n_positive_predicted": 112
+      },
+      "v2_calibration": {
+        "procedure": "inner grouped train/validation split (25% of TRAIN only); test set never touched",
+        "inner_train_claims": 391,
+        "inner_val_claims": 129,
+        "candidates_tried": [
+          [
+            0.5,
+            0.2097902097902098
+          ],
+          [
+            1.0,
+            0.2097902097902098
+          ],
+          [
+            1.5,
+            0.21138211382113822
+          ],
+          [
+            2.0,
+            0.21621621621621623
+          ],
+          [
+            2.5,
+            0.2028985507246377
+          ],
+          [
+            3.0,
+            0.18181818181818182
+          ],
+          [
+            3.5,
+            0.13793103448275862
+          ]
+        ],
+        "chosen_overall_threshold": 2.0,
+        "inner_validation_f1_at_chosen_threshold": 0.21621621621621623
+      }
+    },
+    "repeated_cv": {
+      "meta": {
+        "ml": {
+          "skipped": false,
+          "n_splits": 5,
+          "n_repeats": 3,
+          "min_class_size": 99
+        },
+        "rule": {
+          "skipped": false,
+          "n_splits": 5,
+          "n_repeats": 3,
+          "min_class_size": 99
+        }
+      },
+      "stability_by_model": {
+        "logistic_regression": {
+          "precision": {
+            "n": 15,
+            "mean": 0.14141674082850553,
+            "std": 0.04389318921648314,
+            "min": 0.05,
+            "max": 0.2,
+            "ci95": [
+              0.11710950284000306,
+              0.165723978817008
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "recall": {
+            "n": 15,
+            "mean": 0.20859649122807017,
+            "std": 0.06206340716054995,
+            "min": 0.1,
+            "max": 0.3,
+            "ci95": [
+              0.17422692193593275,
+              0.24296606052020758
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "f1": {
+            "n": 15,
+            "mean": 0.16739387426552094,
+            "std": 0.04958695544743248,
+            "min": 0.06666666666666667,
+            "max": 0.22641509433962265,
+            "ci95": [
+              0.13993353363633335,
+              0.19485421489470853
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "pr_auc": {
+            "n": 15,
+            "mean": 0.1885063330275613,
+            "std": 0.03638414962352389,
+            "min": 0.128874108378111,
+            "max": 0.2527566399240535,
+            "ci95": [
+              0.16835746256051945,
+              0.20865520349460318
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc": {
+            "n": 15,
+            "mean": 0.5100268689742375,
+            "std": 0.04222317279088989,
+            "min": 0.4216216216216216,
+            "max": 0.5621621621621622,
+            "ci95": [
+              0.48664445525633876,
+              0.5334092826921364
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        },
+        "random_forest": {
+          "precision": {
+            "n": 15,
+            "mean": 0.14476190476190476,
+            "std": 0.1598691560881934,
+            "min": 0.0,
+            "max": 0.4,
+            "ci95": [
+              0.056229317054710515,
+              0.233294492469099
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "recall": {
+            "n": 15,
+            "mean": 0.05035087719298245,
+            "std": 0.06009050905475261,
+            "min": 0.0,
+            "max": 0.2,
+            "ci95": [
+              0.017073862455223895,
+              0.08362789193074101
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "f1": {
+            "n": 15,
+            "mean": 0.07380436847103514,
+            "std": 0.08515054217939451,
+            "min": 0.0,
+            "max": 0.26666666666666666,
+            "ci95": [
+              0.026649569957845745,
+              0.12095916698422453
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "pr_auc": {
+            "n": 15,
+            "mean": 0.17671114596202123,
+            "std": 0.03894544816937347,
+            "min": 0.12779157958137138,
+            "max": 0.2697145918802053,
+            "ci95": [
+              0.15514387563785093,
+              0.19827841628619153
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc": {
+            "n": 15,
+            "mean": 0.501544175754702,
+            "std": 0.05165794622688941,
+            "min": 0.3833333333333333,
+            "max": 0.6085585585585586,
+            "ci95": [
+              0.4729369586591001,
+              0.5301513928503039
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        },
+        "rule_baseline_v1": {
+          "precision": {
+            "n": 15,
+            "mean": 0.14794631054786167,
+            "std": 0.008224328667664479,
+            "min": 0.1328125,
+            "max": 0.15625,
+            "ci95": [
+              0.1433918291399463,
+              0.15250079195577704
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "recall": {
+            "n": 15,
+            "mean": 0.9596491228070174,
+            "std": 0.05454842740716404,
+            "min": 0.85,
+            "max": 1.0,
+            "ci95": [
+              0.9294412105875388,
+              0.989857035026496
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "f1": {
+            "n": 15,
+            "mean": 0.25635464637993105,
+            "std": 0.014159138242722727,
+            "min": 0.22972972972972974,
+            "max": 0.2702702702702703,
+            "ci95": [
+              0.24851357697664597,
+              0.2641957157832161
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "pr_auc": {
+            "n": 15,
+            "mean": 0.1558383836315898,
+            "std": 0.0231108905020859,
+            "min": 0.12495951782603332,
+            "max": 0.22190479162660243,
+            "ci95": [
+              0.1430399990624078,
+              0.1686367682007718
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc": {
+            "n": 15,
+            "mean": 0.48966176703018804,
+            "std": 0.06459278426554663,
+            "min": 0.3835585585585586,
+            "max": 0.6430180180180181,
+            "ci95": [
+              0.45389147538564667,
+              0.5254320586747294
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        },
+        "rule_baseline_v2": {
+          "precision": {
+            "n": 15,
+            "mean": 0.1526436028522087,
+            "std": 0.014000418117493908,
+            "min": 0.13333333333333333,
+            "max": 0.18095238095238095,
+            "ci95": [
+              0.14489042972455024,
+              0.16039677597986718
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "recall": {
+            "n": 15,
+            "mean": 0.797719298245614,
+            "std": 0.08542861201585997,
+            "min": 0.65,
+            "max": 0.95,
+            "ci95": [
+              0.7504105097897241,
+              0.845028086701504
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "f1": {
+            "n": 15,
+            "mean": 0.25617877217330853,
+            "std": 0.023798991158903618,
+            "min": 0.2222222222222222,
+            "max": 0.304,
+            "ci95": [
+              0.2429993301616422,
+              0.26935821418497485
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "pr_auc": {
+            "n": 15,
+            "mean": 0.1558383836315898,
+            "std": 0.0231108905020859,
+            "min": 0.12495951782603332,
+            "max": 0.22190479162660243,
+            "ci95": [
+              0.1430399990624078,
+              0.1686367682007718
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          },
+          "roc_auc": {
+            "n": 15,
+            "mean": 0.48966176703018804,
+            "std": 0.06459278426554663,
+            "min": 0.3835585585585586,
+            "max": 0.6430180180180181,
+            "ci95": [
+              0.45389147538564667,
+              0.5254320586747294
+            ],
+            "ci_method": "t-distribution (df=14), mean +/- t_crit * (std/sqrt(n))"
+          }
+        }
+      },
+      "rf_vs_lr_pr_auc_gap_stable": false,
+      "cv_rows": [
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.6793893129770993,
+          "precision": 0.15625,
+          "recall": 0.25,
+          "f1": 0.19230769230769232,
+          "roc_auc": 0.5427927927927928,
+          "pr_auc": 0.2413816879486988
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8320610687022901,
+          "precision": 0.4,
+          "recall": 0.2,
+          "f1": 0.26666666666666666,
+          "roc_auc": 0.6085585585585586,
+          "pr_auc": 0.2697145918802053
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.6183206106870229,
+          "precision": 0.08333333333333333,
+          "recall": 0.15,
+          "f1": 0.10714285714285714,
+          "roc_auc": 0.4216216216216216,
+          "pr_auc": 0.128874108378111
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.7862595419847328,
+          "precision": 0.1,
+          "recall": 0.05,
+          "f1": 0.06666666666666667,
+          "roc_auc": 0.45495495495495497,
+          "pr_auc": 0.16241917134044256
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.7153846153846154,
+          "precision": 0.17857142857142858,
+          "recall": 0.2631578947368421,
+          "f1": 0.2127659574468085,
+          "roc_auc": 0.5429113323850165,
+          "pr_auc": 0.23930899333533726
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.8076923076923077,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.5504978662873399,
+          "pr_auc": 0.18159775189470495
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.6793893129770993,
+          "precision": 0.10714285714285714,
+          "recall": 0.15,
+          "f1": 0.125,
+          "roc_auc": 0.4972972972972973,
+          "pr_auc": 0.15552736044755217
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8244274809160306,
+          "precision": 0.2857142857142857,
+          "recall": 0.1,
+          "f1": 0.14814814814814814,
+          "roc_auc": 0.4734234234234234,
+          "pr_auc": 0.16127572414920915
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.6793893129770993,
+          "precision": 0.13333333333333333,
+          "recall": 0.2,
+          "f1": 0.16,
+          "roc_auc": 0.4689189189189189,
+          "pr_auc": 0.16942823665959406
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8396946564885496,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.509009009009009,
+          "pr_auc": 0.15560333984365224
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.6538461538461539,
+          "precision": 0.09375,
+          "recall": 0.15789473684210525,
+          "f1": 0.11764705882352941,
+          "roc_auc": 0.49549549549549543,
+          "pr_auc": 0.16621726793645902
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.8384615384615385,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.5177809388335703,
+          "pr_auc": 0.16258162131601891
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.7251908396946565,
+          "precision": 0.19230769230769232,
+          "recall": 0.25,
+          "f1": 0.21739130434782608,
+          "roc_auc": 0.5621621621621622,
+          "pr_auc": 0.18358647358274063
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.816793893129771,
+          "precision": 0.16666666666666666,
+          "recall": 0.05,
+          "f1": 0.07692307692307693,
+          "roc_auc": 0.5157657657657657,
+          "pr_auc": 0.18672398005007462
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.6564885496183206,
+          "precision": 0.16216216216216217,
+          "recall": 0.3,
+          "f1": 0.21052631578947367,
+          "roc_auc": 0.5382882882882883,
+          "pr_auc": 0.2527566399240535
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8244274809160306,
+          "precision": 0.2,
+          "recall": 0.05,
+          "f1": 0.08,
+          "roc_auc": 0.4891891891891892,
+          "pr_auc": 0.16655940039987413
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.5725190839694656,
+          "precision": 0.05,
+          "recall": 0.1,
+          "f1": 0.06666666666666667,
+          "roc_auc": 0.4414414414414415,
+          "pr_auc": 0.2226984679886162
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8091603053435115,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.3833333333333333,
+          "pr_auc": 0.12779157958137138
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.732824427480916,
+          "precision": 0.2,
+          "recall": 0.25,
+          "f1": 0.2222222222222222,
+          "roc_auc": 0.5337837837837838,
+          "pr_auc": 0.1756413675645308
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8015267175572519,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.4788288288288288,
+          "pr_auc": 0.15238057855137663
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.7307692307692307,
+          "precision": 0.13636363636363635,
+          "recall": 0.15789473684210525,
+          "f1": 0.14634146341463414,
+          "roc_auc": 0.5372214319582741,
+          "pr_auc": 0.19361106504972628
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.8461538461538461,
+          "precision": 0.4,
+          "recall": 0.10526315789473684,
+          "f1": 0.16666666666666666,
+          "roc_auc": 0.566145092460882,
+          "pr_auc": 0.2141875091483196
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.7404580152671756,
+          "precision": 0.15,
+          "recall": 0.15,
+          "f1": 0.15,
+          "roc_auc": 0.4756756756756757,
+          "pr_auc": 0.19399836758326633
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8320610687022901,
+          "precision": 0.3333333333333333,
+          "recall": 0.1,
+          "f1": 0.15384615384615385,
+          "roc_auc": 0.5175675675675676,
+          "pr_auc": 0.2455303080358922
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.6870229007633588,
+          "precision": 0.18181818181818182,
+          "recall": 0.3,
+          "f1": 0.22641509433962265,
+          "roc_auc": 0.5536036036036036,
+          "pr_auc": 0.1922132728571094
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.8244274809160306,
+          "precision": 0.2857142857142857,
+          "recall": 0.1,
+          "f1": 0.14814814814814814,
+          "roc_auc": 0.48963963963963963,
+          "pr_auc": 0.17634598211640948
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.7099236641221374,
+          "precision": 0.17857142857142858,
+          "recall": 0.25,
+          "f1": 0.20833333333333334,
+          "roc_auc": 0.5112612612612613,
+          "pr_auc": 0.15772255725992707
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.816793893129771,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.4945945945945946,
+          "pr_auc": 0.14475610983725545
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "logistic_regression",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.648854961832061,
+          "precision": 0.11764705882352941,
+          "recall": 0.2,
+          "f1": 0.14814814814814814,
+          "roc_auc": 0.5279279279279279,
+          "pr_auc": 0.15462912889769675
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "random_forest",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.7938931297709924,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "roc_auc": 0.4738738738738738,
+          "pr_auc": 0.14319954128551188
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.1450381679389313,
+          "precision": 0.14615384615384616,
+          "recall": 0.95,
+          "f1": 0.25333333333333335,
+          "roc_auc": 0.39572072072072073,
+          "pr_auc": 0.13243503903151718
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.16793893129770993,
+          "precision": 0.14960629921259844,
+          "recall": 0.95,
+          "f1": 0.2585034013605442,
+          "roc_auc": 0.4900900900900901,
+          "pr_auc": 0.15105210648211656
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.13846153846153847,
+          "precision": 0.13385826771653545,
+          "recall": 0.8947368421052632,
+          "f1": 0.2328767123287671,
+          "roc_auc": 0.5132764343290659,
+          "pr_auc": 0.15331323101052405
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.16793893129770993,
+          "precision": 0.15503875968992248,
+          "recall": 1.0,
+          "f1": 0.2684563758389262,
+          "roc_auc": 0.41193693693693695,
+          "pr_auc": 0.13341337843922885
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.16793893129770993,
+          "precision": 0.15503875968992248,
+          "recall": 1.0,
+          "f1": 0.2684563758389262,
+          "roc_auc": 0.6430180180180181,
+          "pr_auc": 0.22190479162660243
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.15384615384615385,
+          "precision": 0.14728682170542637,
+          "recall": 1.0,
+          "f1": 0.25675675675675674,
+          "roc_auc": 0.47178757705073493,
+          "pr_auc": 0.1480344661915602
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.16793893129770993,
+          "precision": 0.15503875968992248,
+          "recall": 1.0,
+          "f1": 0.2684563758389262,
+          "roc_auc": 0.5087837837837837,
+          "pr_auc": 0.15183430630932357
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.16030534351145037,
+          "precision": 0.1484375,
+          "recall": 0.95,
+          "f1": 0.25675675675675674,
+          "roc_auc": 0.5209459459459459,
+          "pr_auc": 0.18068898108844023
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.17557251908396945,
+          "precision": 0.15625,
+          "recall": 1.0,
+          "f1": 0.2702702702702703,
+          "roc_auc": 0.46216216216216216,
+          "pr_auc": 0.14775604116399796
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.1297709923664122,
+          "precision": 0.1328125,
+          "recall": 0.85,
+          "f1": 0.22972972972972974,
+          "roc_auc": 0.4738738738738739,
+          "pr_auc": 0.14965174052576136
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.15384615384615385,
+          "precision": 0.14728682170542637,
+          "recall": 1.0,
+          "f1": 0.25675675675675674,
+          "roc_auc": 0.49905168326220956,
+          "pr_auc": 0.1548688843904482
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.17557251908396945,
+          "precision": 0.15625,
+          "recall": 1.0,
+          "f1": 0.2702702702702703,
+          "roc_auc": 0.5191441441441442,
+          "pr_auc": 0.16214150432900432
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.16793893129770993,
+          "precision": 0.14960629921259844,
+          "recall": 0.95,
+          "f1": 0.2585034013605442,
+          "roc_auc": 0.3835585585585586,
+          "pr_auc": 0.12495951782603332
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.15267175572519084,
+          "precision": 0.15267175572519084,
+          "recall": 1.0,
+          "f1": 0.26490066225165565,
+          "roc_auc": 0.5572072072072072,
+          "pr_auc": 0.1712706642529514
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v1",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.13740458015267176,
+          "precision": 0.13385826771653545,
+          "recall": 0.85,
+          "f1": 0.23129251700680273,
+          "roc_auc": 0.49436936936936937,
+          "pr_auc": 0.15425110180633766
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 42,
+          "fold": 0,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.26717557251908397,
+          "precision": 0.14150943396226415,
+          "recall": 0.75,
+          "f1": 0.23809523809523808,
+          "roc_auc": 0.39572072072072073,
+          "pr_auc": 0.13243503903151718
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 42,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.3282442748091603,
+          "precision": 0.16666666666666666,
+          "recall": 0.85,
+          "f1": 0.2786885245901639,
+          "roc_auc": 0.4900900900900901,
+          "pr_auc": 0.15105210648211656
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 42,
+          "fold": 2,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.35384615384615387,
+          "precision": 0.15053763440860216,
+          "recall": 0.7368421052631579,
+          "f1": 0.25,
+          "roc_auc": 0.5132764343290659,
+          "pr_auc": 0.15331323101052405
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 42,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "precision": 0.14563106796116504,
+          "recall": 0.75,
+          "f1": 0.24390243902439024,
+          "roc_auc": 0.41193693693693695,
+          "pr_auc": 0.13341337843922885
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 42,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2595419847328244,
+          "precision": 0.1592920353982301,
+          "recall": 0.9,
+          "f1": 0.2706766917293233,
+          "roc_auc": 0.6430180180180181,
+          "pr_auc": 0.22190479162660243
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 43,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.27692307692307694,
+          "precision": 0.14953271028037382,
+          "recall": 0.8421052631578947,
+          "f1": 0.25396825396825395,
+          "roc_auc": 0.47178757705073493,
+          "pr_auc": 0.1480344661915602
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 43,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.33587786259541985,
+          "precision": 0.16831683168316833,
+          "recall": 0.85,
+          "f1": 0.2809917355371901,
+          "roc_auc": 0.5087837837837837,
+          "pr_auc": 0.15183430630932357
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 43,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "precision": 0.1588785046728972,
+          "recall": 0.85,
+          "f1": 0.2677165354330709,
+          "roc_auc": 0.5209459459459459,
+          "pr_auc": 0.18068898108844023
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 43,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.3053435114503817,
+          "precision": 0.13402061855670103,
+          "recall": 0.65,
+          "f1": 0.2222222222222222,
+          "roc_auc": 0.46216216216216216,
+          "pr_auc": 0.14775604116399796
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 43,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2900763358778626,
+          "precision": 0.1523809523809524,
+          "recall": 0.8,
+          "f1": 0.256,
+          "roc_auc": 0.4738738738738739,
+          "pr_auc": 0.14965174052576136
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 44,
+          "fold": 0,
+          "n_train": 524,
+          "n_val": 130,
+          "accuracy": 0.26153846153846155,
+          "precision": 0.13333333333333333,
+          "recall": 0.7368421052631579,
+          "f1": 0.22580645161290322,
+          "roc_auc": 0.49905168326220956,
+          "pr_auc": 0.1548688843904482
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 44,
+          "fold": 1,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.33587786259541985,
+          "precision": 0.18095238095238095,
+          "recall": 0.95,
+          "f1": 0.304,
+          "roc_auc": 0.5191441441441442,
+          "pr_auc": 0.16214150432900432
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 44,
+          "fold": 2,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.3053435114503817,
+          "precision": 0.13402061855670103,
+          "recall": 0.65,
+          "f1": 0.2222222222222222,
+          "roc_auc": 0.3835585585585586,
+          "pr_auc": 0.12495951782603332
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 44,
+          "fold": 3,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.32061068702290074,
+          "precision": 0.1650485436893204,
+          "recall": 0.85,
+          "f1": 0.2764227642276423,
+          "roc_auc": 0.5572072072072072,
+          "pr_auc": 0.1712706642529514
+        },
+        {
+          "target": "frd_Fraud_Label",
+          "model": "rule_baseline_v2",
+          "seed": 44,
+          "fold": 4,
+          "n_train": 523,
+          "n_val": 131,
+          "accuracy": 0.2748091603053435,
+          "precision": 0.14953271028037382,
+          "recall": 0.8,
+          "f1": 0.25196850393700787,
+          "roc_auc": 0.49436936936936937,
+          "pr_auc": 0.15425110180633766
+        }
+      ]
+    }
+  },
+  "explainability": {
+    "target": "est_Excessive_Claim_Amount_Indicator",
+    "explanations": [
+      {
+        "claim_id": "CLM-000484",
+        "fraud_screening_risk": "MEDIUM",
+        "contributing_factors": [
+          {
+            "code": "DOCUMENT_INCONSISTENCY",
+            "description": "Information across submitted documents is inconsistent."
+          },
+          {
+            "code": "UNUSUAL_CLAIM_PATTERN",
+            "description": "The claim contains a pattern that differs from typical claims."
+          }
+        ],
+        "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+        "model": "random_forest",
+        "target": "est_Excessive_Claim_Amount_Indicator",
+        "probability": 0.5687725776430723,
+        "top_shap_features": [
+          [
+            "numeric__cdc_Document_Consistency_Score",
+            0.012121111819427313
+          ],
+          [
+            "categorical__veh_Vehicle_Color_Grey",
+            0.008721096755033764
+          ],
+          [
+            "numeric__pol_Premium_Amount",
+            0.008141936749038103
+          ]
+        ],
+        "label_type": "Model contribution / screening signal - NOT a confirmed cause"
+      },
+      {
+        "claim_id": "CLM-000646",
+        "fraud_screening_risk": "MEDIUM",
+        "contributing_factors": [
+          {
+            "code": "UNUSUAL_CLAIM_PATTERN",
+            "description": "The claim contains a pattern that differs from typical claims."
+          },
+          {
+            "code": "DOCUMENT_INCONSISTENCY",
+            "description": "Information across submitted documents is inconsistent."
+          }
+        ],
+        "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+        "model": "random_forest",
+        "target": "est_Excessive_Claim_Amount_Indicator",
+        "probability": 0.556700390657596,
+        "top_shap_features": [
+          [
+            "categorical__veh_Vehicle_Type_Car \u2013 Hatchback",
+            0.008249358564972196
+          ],
+          [
+            "numeric__document_ocr_confidence_min",
+            0.00757214649648733
+          ],
+          [
+            "categorical__pol_Class_Code_CL03",
+            0.0062001717972607106
+          ]
+        ],
+        "label_type": "Model contribution / screening signal - NOT a confirmed cause"
+      },
+      {
+        "claim_id": "CLM-000565",
+        "fraud_screening_risk": "MEDIUM",
+        "contributing_factors": [
+          {
+            "code": "UNUSUAL_CLAIM_PATTERN",
+            "description": "The claim contains a pattern that differs from typical claims."
+          }
+        ],
+        "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+        "model": "random_forest",
+        "target": "est_Excessive_Claim_Amount_Indicator",
+        "probability": 0.5493469001030037,
+        "top_shap_features": [
+          [
+            "numeric__frd_Anomaly_Score",
+            0.013288838500912734
+          ],
+          [
+            "numeric__cust_Driving_Experience_Years",
+            0.009139349927098212
+          ],
+          [
+            "numeric__Claim_Amount",
+            0.008208065527783814
+          ]
+        ],
+        "label_type": "Model contribution / screening signal - NOT a confirmed cause"
+      },
+      {
+        "claim_id": "CLM-000501",
+        "fraud_screening_risk": "MEDIUM",
+        "contributing_factors": [
+          {
+            "code": "DOCUMENT_INCONSISTENCY",
+            "description": "Information across submitted documents is inconsistent."
+          },
+          {
+            "code": "UNUSUAL_CLAIM_PATTERN",
+            "description": "The claim contains a pattern that differs from typical claims."
+          },
+          {
+            "code": "REPAIR_ESTIMATE_ANOMALY",
+            "description": "The repair estimate contains an unusual cost pattern."
+          }
+        ],
+        "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+        "model": "random_forest",
+        "target": "est_Excessive_Claim_Amount_Indicator",
+        "probability": 0.5485411344585027,
+        "top_shap_features": [
+          [
+            "numeric__document_ocr_confidence_min",
+            0.009568517705160326
+          ],
+          [
+            "numeric__cust_Driving_Experience_Years",
+            0.007735253970089341
+          ],
+          [
+            "numeric__est_Painting_Cost",
+            0.0065522543639261405
+          ]
+        ],
+        "label_type": "Model contribution / screening signal - NOT a confirmed cause"
+      },
+      {
+        "claim_id": "CLM-000641",
+        "fraud_screening_risk": "MEDIUM",
+        "contributing_factors": [
+          {
+            "code": "UNUSUAL_CLAIM_PATTERN",
+            "description": "The claim contains a pattern that differs from typical claims."
+          }
+        ],
+        "disclaimer": "These are risk contributors, not proof of fraud. Final decision remains with the Claims Officer.",
+        "model": "random_forest",
+        "target": "est_Excessive_Claim_Amount_Indicator",
+        "probability": 0.5447456423091931,
+        "top_shap_features": [
+          [
+            "categorical__veh_Vehicle_Color_Grey",
+            0.006303428113195907
+          ],
+          [
+            "numeric__cust_Age",
+            0.005847019382660501
+          ],
+          [
+            "categorical__Claims_History_Code_CH01",
+            0.004983882944865313
+          ]
+        ],
+        "label_type": "Model contribution / screening signal - NOT a confirmed cause"
+      }
+    ]
+  },
+  "figures": [
+    "C:\\Users\\Admin\\Downloads\\Final year project\\ci-micop\\docs\\project_documentation\\figures\\target_class_distributions.png",
+    "C:\\Users\\Admin\\Downloads\\Final year project\\ci-micop\\docs\\project_documentation\\figures\\secondary_target_model_comparison.png",
+    "C:\\Users\\Admin\\Downloads\\Final year project\\ci-micop\\docs\\project_documentation\\figures\\fraud_pr_auc_cv_comparison.png"
+  ]
+}
