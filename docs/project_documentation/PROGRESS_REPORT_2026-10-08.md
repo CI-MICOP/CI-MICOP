@@ -243,8 +243,9 @@ once, because the backend packages changed.
 - Step 11 security tests and report: commit `041cfa6`.
 - The Admin area: commit `3f34730`.
 - Package update and upload folders excluded from git: commit `e1651ca`.
-- The setup guide additions and this version of the report: the next
-  commit after `e1651ca`.
+- Setup guide additions and the retest results: commit `9a62169`.
+- Limit on wrong passwords: commit `f535068`.
+- Browser check recorded in the reports: commit `482d4ca`.
 
 ## 11. What Is To Do Later
 
