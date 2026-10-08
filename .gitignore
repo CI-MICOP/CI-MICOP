@@ -41,6 +41,10 @@ ai_ml/model_artifacts/*
 !ai_ml/model_artifacts/.gitkeep
 ai_ml/datasets/*
 !ai_ml/datasets/.gitkeep
+
+# Uploaded customer documents and surveyor evidence (never commit)
+infra/storage/documents/
+infra/storage/evidence/
 *.pkl
 *.h5
 *.pt

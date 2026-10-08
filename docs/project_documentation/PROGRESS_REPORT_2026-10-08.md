@@ -26,7 +26,7 @@
 | 8 | Feed tested checks into the risk score | Done |
 | 9 | Decide whether to run the fraud model live | Done (decision: not now) |
 | 10 | Repair-estimate checks | Done, with 3 decisions open |
-| 11 | Full testing and security review | Done, with 6 improvements to do later |
+| 11 | Full testing and security review | Done; 2 of 6 improvements done, 4 to do later |
 | 12 | Docker and deployment | Not started |
 | 13 | Final documentation and report | Not started |
 
@@ -91,19 +91,20 @@ Full details: `REPAIR_ESTIMATE_CHECKS.md`.
   checking code can.
 - No password or secret file is stored in git.
 
-**To do later (6 improvements).** None of these stops the app from working
+**Improvements (6).** Two are done; four are to do later. None of these stops the app from working
 today. They should be done before the app goes online.
 
-1. **Old packages with known security holes.** Five backend packages are
-   out of date, including the ones that handle login and file uploads. The
-   newer versions were tried in a separate copy: all tests pass and no
-   known holes remain. Most of the holes are in features this project does
-   not use. The ones that matter could let someone slow down or overload
-   the login and upload pages; none lets anyone read data.
+1. **Old packages with known security holes (done).** Five backend packages
+   were out of date, including the ones that handle login and file uploads.
+   They are now updated: all tests pass and no known holes remain. Most of
+   the holes were in features this project does not use. The ones that
+   mattered could let someone slow down or overload the login and upload
+   pages; none let anyone read data. Each teammate must run
+   `pip install -r backend/requirements.txt` once to get the new versions.
 2. **No limit on wrong passwords.** Someone could keep guessing passwords
    forever. The app counts wrong tries but does nothing with the count.
-3. **Uploaded files could end up on GitHub.** The folders that hold
-   customer documents and photos are not excluded from git.
+3. **Uploaded files could end up on GitHub (done).** The folders that hold
+   customer documents and photos were not excluded from git. They are now.
 4. **Two weak login settings.** If the secret key were missing from the
    settings file, the app would quietly use the word "changeme". It also
    accepts a login token that has no expiry date.
@@ -186,8 +187,9 @@ working pages:
 
 **Security (Step 11)**
 
-4. Update the five old packages? (Tried separately: all tests pass.)
-5. Exclude the upload folders from git?
+4. ~~Update the five old packages?~~ Done. Everyone must run
+   `pip install -r backend/requirements.txt` once.
+5. ~~Exclude the upload folders from git?~~ Done.
 6. Add a limit on wrong passwords, and how many tries?
 7. Tighten the two login settings?
 

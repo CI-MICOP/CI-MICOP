@@ -11,7 +11,8 @@ had none.
 It changed **no application code**: no router, service, schema, migration,
 dependency or frontend file. The only new files are one test module and
 this report. The improvements to do later are listed in Section 5 with a recommended
-fix each; none of the fixes has been applied.
+fix each. Two of them (5.1 and 5.3) were applied afterwards in Step 5.8.24;
+the others are still open.
 
 ## 2. Files
 
@@ -56,7 +57,8 @@ Run on 2026-10-08, Windows 11, Python 3.13.3, real PostgreSQL database.
 
 ## 5. Improvements To Do Later
 
-None of these is fixed in this step. Ordered by how much they matter.
+None of these was fixed during the review itself. Two were done afterwards
+in Step 5.8.24 and are marked **Done** below. Ordered by how much they matter.
 
 ### 5.1 Backend packages with published security advisories
 
@@ -82,7 +84,15 @@ other pins unchanged: `pip-audit` reports no known vulnerabilities and all
 629 backend tests pass. The project's own environment and
 `requirements.txt` were not changed.
 
-**Recommended:** update those pins in `backend/requirements.txt`.
+**Done (Step 5.8.24).** `backend/requirements.txt` now pins
+`fastapi==0.142.4`, `starlette==1.7.0`, `PyJWT==2.15.0`,
+`python-multipart==0.0.31`, `python-dotenv==1.2.2` and `pytest==9.0.3`.
+`starlette` is pinned by name because upgrading `fastapi` alone leaves an
+already-installed older `starlette` in place. After installing: `pip-audit`
+reports no known vulnerabilities, the backend suite is 627 passed and 2
+skipped (the two Tesseract-absent tests), and the real server starts and
+answers health and login requests. Each developer must run
+`pip install -r backend/requirements.txt` once to get the new versions.
 
 ### 5.2 No limit on login attempts
 
@@ -101,8 +111,9 @@ documents and surveyor photos. Neither is in `.gitignore`. Both folders are
 empty now (the tests clean up after themselves), but after any real upload a
 `git add .` would commit those files to GitHub.
 
-**Recommended:** add `infra/storage/documents/` and
-`infra/storage/evidence/` to `.gitignore`.
+**Done (Step 5.8.24).** `infra/storage/documents/` and
+`infra/storage/evidence/` are now in `.gitignore`. `infra/storage/.gitkeep`
+is still tracked.
 
 ### 5.4 Token settings that are safe now but fail open
 
@@ -201,8 +212,8 @@ in Section 5: no test was written that would fail until a fix is made.
 
 ## 8. Open Points for Review
 
-1. Apply the package updates in 5.1 (trial run passed).
+1. ~~Apply the package updates in 5.1~~ Done in Step 5.8.24.
 2. Choose a login-attempt limit (5.2).
-3. Add the two storage folders to `.gitignore` (5.3).
+3. ~~Add the two storage folders to `.gitignore` (5.3)~~ Done in Step 5.8.24.
 4. Harden the token settings (5.4).
 5. Decide whether customers should see the MATCH / MISMATCH result (5.7).
