@@ -172,7 +172,7 @@ working pages:
   were added to the local project. One test that used to fail because of
   the missing files now passes.
 - All 13 roadmap steps were checked one by one against the real code.
-- Steps 7, 9 and 10 were saved and pushed to GitHub.
+- All of this work was saved and pushed to GitHub (see Section 9).
 
 ## 8. Decisions Waiting for the Team
 
@@ -191,13 +191,15 @@ working pages:
 6. Add a limit on wrong passwords, and how many tries?
 7. Tighten the two login settings?
 
-## 9. Not Yet Saved to GitHub
+## 9. Saved to GitHub
 
-This work exists only on the development laptop for now:
+All the work in this report is on GitHub (branch `master`). To get it, run
+`git pull origin master`.
 
-- the Step 11 security tests and report;
-- the Admin area;
-- this report.
+- Steps 7, 9 and 10: commits `98aa693` and `ab2b479`.
+- Step 11 security tests and report: commit `041cfa6`.
+- The Admin area: commit `3f34730`.
+- This report: commit `8159e0d`.
 
 ## 10. What Is Left
 
