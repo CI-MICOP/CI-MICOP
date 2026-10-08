@@ -11,7 +11,8 @@ had none.
 It changed **no application code**: no router, service, schema, migration,
 dependency or frontend file. The only new files are one test module and
 this report. The improvements to do later are listed in Section 5 with a recommended
-fix each. Two of them (5.1 and 5.3) were applied afterwards in Step 5.8.24;
+fix each. Three of them (5.1, 5.2 and 5.3) were applied afterwards in Steps
+5.8.24 and 5.8.25;
 the others are still open.
 
 ## 2. Files
@@ -57,8 +58,8 @@ Run on 2026-10-08, Windows 11, Python 3.13.3, real PostgreSQL database.
 
 ## 5. Improvements To Do Later
 
-None of these was fixed during the review itself. Two were done afterwards
-in Step 5.8.24 and are marked **Done** below. Ordered by how much they matter.
+None of these was fixed during the review itself. Three were done afterwards
+in Steps 5.8.24 and 5.8.25 and are marked **Done** below. Ordered by how much they matter.
 
 ### 5.1 Backend packages with published security advisories
 
@@ -100,9 +101,18 @@ answers health and login requests. Each developer must run
 correct one, but nothing reads it. There is no lockout, delay or rate limit,
 so passwords can be guessed without restriction.
 
-**Recommended:** refuse login after a set number of consecutive failures
-(for example for a fixed time), or add request rate limiting on
-`/auth/login`. The limit itself is a product decision.
+**Done (Step 5.8.25).** After 5 wrong passwords in a row for one username
+from one client address, logins for that pair get `429 Too Many Requests`
+with a `Retry-After` header for 15 minutes, including a login with the
+right password. A correct login clears the count. Both numbers are
+settings (`LOGIN_MAX_FAILED_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES`) and are a
+product decision the team can change. The count is kept in memory
+(`services/login_throttle.py`) because the approved schema has no column
+for a lockout time: it is lost when the API restarts, and each API process
+counts separately. `Failed_Login_Count` is still updated as before. Counting
+per client address means a person guessing someone else's password blocks
+their own address, not the real user. Five new tests; backend suite 632
+passed, 2 skipped. The login screen shows a "wait a few minutes" message.
 
 ### 5.3 Uploaded files are not excluded from git
 
@@ -213,7 +223,8 @@ in Section 5: no test was written that would fail until a fix is made.
 ## 8. Open Points for Review
 
 1. ~~Apply the package updates in 5.1~~ Done in Step 5.8.24.
-2. Choose a login-attempt limit (5.2).
+2. ~~Choose a login-attempt limit (5.2)~~ Done in Step 5.8.25 with 5 tries
+   and 15 minutes; the team can change both numbers.
 3. ~~Add the two storage folders to `.gitignore` (5.3)~~ Done in Step 5.8.24.
 4. Harden the token settings (5.4).
 5. Decide whether customers should see the MATCH / MISMATCH result (5.7).

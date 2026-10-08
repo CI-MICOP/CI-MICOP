@@ -27,7 +27,7 @@
 | 8 | Feed tested checks into the risk score | Done |
 | 9 | Decide whether to run the fraud model live | Done (decision: not now) |
 | 10 | Repair-estimate checks | Done, with 3 decisions open |
-| 11 | Full testing and security review | Done; 2 of 6 improvements done, 4 to do later |
+| 11 | Full testing and security review | Done; 3 of 6 improvements done, 3 to do later |
 | 12 | Docker and deployment | Not started |
 | 13 | Final documentation and report | Not started |
 
@@ -74,11 +74,12 @@ Full details: `REPAIR_ESTIMATE_CHECKS.md`.
 
 | Tests | Result |
 |---|---|
-| Backend | 629 tests: 627 pass, 2 skip themselves on purpose (see Section 5) |
+| Backend | 634 tests: 632 pass, 2 skip themselves on purpose (see Section 5) |
 | Frontend | 169 of 169 pass; the build works |
 | AI/ML research code | 101 of 101 pass |
 
-109 of the backend tests are new security tests written in this step.
+114 of the backend tests are new security tests: 109 from the review and 5
+for the wrong-password limit added afterwards.
 
 **What was checked and is safe.**
 
@@ -92,7 +93,7 @@ Full details: `REPAIR_ESTIMATE_CHECKS.md`.
   checking code can.
 - No password or secret file is stored in git.
 
-**Improvements (6).** Two are done; four are to do later. None of these stops the app from working
+**Improvements (6).** Three are done; three are to do later. None of these stops the app from working
 today. They should be done before the app goes online.
 
 1. **Old packages with known security holes (done).** Five backend packages
@@ -102,8 +103,11 @@ today. They should be done before the app goes online.
    mattered could let someone slow down or overload the login and upload
    pages; none let anyone read data. Each teammate must run
    `pip install -r backend/requirements.txt` once to get the new versions.
-2. **No limit on wrong passwords.** Someone could keep guessing passwords
-   forever. The app counts wrong tries but does nothing with the count.
+2. **No limit on wrong passwords (done).** Someone could keep guessing
+   passwords forever. Now, after 5 wrong passwords in a row, that person
+   must wait 15 minutes before trying again. Both numbers are easy to
+   change. The count is kept in memory, so it is forgotten if the server
+   restarts.
 3. **Uploaded files could end up on GitHub (done).** The folders that hold
    customer documents and photos were not excluded from git. They are now.
 4. **Two weak login settings.** If the secret key were missing from the
@@ -115,7 +119,7 @@ today. They should be done before the app goes online.
    to build and test the app, not in what users see.
 
 **What was not checked.** Nobody attacked a running copy of the app; this
-was code reading plus automated tests. No screen was checked by hand in a
+was code reading plus automated tests. The screens were later opened in an automated
 browser.
 
 Full details: `SECURITY_AND_REGRESSION_REVIEW.md`.
@@ -184,12 +188,22 @@ with newly installed packages and a brand-new empty database.
 | AI/ML tests | 101 of 101 pass |
 | Loading the development data | Works |
 | Live test of the real server | 37 of 37 checks pass |
+| Screens opened in a real browser (Edge) | 41 of 41 pages open with no error |
 
 The live test started the real server and tried the main actions of each
 role: Customer, Surveyor, Claims Officer and Admin. A scanned picture was
 uploaded and read through the real API. Each role was refused in the other
 roles' areas. After every analysis run, the claim's decision and audit
 history were unchanged.
+
+The browser check logged in as each of the four roles in a hidden Edge
+window and opened every main page: 10 Customer, 10 Surveyor, 15 Claims
+Officer and 6 Admin pages. No page showed an error, no request failed,
+and the "Check Estimates" button returned its result. It was run on both
+the development server and the built (production) version. The retest
+was repeated after the wrong-password limit was added, using a settings
+file made from `.env.example` and no Tesseract setting: 634 backend tests
+pass with none skipped.
 
 One gap was found: the setup guide (`README.md`) did not explain how to
 load the development data and logins. Sections were added to it for the
@@ -215,7 +229,8 @@ development data, Tesseract, the frontend tests and the AI/ML code.
 
 **Security (Step 11)**
 
-4. A limit on wrong passwords: how many tries before blocking?
+4. The limit on wrong passwords is set to 5 tries and 15 minutes. Keep
+   these numbers or change them?
 5. Should customers see the MATCH / MISMATCH result on their documents?
 
 ## 10. Saved to GitHub
@@ -243,7 +258,6 @@ once, because the backend packages changed.
 
 **Security improvements**
 
-- Add the limit on wrong passwords, once the team has chosen it.
 - Tighten two login settings: refuse to start with the default secret key,
   and refuse login tokens that have no expiry date.
 - Close the API's help pages when the app goes online.
@@ -259,6 +273,7 @@ once, because the backend packages changed.
 
 **Checks not done yet**
 
-- No screen has been clicked through by hand in a browser.
+- The screens were opened by an automated browser, not by a person. Forms
+  were not filled in by hand, except one button ("Check Estimates").
 - Scanned-document reading was tested on computer-made images only.
 - Everything was run on one Windows laptop.
