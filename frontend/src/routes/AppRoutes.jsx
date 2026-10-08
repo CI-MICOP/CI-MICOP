@@ -3,6 +3,11 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "../layouts/AppShell";
 import { useAuth } from "../hooks/useAuth";
 import AdminDashboardPage from "../pages/admin/DashboardPage";
+import AdminProfilePage from "../pages/admin/ProfilePage";
+import RolesPermissionsPage from "../pages/admin/RolesPermissionsPage";
+import SystemReportsPage from "../pages/admin/SystemReportsPage";
+import UserDetailsPage from "../pages/admin/UserDetailsPage";
+import UsersPage from "../pages/admin/UsersPage";
 import ComingSoonPage from "../pages/ComingSoonPage";
 import ClaimDetailsPage from "../pages/customer/ClaimDetailsPage";
 import ClaimTimelinePage from "../pages/customer/ClaimTimelinePage";
@@ -139,6 +144,13 @@ export default function AppRoutes() {
         <Route element={<RoleProtectedRoute allowedRoles={["Admin"]} />}>
           <Route path="/admin" element={<AppShell />}>
             <Route index element={<AdminDashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="users/:userId" element={<UserDetailsPage />} />
+            <Route path="roles-permissions" element={<RolesPermissionsPage />} />
+            <Route path="system-reports" element={<SystemReportsPage />} />
+            {/* The officer audit page only uses endpoints Admin may also call. */}
+            <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="profile" element={<AdminProfilePage />} />
             <Route path="*" element={<ComingSoonPage />} />
           </Route>
         </Route>

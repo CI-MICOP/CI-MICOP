@@ -89,8 +89,6 @@ export const NAV_CONFIG = {
     { label: "Roles & Permissions", path: "roles-permissions", icon: KeyRound },
     { label: "System Reports", path: "system-reports", icon: BarChart3 },
     { label: "Audit Logs", path: "audit-logs", icon: History },
-    { label: "System Settings", path: "system-settings", icon: Settings },
-    { label: "Notifications", path: "notifications", icon: Bell },
     { label: "Profile", path: "profile", icon: UserCircle },
   ],
 };
