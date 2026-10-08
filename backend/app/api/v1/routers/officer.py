@@ -29,6 +29,12 @@ from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionRe
 from app.schemas.evidence_duplication import ClaimEvidenceDuplicationOut, EvidenceDuplicationOut, EvidenceMatchOut
 from app.schemas.evidence_quality import ClaimPhotoQualityOut, PhotoMeasurementsOut, PhotoQualityOut
 from app.schemas.officer import AssignSurveyorRequest, DecisionCreate, SurveyorSummaryOut
+from app.schemas.repair_estimate_checks import (
+    ClaimRepairEstimateChecksOut,
+    EstimateCheckOut,
+    EstimateResultOut,
+    QuoteComparisonOut,
+)
 from app.schemas.semantic_consistency import (
     AccidentDetailsConsistencyOut,
     ClaimSemanticConsistencyOut,
@@ -46,6 +52,7 @@ from app.services import (
     entity_extraction,
     evidence_duplication,
     evidence_quality,
+    repair_estimate_checks,
     semantic_consistency,
     surveyor_assignment,
 )
@@ -450,5 +457,68 @@ def check_claim_photo_quality(
             )
             for r in result.results
         ],
+        limitations=result.limitations,
+    )
+
+
+@router.post("/claims/{claim_id}/repair-estimates/check", response_model=ClaimRepairEstimateChecksOut)
+def check_claim_repair_estimates(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Step 5.8.21: read-only repair estimate checks - sets each repair
+    estimate on this claim against the claim's own amount, accident date and
+    surveyor damage records, and puts multiple estimates side by side (see
+    services/repair_estimate_checks.py and
+    docs/project_documentation/REPAIR_ESTIMATE_CHECKS.md). NOT fraud
+    detection, NOT a risk score, NOT wired into ai_pipeline.py.
+    Analysis-only: never writes Excessive_Claim_Amount_Indicator or
+    Estimate_Anomaly_Score, never touches Final_Decision, Approved_Amount, or
+    claim_decision_audit."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    result = repair_estimate_checks.check_claim_repair_estimates(db, claim)
+    quotes = result.quote_comparison
+    return ClaimRepairEstimateChecksOut(
+        Claim_ID=claim_id,
+        estimates_checked=result.estimates_checked,
+        results=[
+            EstimateResultOut(
+                estimate_id=r.estimate_id,
+                garage_id=r.garage_id,
+                estimate_date=r.estimate_date,
+                repair_estimate=r.repair_estimate,
+                status=r.status,
+                checks=[
+                    EstimateCheckOut(
+                        check=c.check,
+                        status=c.status,
+                        value=c.value,
+                        reference=c.reference,
+                        explanation=c.explanation,
+                    )
+                    for c in r.checks
+                ],
+            )
+            for r in result.results
+        ],
+        quote_comparison=(
+            QuoteComparisonOut(
+                estimates_compared=quotes.estimates_compared,
+                garages=quotes.garages,
+                lowest_estimate_id=quotes.lowest_estimate_id,
+                lowest_amount=quotes.lowest_amount,
+                highest_estimate_id=quotes.highest_estimate_id,
+                highest_amount=quotes.highest_amount,
+                difference=quotes.difference,
+                difference_percent=quotes.difference_percent,
+                explanation=quotes.explanation,
+            )
+            if quotes
+            else None
+        ),
         limitations=result.limitations,
     )

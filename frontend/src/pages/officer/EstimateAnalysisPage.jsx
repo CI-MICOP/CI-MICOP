@@ -10,6 +10,7 @@ import StatusBadge from "../../components/common/StatusBadge";
 import ClaimTabs from "../../components/officer/ClaimTabs";
 import { formatCurrency, formatDate } from "../../utils/format";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
+import RepairEstimateChecksPanel from "../../components/officer/RepairEstimateChecksPanel";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
 
 export default function EstimateAnalysisPage() {
@@ -34,6 +35,8 @@ export default function EstimateAnalysisPage() {
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number, to: `/officer/claims/${claim.Claim_ID}` }, { label: "Estimate Analysis" }]} />
       <PageHeader title={`Estimate Analysis — ${claim.Claim_Number}`} subtitle="Future integration point for the Smart Repair Estimate / Claim Leakage model." />
       <ClaimTabs claimId={claim.Claim_ID} />
+
+      <RepairEstimateChecksPanel claimId={claim.Claim_ID} />
 
       {!estimate ? (
         <Card>

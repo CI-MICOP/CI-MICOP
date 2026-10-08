@@ -66,6 +66,15 @@ export async function checkPhotoQuality(claimId) {
   return response.data;
 }
 
+// Read-only (Step 5.8.21): sets each repair estimate on this claim against
+// the claim amount, accident date and surveyor damage records, and puts
+// multiple estimates side by side - see services/repair_estimate_checks.py.
+// Never writes to the database.
+export async function checkRepairEstimates(claimId) {
+  const response = await apiClient.post(`/officer/claims/${claimId}/repair-estimates/check`);
+  return response.data;
+}
+
 export async function getSurveyors() {
   const response = await apiClient.get("/officer/surveyors");
   return response.data;
