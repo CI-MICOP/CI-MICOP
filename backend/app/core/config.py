@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Step 5.8.25: after this many wrong passwords in a row for one username
+    # from one client address, logins for that pair are refused for
+    # LOGIN_LOCKOUT_MINUTES (see services/login_throttle.py).
+    LOGIN_MAX_FAILED_ATTEMPTS: int = 5
+    LOGIN_LOCKOUT_MINUTES: int = 15
+
     # Document storage - local filesystem for this prototype (see
     # docs/project_documentation/CUSTOMER_DOCUMENT_UPLOAD.md). Deliberately
     # isolated behind this one setting so it can be pointed at a different

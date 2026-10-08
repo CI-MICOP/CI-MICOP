@@ -215,3 +215,71 @@ def test_password_hash_never_leaves_the_api(client, customer1_token, admin_token
         assert response.status_code == 200
         assert "Password_Hash" not in response.text
         assert "$2b$" not in response.text  # bcrypt hash prefix
+
+
+# ============================================================== E: Step 5.8.25 login limit
+
+
+@pytest.fixture()
+def clean_login_throttle():
+    from app.services import login_throttle
+
+    login_throttle.reset_all()
+    yield login_throttle
+    login_throttle.reset_all()
+
+
+def _login(client, username, password):
+    return client.post("/api/v1/auth/login", data={"username": username, "password": password})
+
+
+def test_login_is_refused_after_too_many_wrong_passwords(client, seed_data, clean_login_throttle):
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS):
+        assert _login(client, "test_customer2", "wrong-password").status_code == 401
+
+    # Even the right password is refused now, with a hint of how long to wait.
+    blocked = _login(client, "test_customer2", TEST_PASSWORD)
+    assert blocked.status_code == 429
+    assert "access_token" not in blocked.json()
+    assert 0 < int(blocked.headers["Retry-After"]) <= settings.LOGIN_LOCKOUT_MINUTES * 60
+
+    # Another user is not affected, and the username check ignores letter case.
+    assert _login(client, "test_customer1", TEST_PASSWORD).status_code == 200
+    assert _login(client, "TEST_CUSTOMER2", TEST_PASSWORD).status_code == 429
+
+
+def test_login_works_again_after_the_waiting_time(client, seed_data, clean_login_throttle):
+    throttle = clean_login_throttle
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS):
+        _login(client, "test_customer2", "wrong-password")
+    assert _login(client, "test_customer2", TEST_PASSWORD).status_code == 429
+
+    # Move every recorded failure back in time by the waiting period.
+    for entry in throttle._entries.values():
+        entry.last_failure -= settings.LOGIN_LOCKOUT_MINUTES * 60 + 1
+    assert _login(client, "test_customer2", TEST_PASSWORD).status_code == 200
+
+
+def test_a_correct_login_clears_earlier_wrong_passwords(client, seed_data, clean_login_throttle):
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS - 1):
+        assert _login(client, "test_customer2", "wrong-password").status_code == 401
+    assert _login(client, "test_customer2", TEST_PASSWORD).status_code == 200
+    # The count started again, so this many more wrong tries are still allowed.
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS - 1):
+        assert _login(client, "test_customer2", "wrong-password").status_code == 401
+    assert _login(client, "test_customer2", TEST_PASSWORD).status_code == 200
+
+
+def test_unknown_usernames_are_limited_too(client, seed_data, clean_login_throttle):
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS):
+        assert _login(client, "no-such-user-at-all", "x").status_code == 401
+    assert _login(client, "no-such-user-at-all", "x").status_code == 429
+
+
+def test_login_limit_counts_each_client_address_separately(clean_login_throttle):
+    throttle = clean_login_throttle
+    attacker, owner = throttle.make_key("Some_User", "10.0.0.1"), throttle.make_key("some_user", "10.0.0.2")
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS):
+        throttle.record_failure(attacker)
+    assert throttle.seconds_until_allowed(attacker) > 0
+    assert throttle.seconds_until_allowed(owner) == 0

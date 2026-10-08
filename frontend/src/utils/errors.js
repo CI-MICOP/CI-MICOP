@@ -10,6 +10,8 @@ export function getAuthErrorMessage(error) {
       return "Invalid username or password.";
     case 403:
       return "Your account is inactive. Please contact an administrator.";
+    case 429:
+      return "Too many failed login attempts. Please wait a few minutes and try again.";
     default:
       return "Something went wrong. Please try again.";
   }
