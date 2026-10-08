@@ -183,7 +183,7 @@ with newly installed packages and a brand-new empty database.
 | Fresh download from GitHub | Complete; nothing missing |
 | Install of all packages | Works, no conflicts |
 | Building the 15 tables on an empty database | Works |
-| Backend tests | 627 pass, 2 skip on purpose |
+| Backend tests | 634 pass |
 | Frontend tests | 169 of 169 pass; the build works |
 | AI/ML tests | 101 of 101 pass |
 | Loading the development data | Works |
@@ -229,8 +229,8 @@ development data, Tesseract, the frontend tests and the AI/ML code.
 
 **Security (Step 11)**
 
-4. The limit on wrong passwords is set to 5 tries and 15 minutes. Keep
-   these numbers or change them?
+4. A limit on wrong passwords: already done (5 tries, then a 15-minute wait).
+   The team can change these two numbers.
 5. Should customers see the MATCH / MISMATCH result on their documents?
 
 ## 10. Saved to GitHub
