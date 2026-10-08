@@ -9,8 +9,9 @@
 - Steps 12 (Docker) and 13 (final report) are not started.
 - A new Admin area was built in the frontend.
 - The app can now read scanned documents on the development laptop.
-- All automated tests pass.
-- Several decisions are waiting for the team. They are listed in Section 8.
+- All automated tests pass, including a full retest on a fresh copy
+  (Section 7).
+- Several decisions are waiting for the team. They are listed in Section 9.
 
 ## 2. Where the Roadmap Stands
 
@@ -167,15 +168,42 @@ working pages:
 - No backend code was changed for the Admin area.
 - The pages were checked by 9 new automated tests, not by hand in a browser.
 
-## 7. Other Work
+## 7. Full Retest on a Fresh Copy
+
+To be sure the next person can start without trouble, everything was
+tested again on 8 October from a new download of the project from GitHub,
+with newly installed packages and a brand-new empty database.
+
+| What was tested | Result |
+|---|---|
+| Fresh download from GitHub | Complete; nothing missing |
+| Install of all packages | Works, no conflicts |
+| Building the 15 tables on an empty database | Works |
+| Backend tests | 627 pass, 2 skip on purpose |
+| Frontend tests | 169 of 169 pass; the build works |
+| AI/ML tests | 101 of 101 pass |
+| Loading the development data | Works |
+| Live test of the real server | 37 of 37 checks pass |
+
+The live test started the real server and tried the main actions of each
+role: Customer, Surveyor, Claims Officer and Admin. A scanned picture was
+uploaded and read through the real API. Each role was refused in the other
+roles' areas. After every analysis run, the claim's decision and audit
+history were unchanged.
+
+One gap was found: the setup guide (`README.md`) did not explain how to
+load the development data and logins. Sections were added to it for the
+development data, Tesseract, the frontend tests and the AI/ML code.
+
+## 8. Other Work
 
 - The missing dataset and saved model results arrived from the team and
   were added to the local project. One test that used to fail because of
   the missing files now passes.
 - All 13 roadmap steps were checked one by one against the real code.
-- All of this work was saved and pushed to GitHub (see Section 9).
+- All of this work was saved and pushed to GitHub (see Section 10).
 
-## 8. Decisions Waiting for the Team
+## 9. Decisions Waiting for the Team
 
 **Repair-estimate checks (Step 10)**
 
@@ -187,27 +215,50 @@ working pages:
 
 **Security (Step 11)**
 
-4. ~~Update the five old packages?~~ Done. Everyone must run
-   `pip install -r backend/requirements.txt` once.
-5. ~~Exclude the upload folders from git?~~ Done.
-6. Add a limit on wrong passwords, and how many tries?
-7. Tighten the two login settings?
+4. A limit on wrong passwords: how many tries before blocking?
+5. Should customers see the MATCH / MISMATCH result on their documents?
 
-## 9. Saved to GitHub
+## 10. Saved to GitHub
 
 All the work in this report is on GitHub (branch `master`). To get it, run
-`git pull origin master`.
+`git pull origin master`, then `pip install -r backend/requirements.txt`
+once, because the backend packages changed.
 
 - Steps 7, 9 and 10: commits `98aa693` and `ab2b479`.
 - Step 11 security tests and report: commit `041cfa6`.
 - The Admin area: commit `3f34730`.
-- This report: commit `8159e0d`.
+- Package update and upload folders excluded from git: commit `e1651ca`.
+- The setup guide additions and this version of the report: the next
+  commit after `e1651ca`.
 
-## 10. What Is Left
+## 11. What Is To Do Later
+
+**Roadmap steps not started**
 
 - **Step 12: Docker and deployment.** The three Docker files are still
-  empty placeholders, and Docker is not installed on the laptop.
+  empty placeholders, and Docker is not installed on the laptop. Docker
+  packs the app, its packages and the database into boxes that run the
+  same way on any computer.
 - **Step 13: Final documentation and report.**
-- **A check by hand in a browser** of the new screens.
-- **Smaller frontend gaps:** some sidebar links for Customer, Surveyor and
-  Officer still open a "Coming soon" page.
+
+**Security improvements**
+
+- Add the limit on wrong passwords, once the team has chosen it.
+- Tighten two login settings: refuse to start with the default secret key,
+  and refuse login tokens that have no expiry date.
+- Close the API's help pages when the app goes online.
+- Update the frontend developer tools.
+
+**Frontend gaps**
+
+- Some sidebar links for Customer, Surveyor and Officer still open a
+  "Coming soon" page.
+- Notifications, Escalations and RFI show "not available", because the
+  backend has no such feature yet.
+- The Admin area is read-only.
+
+**Checks not done yet**
+
+- No screen has been clicked through by hand in a browser.
+- Scanned-document reading was tested on computer-made images only.
+- Everything was run on one Windows laptop.

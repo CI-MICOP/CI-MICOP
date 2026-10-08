@@ -169,6 +169,47 @@ delete them afterward.
 pytest tests/ -v
 ```
 
+### 6. Load development data (optional)
+
+`alembic upgrade head` creates empty tables. To get one example claim and
+four logins to try the app with, run once from `backend/`:
+
+```bash
+python seed_dev_data.py
+```
+
+It can be run again safely. It creates claim `DEV-CLM-001` and these
+accounts, all with the password `CiMicop@123`:
+
+| Username | Role |
+|---|---|
+| `dev_customer` | Customer |
+| `dev_surveyor` | Surveyor |
+| `dev_officer` | Claims Officer |
+| `dev_admin` | Admin |
+
+Development only - never use these as production credentials.
+
+### 7. Reading scanned documents (optional)
+
+Normal PDFs are read without any extra software. Scanned or photographed
+documents need the Tesseract OCR program, which `pip` does not install:
+
+```bash
+# Windows
+winget install UB-Mannheim.TesseractOCR
+```
+
+Then add to `backend/.env`:
+
+```
+TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
+```
+
+Without Tesseract the API still works and reports scanned pages as
+unavailable. With it installed, two backend tests that cover the
+"Tesseract not installed" case skip themselves.
+
 ### API documentation
 
 Interactive Swagger UI: `http://localhost:8000/docs`
@@ -178,3 +219,32 @@ Raw OpenAPI schema: `http://localhost:8000/openapi.json`
 To authenticate in Swagger UI: call `POST /api/v1/auth/login` with a
 valid username/password (form fields), then click **Authorize** and
 paste the returned `access_token`.
+
+## Frontend Tests
+
+```bash
+cd frontend
+npx vitest run --maxWorkers=1   # all tests
+npx oxlint src                  # lint
+npx vite build                  # production build
+```
+
+## AI/ML Research Code
+
+`ai_ml/` is separate from the running API and has its own packages. The
+dataset and saved model results it needs are in the repository
+(`ai_ml/datasets/`, `ai_ml/model_artifacts/`). From the repository root:
+
+```bash
+python -m venv ai_ml/venv
+ai_ml\venv\Scripts\activate          # Windows
+pip install -r ai_ml/requirements.txt pytest
+python -m pytest ai_ml/tests
+```
+
+## Where the Project Stands
+
+The "Current Implementation Status" list above describes the early steps
+only. For the current state, the work done since, and what is left, see
+`docs/project_documentation/PROGRESS_REPORT_2026-10-08.md`. Each feature
+has its own report in the same folder.
