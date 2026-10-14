@@ -137,6 +137,15 @@ is still tracked.
 **Recommended:** refuse to start outside development when the secret is the
 default, and require the `exp` and `sub` claims when decoding.
 
+**Done (Step 5.8.26).** `decode_access_token` (`core/security.py`), now used
+by `get_current_user`, requires `exp` and `sub`; a token without either gets
+401. When `ENVIRONMENT` is anything other than `development` or `test`, the
+API refuses to start if `JWT_SECRET_KEY` is missing, empty, `changeme`, the
+`.env.example` placeholder, or shorter than 32 characters
+(`Settings.check_startup_security`, called in `main.py`). Development still
+starts with the default. Tests: `tests/test_startup_security.py` and three
+new token tests in `tests/test_security_regression.py`.
+
 ### 5.5 API documentation pages are public
 
 `/docs`, `/redoc` and `/openapi.json` are served without login. This is
@@ -145,6 +154,10 @@ to anyone.
 
 **Recommended:** disable or protect them when `ENVIRONMENT` is not
 `development`. Belongs with roadmap item 12.
+
+**Done (Step 5.8.26).** All three are served only when `ENVIRONMENT` is
+`development` or `test`; otherwise they return 404. The rest of the API is
+unchanged.
 
 ### 5.6 Frontend development tools with advisories
 

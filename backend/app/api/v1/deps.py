@@ -11,6 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.security import decode_access_token
 from app.crud import authentication_user as crud_user
 from app.db.session import SessionLocal
 from app.db_models.authentication_user import AuthenticationUser
@@ -35,7 +36,7 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = decode_access_token(token)
     except jwt.PyJWTError:
         raise credentials_error
 

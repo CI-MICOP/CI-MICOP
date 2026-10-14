@@ -153,6 +153,32 @@ def test_token_without_a_subject_is_rejected(client, seed_data):
     assert _me(client, _signed_token(sub="")).status_code == 401
 
 
+def _signed_token_without(*claims: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {"sub": IDS["user_customer1"], "role": "Customer", "iat": now, "exp": now + timedelta(minutes=5)}
+    for claim in claims:
+        del payload[claim]
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def test_token_without_an_expiry_is_rejected(client, seed_data):
+    """Step 5.8.26: a correctly signed token with no `exp` would otherwise
+    never expire."""
+    assert _me(client, _signed_token_without("exp")).status_code == 401
+
+
+def test_token_without_a_subject_claim_is_rejected(client, seed_data):
+    assert _me(client, _signed_token_without("sub")).status_code == 401
+
+
+def test_token_issued_by_login_has_an_expiry(client, seed_data, clean_login_throttle):
+    token = _login(client, "test_customer1", TEST_PASSWORD).json()["access_token"]
+    claims = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    lifetime = claims["exp"] - claims["iat"]
+    assert lifetime == settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    assert _me(client, token).status_code == 200
+
+
 def test_role_comes_from_the_database_not_from_the_token(client, seed_data):
     """A correctly signed token that claims role "Admin" for a Customer
     account still gets a Customer's rights."""

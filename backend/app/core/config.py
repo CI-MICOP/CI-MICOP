@@ -12,6 +12,32 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # backend/app/core/config.py -> parents[3] is the repository root.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
+# Step 5.8.26: ENVIRONMENT values that count as non-production. Any other
+# value (e.g. "production", "staging", or a typo) is treated as production,
+# so the startup checks and the closed API docs fail closed.
+DEVELOPMENT_ENVIRONMENTS = frozenset({"development", "test"})
+
+# The built-in fallback below and the placeholder in backend/.env.example -
+# both publicly known, so neither may sign tokens in production.
+DEFAULT_JWT_SECRET_KEY = "changeme"
+EXAMPLE_JWT_SECRET_KEY = "<replace-with-a-strong-random-secret>"
+
+# HS256 uses a 256-bit hash, so the key should be at least 32 bytes.
+MIN_JWT_SECRET_KEY_LENGTH = 32
+
+
+def jwt_secret_key_problem(secret: str | None) -> str | None:
+    """Why `secret` is unsafe for signing tokens, or None if it is fine.
+    The message never contains the secret itself."""
+    value = (secret or "").strip()
+    if not value:
+        return "JWT_SECRET_KEY is missing or empty"
+    if value in (DEFAULT_JWT_SECRET_KEY, EXAMPLE_JWT_SECRET_KEY):
+        return "JWT_SECRET_KEY is still the publicly known default/example value"
+    if len(value) < MIN_JWT_SECRET_KEY_LENGTH:
+        return f"JWT_SECRET_KEY is shorter than {MIN_JWT_SECRET_KEY_LENGTH} characters"
+    return None
+
 
 class Settings(BaseSettings):
     # General
@@ -28,7 +54,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/ci_micop"
 
     # Auth (used once authentication is implemented)
-    JWT_SECRET_KEY: str = "changeme"
+    JWT_SECRET_KEY: str = DEFAULT_JWT_SECRET_KEY
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
@@ -70,6 +96,23 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() in DEVELOPMENT_ENVIRONMENTS
+
+    def check_startup_security(self) -> None:
+        """Step 5.8.26: refuse to start outside development with a missing,
+        default or weak JWT secret - anyone knowing it could sign valid
+        tokens for any account. Development keeps working with the default."""
+        if self.is_development:
+            return
+        problem = jwt_secret_key_problem(self.JWT_SECRET_KEY)
+        if problem:
+            raise RuntimeError(
+                f"Refusing to start with ENVIRONMENT={self.ENVIRONMENT!r}: {problem}. "
+                f"Set JWT_SECRET_KEY to a random value of at least {MIN_JWT_SECRET_KEY_LENGTH} characters."
+            )
 
 
 settings = Settings()

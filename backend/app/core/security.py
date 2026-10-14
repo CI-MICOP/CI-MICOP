@@ -37,5 +37,14 @@ def create_access_token(user_id: str, role: str) -> str:
 
 
 def decode_access_token(token: str) -> dict:
-    """Raises jwt.PyJWTError (or a subclass) on any invalid/expired token."""
-    return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    """Raises jwt.PyJWTError (or a subclass) on any invalid/expired token.
+
+    Step 5.8.26: `exp` and `sub` must be present. PyJWT only checks `exp`
+    when it exists, so without this a correctly signed token with no expiry
+    would be valid forever."""
+    return jwt.decode(
+        token,
+        settings.JWT_SECRET_KEY,
+        algorithms=[settings.JWT_ALGORITHM],
+        options={"require": ["exp", "sub"]},
+    )
