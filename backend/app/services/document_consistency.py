@@ -86,6 +86,12 @@ def _unavailable(structured_value: str | None, matched_document_type: str | None
     )
 
 
+def _explained(explanation: str, candidate) -> str:
+    """Appends the candidate's OCR correction note, if one was applied, so
+    the officer sees what the document actually reads and what changed."""
+    return f"{explanation} {candidate.correction}" if getattr(candidate, "correction", None) else explanation
+
+
 def _candidate_document_pairs(documents: list[Document], entity_type: str) -> list[tuple]:
     """(candidate, document) pairs across every relevant document's
     ALREADY-PERSISTED Extracted_Text - this never re-runs OCR/extraction,
@@ -146,7 +152,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
                 extracted_value=candidate.value,
                 matched_document_type=document.Document_Type,
                 matched_document_id=document.Document_ID,
-                explanation=f"{label} extracted from {document.Document_Type} matches the insured record.",
+                explanation=_explained(f"{label} extracted from {document.Document_Type} matches the insured record.", candidate),
             )
         return ConsistencyResult(
             status=STATUS_MISMATCH,
@@ -154,7 +160,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
             extracted_value=candidate.value,
             matched_document_type=document.Document_Type,
             matched_document_id=document.Document_ID,
-            explanation=f"{label} extracted from {document.Document_Type} does not match the insured record.",
+            explanation=_explained(f"{label} extracted from {document.Document_Type} does not match the insured record.", candidate),
         )
 
     # Rule 2: candidates disagree with each other (multiple distinct
@@ -170,9 +176,10 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
             extracted_value=candidate.value,
             matched_document_type=document.Document_Type,
             matched_document_id=document.Document_ID,
-            explanation=(
+            explanation=_explained(
                 f"{label} extracted from {document.Document_Type} matches the insured record "
-                "(other, non-matching candidates were also found in this claim's documents)."
+                "(other, non-matching candidates were also found in this claim's documents).",
+                candidate,
             ),
         )
 

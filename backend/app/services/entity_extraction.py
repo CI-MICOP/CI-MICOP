@@ -57,10 +57,17 @@ _REG_STRICT = re.compile(
 # "better" match elsewhere once one alternative lets the whole pattern
 # succeed) - confirmed by a Step 5.8.13-B integration test that failed
 # until this ordering was fixed.
+#
+# The digit requirement is also enforced inside the pattern, by the
+# lookahead before the value: a match whose value has no digit (e.g. the
+# second "Registration" in "Vehicle Registration\nRegistration No: X") would
+# otherwise be consumed by finditer and then rejected, hiding the real
+# "Registration No: X" label that it swallowed. The post-match digit check
+# is kept as well.
 _REG_KEYWORD = re.compile(
     r"(?:vehicle\s+registration|vehicle\s+reg\.?|registration|reg\.?|vehicle)\s*"
     r"(?:no\.?|number|#)?\s*[:\-]?\s*"
-    r"([A-Za-z0-9][A-Za-z0-9\-]{3,13}[A-Za-z0-9])",
+    r"(?=[A-Za-z0-9\-]{0,14}\d)([A-Za-z0-9][A-Za-z0-9\-]{3,13}[A-Za-z0-9])",
     re.IGNORECASE,
 )
 
@@ -76,9 +83,12 @@ _POLICY_STRICT = re.compile(r"\bPOL[- ]?\d{6}\b", re.IGNORECASE)
 
 # Weaker fallback: a value following a policy-related label. Requires at
 # least one digit in the captured token so "Policy Type: Comprehensive" is
-# never mistaken for a policy number.
+# never mistaken for a policy number. As with _REG_KEYWORD, the digit is
+# required inside the pattern (lookahead) so that a title line such as
+# "Insurance Policy" directly above "Policy No: X" cannot swallow the second
+# "Policy" as a digit-less value and hide the real number.
 _POLICY_KEYWORD = re.compile(
-    r"policy\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,19}[A-Za-z0-9])",
+    r"policy\s*(?:no\.?|number|#)?\s*[:\-]?\s*(?=[A-Za-z0-9\-]{0,20}\d)([A-Za-z0-9][A-Za-z0-9\-]{3,19}[A-Za-z0-9])",
     re.IGNORECASE,
 )
 
@@ -122,6 +132,9 @@ class EntityCandidate:
     confidence: float
     source: str  # "regex_strict_format" | "regex_keyword_context"
     reason: str
+    # Set only when an OCR character correction was applied to reach
+    # normalized_value (see correct_registration_ocr); explains it in words.
+    correction: str | None = None
 
 
 @dataclass
@@ -142,6 +155,84 @@ def normalize_registration(raw: str) -> str:
     module's docstring for why a second, possibly-diverging normalization
     implementation must not exist."""
     return re.sub(r"[ \-]+", "", raw).upper()
+
+
+# --- OCR character correction for registration numbers ---------------------
+#
+# OCR often confuses the letter O with the digit 0 and the letter I with the
+# digit 1 (e.g. "MHO2EM6629" for MH02EM6629). correct_registration_ocr()
+# repairs this ONLY for a value already being read as a registration (a
+# labelled keyword candidate) and only where the plate structure says which
+# kind of character belongs in that position:
+#   state code (2 letters) | RTO code (1-2 digits) | series (1-3 letters) | number (4 digits)
+# It refuses whenever the evidence is not structural:
+#   - the series must start and end with a letter that is not O/I/0/1, so a
+#     confusable character can never decide where a part begins or ends;
+#   - a 0/1 inside the series is never turned into O/I: Indian series letters
+#     do not use I or O, so that would only invent an impossible series.
+#     Digit-to-letter repair is therefore limited to the state code;
+#   - exactly one reading may produce a valid plate;
+#   - at most _MAX_OCR_CORRECTIONS characters may change;
+#   - the corrected state code must be a real state/UT code.
+# The trusted vehicle record is never passed through this function.
+
+# State / union-territory codes used on Indian plates, including older codes
+# still seen on existing vehicles (OR, UA, DD/DN before their mergers).
+_STATE_CODES = frozenset({
+    "AN", "AP", "AR", "AS", "BR", "CG", "CH", "DD", "DL", "DN", "GA", "GJ", "HP", "HR", "JH", "JK", "KA",
+    "KL", "LA", "LD", "MH", "ML", "MN", "MP", "MZ", "NL", "OD", "OR", "PB", "PY", "RJ", "SK", "TN", "TR",
+    "TS", "UA", "UK", "UP", "WB",
+})
+_AS_DIGIT = {"O": "0", "I": "1"}
+_AS_LETTER = {"0": "O", "1": "I"}
+_CONFUSABLE = frozenset("OI01")
+_MAX_OCR_CORRECTIONS = 2
+
+
+@dataclass
+class RegistrationCorrection:
+    corrected: str
+    changes: list[str]  # human-readable, one per changed character
+
+
+def correct_registration_ocr(normalized: str) -> RegistrationCorrection | None:
+    """Position-aware O/0 and I/1 repair of an already-normalized value
+    (see normalize_registration). Returns None when the value already has
+    the plate structure, or when no single, structurally supported
+    correction exists - the caller then keeps the value as read."""
+    if _REG_STRICT.fullmatch(normalized):
+        return None
+    readings: dict[str, list[str]] = {}
+    for rto_len in (1, 2):
+        for series_len in (1, 2, 3):
+            if 2 + rto_len + series_len + 4 != len(normalized):
+                continue
+            series = normalized[2 + rto_len: 2 + rto_len + series_len]
+            if series[0] in _CONFUSABLE or series[-1] in _CONFUSABLE:
+                continue
+            # S = state code letter, D = digit, L = series letter (never repaired).
+            layout = "S" * 2 + "D" * rto_len + "L" * series_len + "D" * 4
+            chars, changes = [], []
+            for position, (char, kind) in enumerate(zip(normalized, layout), start=1):
+                if (kind == "D" and char.isdigit()) or (kind in "SL" and char.isalpha()):
+                    chars.append(char)
+                    continue
+                swap = _AS_DIGIT.get(char) if kind == "D" else _AS_LETTER.get(char) if kind == "S" else None
+                if swap is None:
+                    break
+                chars.append(swap)
+                changes.append(
+                    f"character {position} '{char}' read as the {'digit' if kind == 'D' else 'letter'} '{swap}'"
+                )
+            else:
+                corrected = "".join(chars)
+                if (changes and len(changes) <= _MAX_OCR_CORRECTIONS and corrected[:2] in _STATE_CODES
+                        and _REG_STRICT.fullmatch(corrected)):
+                    readings[corrected] = changes
+    if len(readings) != 1:
+        return None
+    corrected, changes = next(iter(readings.items()))
+    return RegistrationCorrection(corrected=corrected, changes=changes)
 
 
 def normalize_policy(raw: str) -> str:
@@ -188,10 +279,21 @@ def _extract_registration_candidates(text: str, document_type: str | None) -> li
         if not any(ch.isdigit() for ch in raw):
             continue
         normalized = normalize_registration(raw)
+        # The label says this value is a registration, so a structurally
+        # supported O/0, I/1 OCR repair may be applied; `raw` keeps the text
+        # exactly as read, and the candidate stays a weak keyword candidate.
+        correction = correct_registration_ocr(normalized)
+        if correction:
+            normalized = correction.corrected
         if normalized in seen_normalized:
             continue
         seen_normalized.add(normalized)
         confidence = _apply_context_boost(REGISTRATION_NUMBER, 0.40, document_type)
+        note = (
+            f"The document reads '{raw}'; read as a registration number, "
+            f"{'; '.join(correction.changes)}, giving {correction.corrected}."
+            if correction else None
+        )
         candidates.append(
             EntityCandidate(
                 entity_type=REGISTRATION_NUMBER,
@@ -199,7 +301,12 @@ def _extract_registration_candidates(text: str, document_type: str | None) -> li
                 normalized_value=normalized,
                 confidence=confidence,
                 source="regex_keyword_context",
-                reason="Found immediately after a registration/vehicle-number label, but does not match the expected format.",
+                reason=(
+                    "Found immediately after a registration/vehicle-number label. " + note
+                    if note
+                    else "Found immediately after a registration/vehicle-number label, but does not match the expected format."
+                ),
+                correction=note,
             )
         )
 

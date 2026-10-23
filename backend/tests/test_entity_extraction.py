@@ -214,3 +214,116 @@ def test_does_not_compare_against_any_structured_value():
         assert "mismatch" not in entity.reason.lower()
         assert "claim" not in entity.reason.lower()
         assert "consistent" not in entity.reason.lower()
+
+
+# ---------------------------------------------------------------- title line above the label
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Insurance Policy\nPolicy No: DEV-POLICY-001",
+        "Motor Insurance Policy\nPolicy Number: DEV-POLICY-001",
+        "INSURANCE POLICY\nPOLICY NO. DEV-POLICY-001",
+    ],
+)
+def test_policy_number_is_found_below_a_title_ending_in_policy(text):
+    """A title such as "Insurance Policy" on the line above "Policy No: X"
+    used to be matched as keyword + digit-less value ("Policy"), which was
+    rejected only after the real label had been consumed - so nothing was
+    extracted and the policy check reported UNAVAILABLE."""
+    result = ee.extract_entities(text, document_type="Insurance Policy")
+    values = [e.normalized_value for e in result.entities if e.entity_type == ee.POLICY_NUMBER]
+    assert values == ["DEV-POLICY-001"]
+
+
+def test_registration_label_below_a_registration_title_is_found_for_non_standard_formats():
+    # Not the strict Indian format, so only the keyword fallback can find it.
+    result = ee.extract_entities("Vehicle Registration\nRegistration No: KA05X12345", document_type="RC")
+    values = [e.normalized_value for e in result.entities if e.entity_type == ee.REGISTRATION_NUMBER]
+    assert values == ["KA05X12345"]
+
+
+def test_words_after_a_keyword_are_still_never_taken_as_a_value():
+    result = ee.extract_entities("Insurance Policy\nPolicy Type: Comprehensive\nRegistration Certificate")
+    assert result.entities == []
+
+
+# ---------------------------------------------------------------- OCR O/0 and I/1 repair (registration only)
+
+
+def _registration(text, document_type="RC"):
+    result = ee.extract_entities(text, document_type=document_type)
+    return [e for e in result.entities if e.entity_type == ee.REGISTRATION_NUMBER]
+
+
+def test_o_read_in_a_digit_position_is_repaired_to_zero():
+    correction = ee.correct_registration_ocr("MHO2EM6629")
+    assert correction.corrected == "MH02EM6629"
+    assert correction.changes == ["character 3 'O' read as the digit '0'"]
+
+
+def test_a_well_formed_registration_is_left_unchanged():
+    assert ee.correct_registration_ocr("MH02EM6629") is None
+    [reg] = _registration("Registration No: MH02EM6629")
+    assert (reg.value, reg.normalized_value, reg.source, reg.correction) == (
+        "MH02EM6629", "MH02EM6629", "regex_strict_format", None)
+
+
+@pytest.mark.parametrize("written", ["mho2em6629", "  MHO2EM6629  ", "MH-O2-EM-6629", "mh-o2-em-6629"])
+def test_case_whitespace_and_hyphen_variants_of_a_misread_label_value_normalize_the_same(written):
+    [reg] = _registration(f"Vehicle Registration No: {written}")
+    assert reg.normalized_value == "MH02EM6629"
+    assert reg.value == written.strip()  # exactly as read
+
+
+def test_i_is_repaired_to_one_only_in_digit_positions():
+    assert ee.correct_registration_ocr("KA03NFI307").corrected == "KA03NF1307"  # 4-digit number
+    assert ee.correct_registration_ocr("TNI9BX4417").corrected == "TN19BX4417"  # RTO code
+    # A 1 inside the letter series is never turned into an I (series never use I/O).
+    assert ee.correct_registration_ocr("TN09B1X4417") is None
+    # No state code contains I, so a leading 1 is not "corrected" into one.
+    assert ee.correct_registration_ocr("1N09BX4417") is None
+
+
+def test_zero_in_the_state_code_is_repaired_only_into_a_real_state_code():
+    assert ee.correct_registration_ocr("0D02AB1234").corrected == "OD02AB1234"
+    assert ee.correct_registration_ocr("XXO2EM6629") is None  # XX is not a state code
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "KA05X12345",   # 5-digit tail: the 1 could belong to the series or the number
+        "TN09BXO4417",  # confusable character where the series meets the number
+        "MHOOEMOOOO",   # would need more than two changes
+        "MHO2",         # too short to be a registration
+        "POLICY01",     # not registration-shaped
+    ],
+)
+def test_ambiguous_or_invalid_values_are_not_turned_into_valid_registrations(value):
+    assert ee.correct_registration_ocr(value) is None
+
+
+def test_ambiguous_label_value_is_kept_as_read_and_stays_weak():
+    [reg] = _registration("Registration No: KA05X12345")
+    assert (reg.normalized_value, reg.source, reg.correction) == ("KA05X12345", "regex_keyword_context", None)
+
+
+def test_repair_is_applied_only_to_values_read_as_registrations():
+    # Unlabelled text with O/0 or I/1 lookalikes yields no registration at all.
+    assert _registration("Total: Rs. 1O,500 paid at counter MHO2EM6629 ref") == []
+    # Policy numbers are never touched by registration repair.
+    result = ee.extract_entities("Policy No: POL-92600I", document_type="Insurance Policy")
+    assert [e.normalized_value for e in result.entities if e.entity_type == ee.POLICY_NUMBER] == ["POL-92600I"]
+
+
+def test_repaired_candidate_keeps_the_ocr_text_and_explains_the_change():
+    text = "Vehicle Registration No: MHO2EM6629"
+    [reg] = _registration(text, document_type="Repair Estimate")
+    assert reg.value == "MHO2EM6629"
+    assert reg.normalized_value == "MH02EM6629"
+    assert reg.source == "regex_keyword_context"  # still weaker evidence than a well-formed value
+    assert reg.confidence < 0.5
+    assert "reads 'MHO2EM6629'" in reg.correction and "'O' read as the digit '0'" in reg.correction
+    assert text == "Vehicle Registration No: MHO2EM6629"

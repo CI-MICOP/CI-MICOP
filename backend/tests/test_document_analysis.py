@@ -208,9 +208,43 @@ def test_scanned_pdf_without_tesseract_is_honestly_unavailable(tmp_path):
 
     result = document_analysis.extract_text_from_pdf(path)
 
-    assert result.status in ("unavailable", "empty")
+    # Not "empty": that would tell the officer the document has no text
+    # ("No text found"), which is unknown when OCR could not run.
+    assert result.status == "unavailable"
     assert result.confidence == 0.0
     assert any("tesseract" in msg.lower() for msg in result.limitations)
+
+
+def test_scanned_pdf_with_ocr_unavailable_is_unavailable_even_where_tesseract_is_installed(tmp_path, monkeypatch):
+    """Same rule as the test above, but independent of this machine: on a
+    computer that has Tesseract the real-absence test skips itself, so the
+    "unavailable, not empty" behaviour is pinned here by simulation."""
+    monkeypatch.setattr(document_analysis, "_tesseract_available", lambda: False)
+    path = tmp_path / "scanned.pdf"
+    path.write_bytes(_image_only_pdf_bytes())
+
+    result = document_analysis.extract_text_from_pdf(path)
+
+    assert result.status == "unavailable"
+    assert result.text == ""
+    assert result.confidence == 0.0
+    assert any("tesseract" in msg.lower() for msg in result.limitations)
+
+
+def test_blank_scanned_pdf_with_ocr_available_is_empty_not_unavailable(tmp_path, monkeypatch):
+    """The other half of the distinction: OCR ran and found nothing, so the
+    honest answer is "empty" (no text), not "unavailable"."""
+    monkeypatch.setattr(document_analysis, "_tesseract_available", lambda: True)
+    monkeypatch.setattr(document_analysis.pytesseract, "image_to_string", lambda image: "")
+    monkeypatch.setattr(document_analysis.pytesseract, "image_to_data", lambda image, output_type=None: {"conf": [-1]})
+    path = tmp_path / "blank_scan.pdf"
+    path.write_bytes(_image_only_pdf_bytes())
+
+    result = document_analysis.extract_text_from_pdf(path)
+
+    assert result.status == "empty"
+    assert result.text == ""
+    assert not any("tesseract" in msg.lower() for msg in result.limitations)
 
 
 def test_scanned_pdf_simulated_tesseract_runs_ocr_on_image_pages(tmp_path, monkeypatch):

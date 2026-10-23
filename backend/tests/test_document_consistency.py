@@ -109,6 +109,34 @@ def test_registration_missing_structured_reference_is_unavailable():
     assert "no structured reference" in result.explanation
 
 
+def test_registration_ocr_misread_matches_and_says_what_was_corrected():
+    rc = _doc("D1", "RC", "Registration No: MHO2EM6629")
+    result = dc._compare_entity(ee.REGISTRATION_NUMBER, "MH02EM6629", [rc])
+    assert result.status == dc.STATUS_MATCH
+    assert result.extracted_value == "MHO2EM6629"  # what the document actually reads
+    assert "reads 'MHO2EM6629'" in result.explanation and "giving MH02EM6629" in result.explanation
+    assert rc.Extracted_Text == "Registration No: MHO2EM6629"  # stored OCR text untouched
+
+
+def test_registration_ocr_repair_does_not_hide_a_genuine_mismatch():
+    rc = _doc("D1", "RC", "Registration No: MHO2EM6628")
+    result = dc._compare_entity(ee.REGISTRATION_NUMBER, "MH02EM6629", [rc])
+    assert result.status == dc.STATUS_MISMATCH
+    assert result.extracted_value == "MHO2EM6628"
+    assert "giving MH02EM6628" in result.explanation
+
+
+def test_registration_unrepairable_misread_is_not_reported_as_a_match():
+    rc = _doc("D1", "RC", "Registration No: KA05X12345")
+    result = dc._compare_entity(ee.REGISTRATION_NUMBER, "KA05XI2345", [rc])
+    assert result.status == dc.STATUS_MISMATCH
+
+
+def test_registration_well_formed_match_explanation_is_unchanged():
+    result = dc._compare_entity(ee.REGISTRATION_NUMBER, "TN01AB0001", [_doc("D1", "RC", "Registration No: TN01AB0001")])
+    assert result.explanation == "Registration number extracted from RC matches the insured record."
+
+
 def test_registration_across_multiple_documents_of_same_type():
     docs = [_doc("D1", "RC", "TN01AB0001"), _doc("D2", "RC", "TN01AB0001")]
     result = dc._compare_entity(ee.REGISTRATION_NUMBER, "TN01AB0001", docs)

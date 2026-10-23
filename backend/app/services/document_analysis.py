@@ -220,14 +220,18 @@ def extract_text_from_pdf(path: Path) -> ExtractionResult:
     text = "\n".join(page.text for page in pages if page.text).strip()
     scored = [page.confidence for page in pages if page.confidence is not None]
 
-    if any(page.method == "unavailable" for page in pages) and not _tesseract_available():
+    ocr_missing = any(page.method == "unavailable" for page in pages) and not _tesseract_available()
+    if ocr_missing:
         limitations.append(
             "Tesseract OCR engine is not installed/available on this server - "
             "scanned/image pages could not be processed."
         )
 
     if not scored:
-        status = "empty" if not text else "unavailable"
+        # A scanned PDF that could not be OCR'd is "unavailable", not "empty":
+        # "empty" tells the reader the document has no text, which is only
+        # known when OCR actually ran (same as extract_text_from_image).
+        status = "unavailable" if text or ocr_missing else "empty"
         if not text and not limitations:
             limitations.append("No page produced extractable text.")
         return ExtractionResult(text=text, confidence=0.0, status=status, limitations=limitations)
