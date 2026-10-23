@@ -1,5 +1,6 @@
-import { Bell, ChevronDown, Menu } from "lucide-react";
+import { Bell, ChevronDown, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
 import NotificationPanel from "./NotificationPanel";
@@ -11,26 +12,37 @@ function getInitials(name) {
   return initials.toUpperCase();
 }
 
-export default function TopHeader({ title, subtitle, onMenuClick, hasUnreadNotifications = false }) {
+const iconButton = "relative rounded-lg p-2 text-muted hover:bg-surface hover:text-ink";
+
+/**
+ * Light top bar: brand, contextual search/help shortcuts, notifications and
+ * the profile menu. `shortcuts` and `accountLinks` are existing role nav
+ * items ({ label, to, icon }) - e.g. the role's Support page, or Profile in
+ * the profile menu - so the header never introduces a destination or label
+ * of its own.
+ */
+export default function TopHeader({ homePath = "/", shortcuts = [], accountLinks = [], hasUnreadNotifications = false }) {
   const { user, role, logout } = useAuth();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-border bg-card px-4 py-3 sm:px-6">
-      <button
-        type="button"
-        onClick={onMenuClick}
-        aria-label="Toggle navigation"
-        className="text-muted hover:text-ink lg:hidden"
-      >
-        <Menu className="h-5 w-5" aria-hidden="true" />
-      </button>
+    <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-card/90 px-4 py-3 backdrop-blur-md sm:gap-4 sm:px-6">
+      <Link to={homePath} className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="shrink-0 rounded-lg bg-brand-600 p-1.5 text-white">
+          <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-base font-semibold leading-tight text-ink">CI-MICOP</span>
+          <span className="block truncate text-[11px] leading-tight text-muted">Smart Claims. Stronger Trust.</span>
+        </span>
+      </Link>
 
-      <div className="min-w-0 flex-1">
-        <h2 className="truncate text-base font-semibold text-ink">{title}</h2>
-        {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
-      </div>
+      {shortcuts.map(({ label, to, icon: Icon }) => (
+        <Link key={to} to={to} aria-label={label} title={label} className={iconButton}>
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </Link>
+      ))}
 
       <div className="relative">
         <button
@@ -38,7 +50,7 @@ export default function TopHeader({ title, subtitle, onMenuClick, hasUnreadNotif
           onClick={() => setIsNotificationsOpen((open) => !open)}
           aria-label="Notifications"
           aria-expanded={isNotificationsOpen}
-          className="relative rounded-lg p-2 text-muted hover:bg-surface hover:text-ink"
+          className={iconButton}
         >
           <Bell className="h-5 w-5" aria-hidden="true" />
           {hasUnreadNotifications && (
@@ -81,6 +93,18 @@ export default function TopHeader({ title, subtitle, onMenuClick, hasUnreadNotif
               <p className="text-sm font-medium text-ink">{user?.Username}</p>
               <p className="text-xs text-muted">{user?.Email}</p>
             </div>
+            {accountLinks.map(({ label, to, icon: Icon }) => (
+              <Link
+                key={to}
+                to={to}
+                role="menuitem"
+                onClick={() => setIsProfileOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-ink hover:bg-surface"
+              >
+                <Icon className="h-4 w-4 text-muted" aria-hidden="true" />
+                {label}
+              </Link>
+            ))}
             <button
               type="button"
               onClick={logout}

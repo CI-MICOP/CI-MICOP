@@ -21,9 +21,14 @@ export default function DataTable({
   const getKey = typeof rowKey === "function" ? rowKey : (row) => row[rowKey];
 
   return (
+    // No fixed minimum width: columns fit their panel and cell text wraps
+    // between words. Below the `sm` breakpoint each row is stacked as a
+    // card of "header: value" lines (headers come from data-label, CSS only,
+    // so the markup is the same at every width). overflow-x-auto stays only
+    // as a last resort for a single word too long for its column.
     <div className="overflow-x-auto rounded-card border border-border bg-card shadow-soft">
-      <table className="w-full min-w-[640px] text-left text-sm">
-        <thead>
+      <table className="w-full table-auto text-left text-sm [overflow-wrap:break-word] max-sm:block">
+        <thead className="max-sm:hidden">
           <tr className="border-b border-border bg-surface text-xs uppercase tracking-wide text-muted">
             {columns.map((column) => (
               <th key={column.key} scope="col" className="px-4 py-3 font-medium">
@@ -32,17 +37,24 @@ export default function DataTable({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="max-sm:block">
           {rows.map((row) => (
             <tr
               key={getKey(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={`border-b border-border last:border-0 ${
+              className={`border-b border-border last:border-0 max-sm:block max-sm:py-2 ${
                 onRowClick ? "cursor-pointer hover:bg-surface" : ""
               }`}
             >
               {columns.map((column) => (
-                <td key={column.key} className="px-4 py-3 text-ink">
+                <td
+                  key={column.key}
+                  data-label={typeof column.header === "string" ? column.header : undefined}
+                  className="px-4 py-3 text-ink max-sm:flex max-sm:items-center max-sm:justify-between
+                    max-sm:gap-4 max-sm:py-1.5 max-sm:text-right max-sm:before:shrink-0 max-sm:before:text-left
+                    max-sm:before:text-xs max-sm:before:font-medium max-sm:before:uppercase
+                    max-sm:before:tracking-wide max-sm:before:text-muted max-sm:before:content-[attr(data-label)]"
+                >
                   {column.render ? column.render(row) : row[column.key]}
                 </td>
               ))}

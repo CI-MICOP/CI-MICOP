@@ -7,19 +7,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CI-MICOP brand green scale - primary actions, active nav state,
-        // links. Use brand-600 as the default "primary" shade.
+        // CI-MICOP brand blue scale - primary actions, active nav state,
+        // links. Use brand-600 as the default "primary" shade (#1D4ED8) and
+        // brand-700 for hover. Status colours (success/warning/danger) are
+        // separate tokens below - approved/completed stays green.
         brand: {
-          50: "#f0fdf4",
-          100: "#dcfce7",
-          200: "#bbf7d0",
-          300: "#86efac",
-          400: "#4ade80",
-          500: "#22c55e",
-          600: "#16a34a",
-          700: "#15803d",
-          800: "#166534",
-          900: "#14532d",
+          50: "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#2563eb",
+          600: "#1d4ed8",
+          700: "#1e40af",
+          800: "#1e3a8a",
+          900: "#172554",
         },
         ink: "#0f172a",       // primary dark text
         muted: "#64748b",     // secondary/muted text

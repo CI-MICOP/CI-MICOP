@@ -9,6 +9,7 @@ import QuickActionCard from "../../components/common/QuickActionCard";
 import StatCard from "../../components/common/StatCard";
 import { useAuth } from "../../hooks/useAuth";
 import { useFetch } from "../../hooks/useFetch";
+import TwoColumnLayout from "../../layouts/TwoColumnLayout";
 import { listAllUsers } from "../../services/adminService";
 import { listClaimsForProcessing } from "../../services/officerService";
 import { countBy, countUsersByRole } from "../../utils/adminStats";
@@ -52,32 +53,41 @@ export default function AdminDashboardPage() {
     <div>
       <PageHeader title={title} subtitle={subtitle} />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="User Accounts" value={users.length} icon={Users} actionLabel="View users" to="/admin/users" />
-        <StatCard label="Active Accounts" value={activeUsers} icon={UserCheck} />
-        <StatCard label="Not Active" value={users.length - activeUsers} icon={UserX} />
-        <StatCard
-          label="Claims"
-          value={claims.length}
-          icon={FileText}
-          trend={claims.length === 200 ? "Most recent 200 (API limit)" : undefined}
-          actionLabel="View reports"
-          to="/admin/system-reports"
-        />
-      </div>
+      <TwoColumnLayout
+        main={
+          <>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCard label="User Accounts" value={users.length} icon={Users} actionLabel="View users" to="/admin/users" />
+              <StatCard label="Active Accounts" value={activeUsers} icon={UserCheck} />
+              <StatCard label="Not Active" value={users.length - activeUsers} icon={UserX} />
+              <StatCard
+                label="Claims"
+                value={claims.length}
+                icon={FileText}
+                trend={claims.length === 200 ? "Most recent 200 (API limit)" : undefined}
+                actionLabel="View reports"
+                to="/admin/system-reports"
+              />
+            </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <CountBars title="Users by Role" rows={countUsersByRole(users)} emptyMessage="No user accounts." />
-        <CountBars title="Claims by Status" rows={countBy(claims, (c) => c.Claim_Status)} emptyMessage="No claims." />
-      </div>
-
-      <h2 className="mb-3 mt-8 text-sm font-semibold text-ink">Quick Actions</h2>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickActionCard label="Users" description="Browse every account" icon={Users} to="/admin/users" />
-        <QuickActionCard label="Roles & Permissions" description="What each role can do" icon={KeyRound} to="/admin/roles-permissions" />
-        <QuickActionCard label="System Reports" description="Users and claims in numbers" icon={BarChart3} to="/admin/system-reports" />
-        <QuickActionCard label="Audit Logs" description="Decision trail per claim" icon={History} to="/admin/audit-logs" />
-      </div>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <CountBars title="Users by Role" rows={countUsersByRole(users)} emptyMessage="No user accounts." />
+              <CountBars title="Claims by Status" rows={countBy(claims, (c) => c.Claim_Status)} emptyMessage="No claims." />
+            </div>
+          </>
+        }
+        aside={
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-ink">Quick Actions</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <QuickActionCard label="Users" description="Browse every account" icon={Users} to="/admin/users" />
+              <QuickActionCard label="Roles & Permissions" description="What each role can do" icon={KeyRound} to="/admin/roles-permissions" />
+              <QuickActionCard label="System Reports" description="Users and claims in numbers" icon={BarChart3} to="/admin/system-reports" />
+              <QuickActionCard label="Audit Logs" description="Decision trail per claim" icon={History} to="/admin/audit-logs" />
+            </div>
+          </div>
+        }
+      />
     </div>
   );
 }

@@ -2,8 +2,10 @@ import { AlertTriangle, CheckCircle2, Clock, FileText, ShieldAlert, Timer } from
 import { useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 
+import AreaTrendChart from "../../components/common/AreaTrendChart";
 import Card from "../../components/common/Card";
 import DataTable from "../../components/common/DataTable";
+import DonutChart from "../../components/common/DonutChart";
 import EmptyState from "../../components/common/EmptyState";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
@@ -12,6 +14,7 @@ import StatCard from "../../components/common/StatCard";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../hooks/useAuth";
 import { useFetch } from "../../hooks/useFetch";
+import TwoColumnLayout from "../../layouts/TwoColumnLayout";
 import { getAiSummaryStats } from "../../services/aiRiskService";
 import { getClaimProcessingDetail, listClaimsForProcessing } from "../../services/officerService";
 import { getApiErrorMessage } from "../../utils/errors";
@@ -106,149 +109,122 @@ export default function OfficerDashboardPage() {
   }
 
   const aiSummary = getAiSummaryStats();
-  const maxMonthCount = Math.max(1, ...claimsPerMonth.map((m) => m.count));
-  const totalStatusCount = Math.max(1, claimsByStatus.reduce((sum, [, count]) => sum + count, 0));
   const totalFraudCount = Math.max(1, fraudByCategory.reduce((sum, [, count]) => sum + count, 0));
 
   return (
     <div>
       <PageHeader title={`Welcome, ${user?.Username ?? ""}`} subtitle="Claims processing command center." />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Pending Claims" value={workQueuePreview.length ? data.summaries.filter((c) => !c.Final_Decision).length : 0} icon={FileText} to="/officer/queue" actionLabel="View queue" />
-        <StatCard label="Overdue Claims" value="N/A" icon={Clock} trend="SLA target not configured" />
-        <StatCard label="Decisions Today" value={kpis.decisionsToday} icon={CheckCircle2} />
-        <StatCard label="Average TAT" value={kpis.averageTat !== null ? `${kpis.averageTat} days` : "N/A"} icon={Timer} />
-        <StatCard label="Fraud Alerts" value={kpis.fraudAlerts} icon={ShieldAlert} />
-        <StatCard label="RFI Pending" value="N/A" icon={AlertTriangle} trend="No RFI data source yet" />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-ink">My Work Queue</h3>
-              <Link to="/officer/queue" className="text-sm font-medium text-brand-600 hover:text-brand-700">
-                View all
-              </Link>
+      <TwoColumnLayout
+        main={
+          <>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <StatCard label="Pending Claims" value={workQueuePreview.length ? data.summaries.filter((c) => !c.Final_Decision).length : 0} icon={FileText} to="/officer/queue" actionLabel="View queue" />
+              <StatCard label="Overdue Claims" value="N/A" icon={Clock} trend="SLA target not configured" />
+              <StatCard label="Decisions Today" value={kpis.decisionsToday} icon={CheckCircle2} />
+              <StatCard label="Average TAT" value={kpis.averageTat !== null ? `${kpis.averageTat} days` : "N/A"} icon={Timer} />
+              <StatCard label="Fraud Alerts" value={kpis.fraudAlerts} icon={ShieldAlert} />
+              <StatCard label="RFI Pending" value="N/A" icon={AlertTriangle} trend="No RFI data source yet" />
             </div>
-            <DataTable
-              rows={workQueuePreview}
-              rowKey="Claim_ID"
-              emptyMessage="No pending claims in the queue."
-              columns={[
-                { key: "number", header: "Claim", render: (c) => c.Claim_Number },
-                { key: "customer", header: "Customer ID", render: (c) => c.Customer_ID },
-                { key: "type", header: "Type", render: (c) => c.Claim_Type },
-                { key: "date", header: "Date", render: (c) => formatDate(c.Claim_Date) },
-                {
-                  key: "status",
-                  header: "Status",
-                  render: (c) => <StatusBadge label={c.Claim_Status} tone={getStatusTone(c.Claim_Status)} />,
-                },
-                {
-                  key: "action",
-                  header: "Action",
-                  render: (c) => (
-                    <Link to={`/officer/claims/${c.Claim_ID}`} className="text-brand-600 hover:text-brand-700">
-                      Review
-                    </Link>
-                  ),
-                },
-              ]}
-            />
-          </Card>
-        </div>
 
-        <Card>
-          <h3 className="mb-4 text-sm font-semibold text-ink">Recent Notifications</h3>
-          <EmptyState title="No new notifications" message="This feature is not yet connected to a backend notifications API." />
-        </Card>
-      </div>
+            <Card>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-ink">My Work Queue</h3>
+                <Link to="/officer/queue" className="text-sm font-medium text-brand-600 hover:text-brand-700">
+                  View all
+                </Link>
+              </div>
+              <DataTable
+                rows={workQueuePreview}
+                rowKey="Claim_ID"
+                emptyMessage="No pending claims in the queue."
+                columns={[
+                  { key: "number", header: "Claim", render: (c) => c.Claim_Number },
+                  { key: "customer", header: "Customer ID", render: (c) => c.Customer_ID },
+                  { key: "type", header: "Type", render: (c) => c.Claim_Type },
+                  { key: "date", header: "Date", render: (c) => formatDate(c.Claim_Date) },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (c) => <StatusBadge label={c.Claim_Status} tone={getStatusTone(c.Claim_Status)} />,
+                  },
+                  {
+                    key: "action",
+                    header: "Action",
+                    render: (c) => (
+                      <Link to={`/officer/claims/${c.Claim_ID}`} className="text-brand-600 hover:text-brand-700">
+                        Review
+                      </Link>
+                    ),
+                  },
+                ]}
+              />
+            </Card>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <h3 className="mb-4 text-sm font-semibold text-ink">Claim Status Overview</h3>
-          {claimsByStatus.length === 0 ? (
-            <EmptyState title="No claims yet" />
-          ) : (
-            <ul className="space-y-3">
-              {claimsByStatus.map(([status, count]) => (
-                <li key={status}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="text-ink">{status}</span>
-                    <span className="text-muted">{count}</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-surface">
-                    <div className="h-full rounded-full bg-brand-500" style={{ width: `${(count / totalStatusCount) * 100}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+            <Card>
+              <h3 className="mb-4 text-sm font-semibold text-ink">Claims Trend (last 6 months)</h3>
+              {data.summaries.length === 0 ? (
+                <EmptyState title="No claims to chart yet" />
+              ) : (
+                <AreaTrendChart points={claimsPerMonth} />
+              )}
+            </Card>
+          </>
+        }
+        aside={
+          <>
+            <Card>
+              <h3 className="mb-4 text-sm font-semibold text-ink">Fraud Risk Distribution</h3>
+              {fraudByCategory.length === 0 ? (
+                <EmptyState
+                  icon={ShieldAlert}
+                  title="AI fraud analysis will appear here when the AI service is connected."
+                />
+              ) : (
+                <ul className="space-y-3">
+                  {fraudByCategory.map(([category, count]) => (
+                    <li key={category}>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span className="text-ink">{category}</span>
+                        <span className="text-muted">{count}</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-surface">
+                        <div className="h-full rounded-full bg-danger" style={{ width: `${(count / totalFraudCount) * 100}%` }} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
 
-        <Card>
-          <h3 className="mb-4 text-sm font-semibold text-ink">Claims Trend (last 6 months)</h3>
-          {data.summaries.length === 0 ? (
-            <EmptyState title="No claims to chart yet" />
-          ) : (
-            <div className="flex h-32 items-end gap-3">
-              {claimsPerMonth.map((month) => (
-                <div key={month.key} className="flex flex-1 flex-col items-center gap-1.5">
-                  <div className="w-full rounded-t bg-brand-500" style={{ height: `${(month.count / maxMonthCount) * 100}%`, minHeight: month.count ? 4 : 0 }} />
-                  <span className="text-xs text-muted">{month.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+            <Card>
+              <div className="mb-4 flex flex-col gap-1">
+                <h3 className="text-sm font-semibold text-ink">AI Risk Insights Summary</h3>
+                <span className="text-xs text-muted">Research prototype (Step 5.4/5.5) — synthetic dataset, read-only</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <AiSummaryStat label="High Review Priority" value={aiSummary.highReviewPriority} />
+                <AiSummaryStat label="Low AI Confidence" value={aiSummary.lowConfidence} />
+                <AiSummaryStat label="Multiple Warning Signals" value={aiSummary.multipleWarningSignals} />
+                <AiSummaryStat label="Insufficient Evidence" value={aiSummary.insufficientEvidence} />
+              </div>
+              <p className="mt-4 text-xs text-muted">
+                Counts are computed from the Step 5.4 risk-fusion export across {aiSummary.totalClaimsAssessed} claims.
+                AI output is advisory only; the Claims Officer makes every final decision.
+              </p>
+            </Card>
 
-      <div className="mt-6">
-        <Card>
-          <h3 className="mb-4 text-sm font-semibold text-ink">Fraud Risk Distribution</h3>
-          {fraudByCategory.length === 0 ? (
-            <EmptyState
-              icon={ShieldAlert}
-              title="AI fraud analysis will appear here when the AI service is connected."
-            />
-          ) : (
-            <ul className="space-y-3">
-              {fraudByCategory.map(([category, count]) => (
-                <li key={category}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="text-ink">{category}</span>
-                    <span className="text-muted">{count}</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-surface">
-                    <div className="h-full rounded-full bg-danger" style={{ width: `${(count / totalFraudCount) * 100}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-
-      <div className="mt-6">
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-ink">AI Risk Insights Summary</h3>
-            <span className="text-xs text-muted">Research prototype (Step 5.4/5.5) — synthetic dataset, read-only</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <AiSummaryStat label="High Review Priority" value={aiSummary.highReviewPriority} />
-            <AiSummaryStat label="Low AI Confidence" value={aiSummary.lowConfidence} />
-            <AiSummaryStat label="Multiple Warning Signals" value={aiSummary.multipleWarningSignals} />
-            <AiSummaryStat label="Insufficient Evidence" value={aiSummary.insufficientEvidence} />
-          </div>
-          <p className="mt-4 text-xs text-muted">
-            Counts are computed from the Step 5.4 risk-fusion export across {aiSummary.totalClaimsAssessed} claims.
-            AI output is advisory only; the Claims Officer makes every final decision.
-          </p>
-        </Card>
-      </div>
+            <Card>
+              <h3 className="mb-4 text-sm font-semibold text-ink">Claim Status Overview</h3>
+              {claimsByStatus.length === 0 ? (
+                <EmptyState title="No claims yet" />
+              ) : (
+                <DonutChart rows={claimsByStatus} />
+              )}
+            </Card>
+          </>
+        }
+      />
     </div>
   );
 }
