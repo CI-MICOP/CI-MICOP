@@ -4,6 +4,11 @@
 > is gone), held-out cases A13-A15 and F09-F10 were added (22 / 25 agree), and
 > an accident-time check was added. The tables below record this step's
 > original results. See `CONSISTENCY_IMPROVEMENTS.md`.
+>
+> **Update (FIR label variants):** the FIR-number label now also accepts a
+> hyphen before "No" (`FIR-No`, `FIR - No.`), which OCR of a photographed FIR
+> produces and which previously gave no number at all. Cases F11-F15 were
+> added (27 / 30 agree; the three remaining misses are still A10, A11, F08).
 
 ## 1. Objective
 

@@ -113,9 +113,10 @@ def test_corpus_summary_matches_validation_report():
     the corpus or the checks changed and the report must be updated."""
     outcomes = Counter((case.ideal, case.observed) for case in CORPUS)
     # Step 5.8.16: 20 cases, 14 agreeing, 1 false mismatch (F07). Step 5.8.17
-    # fixed A09/A12/F07 and added held-out cases A13-A15, F09-F10.
-    assert len(CORPUS) == 25
-    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 22
+    # fixed A09/A12/F07 and added held-out cases A13-A15, F09-F10. The FIR
+    # label-variant cases F11-F15 were added with the "FIR-No" fix.
+    assert len(CORPUS) == 30
+    assert sum(n for (ideal, observed), n in outcomes.items() if ideal == observed) == 27
     assert outcomes[(MATCH, UNAVAILABLE)] == 3  # missed - reported as unavailable (A10, A11, F08)
     assert outcomes[(MATCH, MISMATCH)] == 0  # false mismatch - none since Step 5.8.17
     assert outcomes[(MISMATCH, MATCH)] == 0  # false match - never observed

@@ -90,6 +90,13 @@ CORPUS: list[AccidentCase] = [
     ),
     AccidentCase("F09", "fir", "spaces around the slash, then more text", "FIR No: 123 / 2026 dated 20/08/2026", None, MATCH, MATCH),
     AccidentCase("F10", "fir", "spaces around the slash, different number", "F.I.R. No. 77 / 2025", None, MISMATCH, MISMATCH),
+    # ------------------------------------------------------------ FIR label variants ("FIR-No")
+    # F11-F14 were UNAVAILABLE before the label pattern accepted a hyphen.
+    AccidentCase("F11", "fir", "'FIR-No:' as OCR reads it", "FIR-No: 123/2026", None, MATCH, MATCH),
+    AccidentCase("F12", "fir", "'FIR - No.' with spaces", "FIR - No. 123/2026 Police Station: Guindy", None, MATCH, MATCH),
+    AccidentCase("F13", "fir", "'FIR-No' different number", "FIR-No: 124/2026", None, MISMATCH, MISMATCH),
+    AccidentCase("F14", "fir", "'FIR-No' without a colon", "FIR-No 123/2026 dated 20/08/2026", None, MATCH, MATCH),
+    AccidentCase("F15", "fir", "hyphen but no number word", "FIR-registered at Guindy police station.", None, UNAVAILABLE, UNAVAILABLE),
 ]
 
 

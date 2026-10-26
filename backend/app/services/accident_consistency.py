@@ -55,8 +55,11 @@ DATE_DOCUMENT_TYPES = ("FIR", "Survey Report")
 # which the first version cut short to "123" and so reported a false
 # MISMATCH (validation case F07). Spaces are not allowed around "-", so a
 # sentence like "FIR No: 123 - registered" can never pull in the next word.
+# A hyphen may join the label to "No" ("FIR-No", "FIR - No."): OCR of a
+# photographed FIR reads the label that way, and without this the number was
+# not found at all (accident_consistency_corpus.py, F11-F15).
 _FIR_NUMBER = re.compile(
-    r"(?:\bF\.?\s?I\.?\s?R\.?|first\s+information\s+report)\s*(?:no\.?|number|#)\s*[:\-]?\s*"
+    r"(?:\bF\.?\s?I\.?\s?R\.?|first\s+information\s+report)\s*-?\s*(?:no\.?|number|#)\s*[:\-]?\s*"
     r"([A-Za-z0-9]+(?:[/\-][A-Za-z0-9]+|\s*/\s*\d+)*)",
     re.IGNORECASE,
 )
