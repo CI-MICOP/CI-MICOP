@@ -335,6 +335,61 @@ describe("ConsistencyFindingsPanel", () => {
     expect(screen.queryByRole("region", { name: /accident detail checks/i })).not.toBeInTheDocument();
   });
 
+  it("shows the finer outcome instead of a generic Unavailable, and says what was compared", async () => {
+    checkClaimConsistency.mockResolvedValue(
+      consistencyResult({
+        registration: { status: "UNAVAILABLE", outcome: "NOT_SUBMITTED", extracted_value: null, matched_document_id: null },
+        policy: { status: "UNAVAILABLE", outcome: "REFERENCE_UNAVAILABLE", structured_value: null },
+      })
+    );
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+    const identifiers = await screen.findByRole("region", { name: /identifier checks/i });
+    expect(within(identifiers).getByText("Not submitted")).toBeInTheDocument();
+    expect(within(identifiers).getByText("No insurer record")).toBeInTheDocument();
+    expect(within(identifiers).queryByText("Unavailable")).not.toBeInTheDocument();
+    expect(within(identifiers).getByText(/not with an insurer-held copy of the document/i)).toBeInTheDocument();
+  });
+
+  it("shows policy cover, RC and licence validity with their dates and reasons", async () => {
+    const check = (outcome, explanation, evidence = {}, limitations = []) => ({ outcome, explanation, evidence, limitations });
+    checkClaimConsistency.mockResolvedValue({
+      ...consistencyResult(),
+      validity: {
+        policy_cover: check("INVALID_OR_EXPIRED", "The accident date 2026-09-02 is after the policy ended on 2026-07-31.", {
+          accident_date: "2026-09-02", policy_start: "2025-08-01", policy_end: "2026-07-31", coverage_type: null,
+        }),
+        rc_validity: check("VERIFIED", "The RC copy records registration validity up to 2037-06-03.", { valid_upto: "2037-06-03" },
+          ["Based only on the submitted RC copy."]),
+        licence_validity: check("INCONCLUSIVE", "No usable labelled validity date was found on the licence copy."),
+        licence_class: check("VERIFICATION_UNAVAILABLE", "Licence class could not be checked."),
+        licence_number: check("REFERENCE_UNAVAILABLE", "There is no insurer licence record to compare it with."),
+      },
+    });
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+    const validity = await screen.findByRole("region", { name: /validity checks/i });
+    const cover = within(validity).getByText("Policy Cover on Accident Date").closest("li");
+    expect(within(cover).getByText("Invalid / expired")).toBeInTheDocument();
+    expect(within(cover).getByText("2026-09-02")).toBeInTheDocument();
+    expect(within(cover).getByText("2026-07-31")).toBeInTheDocument();
+    expect(within(cover).queryByText("Cover Type")).not.toBeInTheDocument(); // empty evidence is not shown
+    const rc = within(validity).getByText("RC Validity").closest("li");
+    expect(within(rc).getByText("Verified")).toBeInTheDocument();
+    expect(within(rc).getByText("Based only on the submitted RC copy.")).toBeInTheDocument();
+    expect(within(validity).getByText("Inconclusive")).toBeInTheDocument();
+    expect(within(validity).getByText("Could not check")).toBeInTheDocument();
+    expect(within(validity).getByText("No insurer record")).toBeInTheDocument();
+  });
+
+  it("omits the validity section for an older response without it", async () => {
+    checkClaimConsistency.mockResolvedValue(consistencyResult());
+    render(<ConsistencyFindingsPanel claimId="CLM-1" />);
+    clickCheck();
+    await screen.findByRole("region", { name: /identifier checks/i });
+    expect(screen.queryByRole("region", { name: /validity checks/i })).not.toBeInTheDocument();
+  });
+
   it("never touches the human decision workflow", async () => {
     checkClaimConsistency.mockResolvedValueOnce(consistencyResult());
     analyzeClaimDocuments.mockResolvedValueOnce(analysisResult());

@@ -19,6 +19,12 @@ const FINDING_TONE = {
   CONTRADICTION: "warning",
   UNAVAILABLE: "neutral",
   INCONCLUSIVE: "neutral",
+  // Outcomes (backend/app/services/verification_outcome.py).
+  VERIFIED: "success",
+  NOT_SUBMITTED: "warning",
+  INVALID_OR_EXPIRED: "warning",
+  REFERENCE_UNAVAILABLE: "neutral",
+  VERIFICATION_UNAVAILABLE: "neutral",
 };
 
 const FINDING_LABEL = {
@@ -28,6 +34,11 @@ const FINDING_LABEL = {
   CONSISTENT: "Consistent",
   CONTRADICTION: "Contradiction",
   INCONCLUSIVE: "Inconclusive",
+  VERIFIED: "Verified",
+  NOT_SUBMITTED: "Not submitted",
+  INVALID_OR_EXPIRED: "Invalid / expired",
+  REFERENCE_UNAVAILABLE: "No insurer record",
+  VERIFICATION_UNAVAILABLE: "Could not check",
 };
 
 const EXTRACTION_LABEL = {
@@ -121,6 +132,7 @@ export default function ConsistencyFindingsPanel({ claimId }) {
           <IdentifierSection deterministic={check.result.deterministic} />
           <NarrativeSection narrative={check.result.narrative} />
           {check.result.accident_details && <AccidentDetailsSection details={check.result.accident_details} />}
+          {check.result.validity && <ValiditySection validity={check.result.validity} />}
         </div>
       )}
     </Card>
@@ -180,6 +192,10 @@ function IdentifierSection({ deterministic }) {
   return (
     <section aria-label="Identifier checks">
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Identifier Checks</p>
+      <p className="mb-2 text-xs text-muted">
+        Numbers read from the submitted copies, compared with the insurer's vehicle and policy records - not with an
+        insurer-held copy of the document.
+      </p>
       <FindingList findings={deterministic} rows={IDENTIFIERS} />
     </section>
   );
@@ -203,7 +219,7 @@ function FindingList({ findings, rows }) {
           <li key={key} className="rounded-card border border-border p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="font-medium text-ink">{label}</span>
-              <FindingBadge status={finding.status} />
+              <FindingBadge status={finding.outcome ?? finding.status} />
             </div>
             <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Detail label="On Record" value={finding.structured_value ?? "—"} />
@@ -219,6 +235,67 @@ function FindingList({ findings, rows }) {
         );
       })}
     </ul>
+  );
+}
+
+// RC / licence validity and policy cover, all on the accident date
+// (backend/app/services/document_validity.py).
+const VALIDITY_CHECKS = [
+  ["policy_cover", "Policy Cover on Accident Date"],
+  ["rc_validity", "RC Validity"],
+  ["licence_validity", "Licence Validity"],
+  ["licence_class", "Licence Vehicle Class"],
+  ["licence_number", "Licence Number"],
+];
+
+const EVIDENCE_LABEL = {
+  accident_date: "Accident Date",
+  policy_start: "Policy Start",
+  policy_end: "Policy End",
+  coverage_type: "Cover Type",
+  claim_type: "Claim Type",
+  valid_upto: "RC Valid Upto",
+  valid_to: "Licence Valid To",
+  as_written: "As Written",
+  document_id: "Document",
+  class_needed: "Class Needed",
+  classes_on_copy: "Classes on Copy",
+  number_on_copy: "Number on Copy",
+  number_on_record: "Number on Record",
+  registration_on_copy: "Registration on Copy",
+  registration_on_record: "Registration on Record",
+};
+
+function ValiditySection({ validity }) {
+  return (
+    <section aria-label="Validity checks" className="lg:col-span-2">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Validity on the Accident Date</p>
+      <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {VALIDITY_CHECKS.filter(([key]) => validity[key]).map(([key, label]) => {
+          const result = validity[key];
+          const evidence = Object.entries(result.evidence ?? {}).filter(([, value]) => value);
+          return (
+            <li key={key} className="rounded-card border border-border p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-ink">{label}</span>
+                <FindingBadge status={result.outcome} />
+              </div>
+              {evidence.length > 0 && (
+                <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {evidence.map(([name, value]) => (
+                    <Detail key={name} label={EVIDENCE_LABEL[name] ?? name} value={value} />
+                  ))}
+                </dl>
+              )}
+              <p className="mt-2 text-ink">{result.explanation}</p>
+              {result.limitations?.length > 0 && (
+                <p className="mt-1 text-xs text-muted">{result.limitations.join(" ")}</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
