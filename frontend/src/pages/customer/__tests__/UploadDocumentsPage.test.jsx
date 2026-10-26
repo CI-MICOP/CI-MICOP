@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installCamera } from "../../../components/customer/__tests__/cameraMock";
+
 vi.mock("../../../services/claimService", () => ({
   listClaims: vi.fn(),
 }));
@@ -107,6 +109,33 @@ describe("UploadDocumentsPage", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: /upload selected documents/i })).toBeDisabled());
     expect(screen.queryByText("Uploaded")).not.toBeInTheDocument();
+  });
+
+  it("uploads each camera-captured accident photo separately", async () => {
+    const camera = installCamera();
+    try {
+      uploadDocument.mockResolvedValue({});
+      renderPage();
+      fireEvent.change(await screen.findByLabelText(/^claim/i), { target: { value: "CLM-1" } });
+      fireEvent.click(screen.getByRole("button", { name: /open camera/i }));
+      for (const count of [1, 2]) {
+        const take = await screen.findByRole("button", { name: /^take photo$/i });
+        await waitFor(() => expect(take).toBeEnabled());
+        fireEvent.click(take);
+        await screen.findByText(`${count} of 10 photos taken`);
+      }
+
+      fireEvent.click(screen.getByRole("button", { name: /upload selected documents/i }));
+
+      expect(await screen.findByText(/all 2 documents uploaded/i)).toBeInTheDocument();
+      expect(uploadDocument.mock.calls.map((call) => [call[1], call[2].type])).toEqual([
+        ["accident_photos", "image/jpeg"],
+        ["accident_photos", "image/jpeg"],
+      ]);
+      expect(screen.getByText("Accident Photos 1")).toBeInTheDocument();
+    } finally {
+      camera.restore();
+    }
   });
 
   it("explains that a claim is needed when the customer has none", async () => {

@@ -6,6 +6,11 @@ document types, file validation, ID generation, and the file/database
 transaction - live here in one place. See
 docs/project_documentation/CUSTOMER_DOCUMENT_UPLOAD.md for the full
 rationale.
+
+RC, driving-licence and insurance-policy copies are not stored: they are
+read in memory, only their verification details are kept on the Document
+row, and the file itself is never written (see
+services/claim_copy_retention.py).
 """
 
 from __future__ import annotations
@@ -16,13 +21,14 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.crud import claim as crud_claim
 from app.crud import document as crud_document
 from app.db_models.claim import Claim
 from app.db_models.document import Document
-from app.services import document_storage
+from app.services import claim_copy_retention, document_analysis, document_storage
 
 # Maps the frontend's existing DOCUMENT_CATEGORIES keys (see
 # frontend/src/components/customer/documentCategories.js) to the
@@ -47,6 +53,11 @@ _ALLOWED_SIGNATURES: dict[str, tuple[bytes, ...]] = {
     ".jpeg": (b"\xff\xd8\xff",),
     ".png": (b"\x89PNG\r\n\x1a\n",),
 }
+
+# Accident photos are taken with the customer portal's camera, so a PDF is
+# never a valid accident photo.
+_IMAGE_ONLY_DOCUMENT_TYPES = frozenset({"accident_photos"})
+_IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png"})
 
 
 def _get_owned_claim(db: Session, customer_id: str, claim_id: str) -> Claim:
@@ -119,10 +130,18 @@ async def upload_document_for_customer(
 
     # 4. File validation: extension, then bounded read, then emptiness, then signature.
     ext = _validate_extension(upload_file.filename or "")
+    if document_type in _IMAGE_ONLY_DOCUMENT_TYPES and ext not in _IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Accident photos must be JPEG or PNG images taken with the camera.",
+        )
     content = await _read_limited(upload_file, settings.DOCUMENT_MAX_UPLOAD_BYTES)
     if len(content) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is empty.")
     _validate_signature(ext, content)
+
+    if not claim_copy_retention.is_copy_retained(document_type_label):
+        return await _record_unretained_copy(db, claim_id, document_type_label, upload_file.filename, content, ext)
 
     # 5-6. Generate Document_ID and a safe, server-controlled storage path.
     document_id = crud_document.generate_document_id(db)
@@ -164,6 +183,54 @@ async def upload_document_for_customer(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="The document could not be saved. No file was retained.",
+        ) from exc
+
+    db.refresh(document)
+    return document
+
+
+_COPY_NAMES = {"RC": "rc-copy", "Driving Licence": "driving-licence-copy", "Insurance Policy": "policy-copy"}
+
+
+async def _record_unretained_copy(
+    db: Session, claim_id: str, document_type_label: str, filename: str | None, content: bytes, ext: str
+) -> Document:
+    """RC / licence / policy copy: extract its text from memory (through a
+    temporary directory removed before this returns), keep only the
+    verification record, and create the Document row without a file."""
+    try:
+        extraction = await run_in_threadpool(document_analysis.extract_document_bytes, content, ext)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The document could not be processed. Nothing was saved.",
+        ) from exc
+
+    document = Document(
+        Document_ID=crud_document.generate_document_id(db),
+        Claim_ID=claim_id,
+        Document_Type=document_type_label,
+        # A neutral name, not the customer's filename: no file is kept behind
+        # it, and a filename such as "DL_<name>.pdf" can identify a person.
+        Document_Name=_COPY_NAMES[document_type_label] + ext,
+        Document_Submitted_Date=date.today(),
+        Document_Status="Submitted",
+        # Genuinely extracted at upload, reduced to what the registration /
+        # policy-number checks read. Nothing is verified yet.
+        OCR_Confidence_Score=Decimal(str(round(extraction.confidence, 4))),
+        Extracted_Text=claim_copy_retention.verification_record(extraction.text),
+        Document_Completeness=Decimal("0.0000"),
+        Document_Mismatch_Indicator=False,
+        Verification_Status="Pending",
+    )
+    try:
+        crud_document.create(db, document)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The document could not be saved.",
         ) from exc
 
     db.refresh(document)

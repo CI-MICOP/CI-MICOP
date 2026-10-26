@@ -14,6 +14,10 @@ def list_by_claim(db: Session, claim_id: str) -> list[Document]:
     return db.query(Document).filter(Document.Claim_ID == claim_id).order_by(Document.Document_ID).all()
 
 
+def list_by_type(db: Session, document_type: str) -> list[Document]:
+    return db.query(Document).filter(Document.Document_Type == document_type).order_by(Document.Document_ID).all()
+
+
 def create(db: Session, document: Document) -> Document:
     db.add(document)
     return document

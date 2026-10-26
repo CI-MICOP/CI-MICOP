@@ -34,10 +34,9 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageChops, ImageFilter, ImageStat, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
-from app.crud import evidence as crud_evidence
 from app.db_models.claim import Claim
 from app.db_models.evidence import Evidence
-from app.services import evidence_storage
+from app.services import claim_photos
 
 STATUS_NO_ISSUES_FOUND = "NO_ISSUES_FOUND"
 STATUS_ISSUES_FOUND = "ISSUES_FOUND"
@@ -162,15 +161,6 @@ def measure_bytes(content: bytes) -> PhotoMeasurements | None:
         return None
 
 
-def _read_stored_bytes(evidence: Evidence) -> bytes | None:
-    try:
-        path = evidence_storage.storage_path_for(evidence.Claim_ID, evidence.Evidence_ID, evidence.File_Name)
-        content = path.read_bytes()
-    except (OSError, ValueError):
-        return None
-    return content or None
-
-
 def assess_evidence(evidence: Evidence, content: bytes | None) -> PhotoQualityResult:
     base = dict(evidence_id=evidence.Evidence_ID, evidence_type=evidence.Evidence_Type, file_name=evidence.File_Name)
     if content is None:
@@ -207,12 +197,13 @@ def assess_evidence(evidence: Evidence, content: bytes | None) -> PhotoQualityRe
 
 
 def check_claim_photo_quality(db: Session, claim: Claim) -> ClaimPhotoQualityResult:
-    """Entry point routers should call. Only reads this claim's own evidence
-    files. Read-only."""
-    own = crud_evidence.list_by_claim(db, claim.Claim_ID)
+    """Entry point routers should call. Only reads this claim's own photos -
+    surveyor evidence and the customer's camera-captured accident photos,
+    each labelled with its source (services/claim_photos.py). Read-only."""
+    own = claim_photos.claim_photos(db, claim.Claim_ID)
     return ClaimPhotoQualityResult(
         claim_id=claim.Claim_ID,
         photos_checked=len(own),
-        results=[assess_evidence(e, _read_stored_bytes(e)) for e in own],
+        results=[assess_evidence(p, claim_photos.read_bytes(p)) for p in own],
         limitations=list(_STANDARD_LIMITATIONS),
     )

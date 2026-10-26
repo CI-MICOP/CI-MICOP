@@ -9,7 +9,7 @@ import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import DocumentUploadGrid from "../../components/customer/DocumentUploadGrid";
-import { DOCUMENT_CATEGORIES } from "../../components/customer/documentCategories";
+import { selectedUploadItems } from "../../components/customer/documentCategories";
 import { useFetch } from "../../hooks/useFetch";
 import { listClaims } from "../../services/claimService";
 import { uploadDocument } from "../../services/documentService";
@@ -24,36 +24,36 @@ import { getApiErrorMessage, getUploadErrorMessage } from "../../utils/errors";
 export default function UploadDocumentsPage() {
   const [claimId, setClaimId] = useState("");
   const [files, setFiles] = useState({});
-  // The batch currently shown in the results list: { claimId, categoryKeys }.
+  // The batch currently shown in the results list: { claimId, items }.
   const [batch, setBatch] = useState(null);
-  // { [documentCategoryKey]: { status: "uploading" | "uploaded" | "failed", error? } }
+  // { [uploadItemId]: { status: "uploading" | "uploaded" | "failed", error? } }
   const [uploads, setUploads] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
   const { data: claims, isLoading, error, reload } = useFetch(() => listClaims({ limit: 200 }), []);
 
-  const selectedCategories = DOCUMENT_CATEGORIES.filter((c) => files[c.key]);
+  const selectedItems = selectedUploadItems(files);
 
-  async function uploadOne(targetClaimId, categoryKey) {
-    setUploads((prev) => ({ ...prev, [categoryKey]: { status: "uploading" } }));
+  async function uploadOne(targetClaimId, item) {
+    setUploads((prev) => ({ ...prev, [item.id]: { status: "uploading" } }));
     try {
-      await uploadDocument(targetClaimId, categoryKey, files[categoryKey]);
-      setUploads((prev) => ({ ...prev, [categoryKey]: { status: "uploaded" } }));
+      await uploadDocument(targetClaimId, item.category.key, item.file);
+      setUploads((prev) => ({ ...prev, [item.id]: { status: "uploaded" } }));
     } catch (err) {
-      setUploads((prev) => ({ ...prev, [categoryKey]: { status: "failed", error: getUploadErrorMessage(err) } }));
+      setUploads((prev) => ({ ...prev, [item.id]: { status: "failed", error: getUploadErrorMessage(err) } }));
     }
   }
 
   async function handleUpload() {
     if (isUploading) return;
-    const categoryKeys = selectedCategories.map((c) => c.key);
-    setBatch({ claimId, categoryKeys });
+    const items = selectedItems;
+    setBatch({ claimId, items });
     setUploads({});
     setIsUploading(true);
     try {
       // Sequential, matching NewClaimPage: predictable per-file progress.
-      for (const key of categoryKeys) {
-        await uploadOne(claimId, key);
+      for (const item of items) {
+        await uploadOne(claimId, item);
       }
     } finally {
       setIsUploading(false);
@@ -69,9 +69,9 @@ export default function UploadDocumentsPage() {
   if (isLoading) return <LoadingState label="Loading your claims..." />;
   if (error) return <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />;
 
-  const batchCategories = batch ? DOCUMENT_CATEGORIES.filter((c) => batch.categoryKeys.includes(c.key)) : [];
-  const uploadedCount = batchCategories.filter((c) => uploads[c.key]?.status === "uploaded").length;
-  const failedCount = batchCategories.filter((c) => uploads[c.key]?.status === "failed").length;
+  const batchItems = batch ? batch.items : [];
+  const uploadedCount = batchItems.filter((item) => uploads[item.id]?.status === "uploaded").length;
+  const failedCount = batchItems.filter((item) => uploads[item.id]?.status === "failed").length;
   const batchDone = batch && !isUploading;
   const batchClaim = batch ? claims.find((c) => c.Claim_ID === batch.claimId) : null;
 
@@ -109,16 +109,16 @@ export default function UploadDocumentsPage() {
               <p className="text-sm text-muted">
                 Uploading to claim <span className="font-medium text-ink">{batchClaim?.Claim_Number ?? batch.claimId}</span>
               </p>
-              {batchCategories.map((category) => {
-                const state = uploads[category.key] ?? { status: "uploading" };
+              {batchItems.map((item) => {
+                const state = uploads[item.id] ?? { status: "uploading" };
                 return (
                   <div
-                    key={category.key}
+                    key={item.id}
                     className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-3 text-sm"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-ink">{category.label}</p>
-                      <p className="truncate text-xs text-muted">{files[category.key]?.name}</p>
+                      <p className="truncate font-medium text-ink">{item.label}</p>
+                      <p className="truncate text-xs text-muted">{item.file.name}</p>
                       {state.status === "failed" && <p className="mt-0.5 text-xs text-danger">{state.error}</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -133,7 +133,7 @@ export default function UploadDocumentsPage() {
                             size="sm"
                             variant="secondary"
                             disabled={isUploading}
-                            onClick={() => uploadOne(batch.claimId, category.key)}
+                            onClick={() => uploadOne(batch.claimId, item)}
                           >
                             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                             Retry
@@ -160,8 +160,8 @@ export default function UploadDocumentsPage() {
                   )}
                   <p>
                     {failedCount === 0
-                      ? `All ${batchCategories.length} document${batchCategories.length === 1 ? "" : "s"} uploaded.`
-                      : `${uploadedCount} of ${batchCategories.length} uploaded. ${failedCount} failed - use Retry to try again.`}
+                      ? `All ${batchItems.length} document${batchItems.length === 1 ? "" : "s"} uploaded.`
+                      : `${uploadedCount} of ${batchItems.length} uploaded. ${failedCount} failed - use Retry to try again.`}
                   </p>
                 </div>
               )}
@@ -174,7 +174,7 @@ export default function UploadDocumentsPage() {
                 Upload More Documents
               </Button>
             ) : (
-              <Button disabled={!claimId || selectedCategories.length === 0} onClick={handleUpload}>
+              <Button disabled={!claimId || selectedItems.length === 0} onClick={handleUpload}>
                 Upload Selected Documents
               </Button>
             )}

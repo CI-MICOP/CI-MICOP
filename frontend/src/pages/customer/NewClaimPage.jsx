@@ -10,7 +10,7 @@ import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import DocumentUploadGrid from "../../components/customer/DocumentUploadGrid";
-import { DOCUMENT_CATEGORIES } from "../../components/customer/documentCategories";
+import { missingRequiredCopies, selectedUploadItems } from "../../components/customer/documentCategories";
 import { useFetch } from "../../hooks/useFetch";
 import { createClaim } from "../../services/claimService";
 import { uploadDocument } from "../../services/documentService";
@@ -102,7 +102,7 @@ export default function NewClaimPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submittedClaim, setSubmittedClaim] = useState(null);
-  // { [documentCategoryKey]: { status: "uploading" | "uploaded" | "failed", error? } }
+  // { [uploadItemId]: { status: "uploading" | "uploaded" | "failed", error? } }
   const [documentUploads, setDocumentUploads] = useState({});
 
   const fetchOptions = useMemo(
@@ -121,7 +121,8 @@ export default function NewClaimPage() {
 
   const selectedVehicle = data?.vehicles.find((v) => v.Vehicle_ID === vehicleId);
   const selectedPolicy = data?.policies.find((p) => p.Policy_ID === policyId);
-  const selectedFiles = DOCUMENT_CATEGORIES.filter((c) => files[c.key]);
+  const uploadItems = selectedUploadItems(files);
+  const missingCopies = missingRequiredCopies(files);
 
   function updateIncident(field, value) {
     setIncident((prev) => ({ ...prev, [field]: value }));
@@ -136,14 +137,13 @@ export default function NewClaimPage() {
     Number(incident.claimAmount) > 0;
   const vehicleValid = Boolean(vehicleId && policyId);
 
-  async function uploadOneDocument(claimId, categoryKey) {
-    const file = files[categoryKey];
-    setDocumentUploads((prev) => ({ ...prev, [categoryKey]: { status: "uploading" } }));
+  async function uploadOneDocument(claimId, item) {
+    setDocumentUploads((prev) => ({ ...prev, [item.id]: { status: "uploading" } }));
     try {
-      await uploadDocument(claimId, categoryKey, file);
-      setDocumentUploads((prev) => ({ ...prev, [categoryKey]: { status: "uploaded" } }));
+      await uploadDocument(claimId, item.category.key, item.file);
+      setDocumentUploads((prev) => ({ ...prev, [item.id]: { status: "uploaded" } }));
     } catch (err) {
-      setDocumentUploads((prev) => ({ ...prev, [categoryKey]: { status: "failed", error: getUploadErrorMessage(err) } }));
+      setDocumentUploads((prev) => ({ ...prev, [item.id]: { status: "failed", error: getUploadErrorMessage(err) } }));
     }
   }
 
@@ -151,8 +151,8 @@ export default function NewClaimPage() {
     // Sequential, not Promise.all: keeps the per-file progress list
     // predictable and avoids surprising the (already-created) claim with
     // a burst of concurrent uploads.
-    for (const category of selectedFiles) {
-      await uploadOneDocument(claimId, category.key);
+    for (const item of uploadItems) {
+      await uploadOneDocument(claimId, item);
     }
   }
 
@@ -182,7 +182,7 @@ export default function NewClaimPage() {
       // document upload only ever starts after createClaim() succeeds.
       const claim = await createClaim(payload);
       setSubmittedClaim(claim);
-      if (selectedFiles.length > 0) {
+      if (uploadItems.length > 0) {
         await uploadAllDocuments(claim.Claim_ID);
       }
     } catch (err) {
@@ -208,10 +208,10 @@ export default function NewClaimPage() {
   }
 
   if (submittedClaim) {
-    const totalSelected = selectedFiles.length;
-    const uploadedCount = selectedFiles.filter((c) => documentUploads[c.key]?.status === "uploaded").length;
-    const failedCount = selectedFiles.filter((c) => documentUploads[c.key]?.status === "failed").length;
-    const stillUploading = selectedFiles.some((c) => (documentUploads[c.key]?.status ?? "uploading") === "uploading");
+    const totalSelected = uploadItems.length;
+    const uploadedCount = uploadItems.filter((item) => documentUploads[item.id]?.status === "uploaded").length;
+    const failedCount = uploadItems.filter((item) => documentUploads[item.id]?.status === "failed").length;
+    const stillUploading = uploadItems.some((item) => (documentUploads[item.id]?.status ?? "uploading") === "uploading");
 
     let documentSummary = null;
     if (totalSelected > 0 && !stillUploading) {
@@ -254,16 +254,16 @@ export default function NewClaimPage() {
 
             {totalSelected > 0 && (
               <div className="w-full max-w-sm space-y-2 text-left">
-                {selectedFiles.map((category) => {
-                  const state = documentUploads[category.key] ?? { status: "uploading" };
-                  const file = files[category.key];
+                {uploadItems.map((item) => {
+                  const state = documentUploads[item.id] ?? { status: "uploading" };
+                  const file = item.file;
                   return (
                     <div
-                      key={category.key}
+                      key={item.id}
                       className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-3 text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-ink">{category.label}</p>
+                        <p className="truncate font-medium text-ink">{item.label}</p>
                         <p className="truncate text-xs text-muted">
                           {file.name} &middot; {formatFileSize(file.size)}
                         </p>
@@ -280,7 +280,7 @@ export default function NewClaimPage() {
                             <Button
                               size="sm"
                               variant="secondary"
-                              onClick={() => uploadOneDocument(submittedClaim.Claim_ID, category.key)}
+                              onClick={() => uploadOneDocument(submittedClaim.Claim_ID, item)}
                             >
                               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                               Retry
@@ -495,7 +495,8 @@ export default function NewClaimPage() {
         {step === 3 && (
           <div>
             <p className="mb-4 text-sm text-muted">
-              Select the documents you have available. Required documents vary by claim type.
+              Upload copies of the driving licence, RC and insurance policy, take accident photos with your camera, and
+              add the FIR and repair estimate if they apply to this claim.
             </p>
             <DocumentUploadGrid files={files} onFileChange={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))} />
           </div>
@@ -521,12 +522,23 @@ export default function NewClaimPage() {
               <ReviewRow label="Policy" value={selectedPolicy ? `${selectedPolicy.Policy_Number} (${selectedPolicy.Policy_Type})` : "-"} />
             </ReviewSection>
             <ReviewSection title="Documents">
-              {selectedFiles.length === 0 ? (
+              {uploadItems.length === 0 ? (
                 <p className="text-sm text-muted">No documents selected.</p>
               ) : (
-                selectedFiles.map((c) => <ReviewRow key={c.key} label={c.label} value={files[c.key].name} />)
+                uploadItems.map((item) => <ReviewRow key={item.id} label={item.label} value={item.file.name} />)
               )}
             </ReviewSection>
+
+            {missingCopies.length > 0 && (
+              <div className="flex gap-3 rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                <p>
+                  Not added yet: {missingCopies.map((c) => c.label).join(", ")}. These copies are required with every
+                  claim. You can add them later from Docs &gt; Upload Documents, but the claim can't be fully checked
+                  until they are provided.
+                </p>
+              </div>
+            )}
 
             {submitError && (
               <div className="flex gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-900">

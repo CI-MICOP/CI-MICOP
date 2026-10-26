@@ -4,7 +4,11 @@ This is NOT fraud detection, NOT a fraud score, NOT a risk score, and NOT
 an automatic claim decision. It answers one narrow question for a Claims
 Officer: does a photo on this claim also appear - byte-for-byte, or as a
 lightly edited copy - elsewhere among the evidence photos stored by this
-application?
+application? Those are the surveyors' evidence photos and the customers'
+camera-captured accident photos (services/claim_photos.py), each labelled
+with its source. Finding no copy says nothing about whether the customer's
+and the surveyor's photos show the same vehicle or damage - that content
+comparison is not implemented.
 
 Method (no AI model - see docs/project_documentation/EVIDENCE_DUPLICATION.md):
   - exact copy: SHA-256 of the stored file bytes;
@@ -30,15 +34,13 @@ from __future__ import annotations
 import hashlib
 import io
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
-from app.crud import evidence as crud_evidence
 from app.db_models.claim import Claim
 from app.db_models.evidence import Evidence
-from app.services import evidence_storage
+from app.services import claim_photos
 
 STATUS_EXACT_DUPLICATE = "EXACT_DUPLICATE"
 STATUS_NEAR_DUPLICATE = "NEAR_DUPLICATE"
@@ -138,20 +140,11 @@ def fingerprint_bytes(content: bytes) -> Fingerprint:
     return Fingerprint(sha256=sha256, dhash=dhash)
 
 
-def _stored_path(evidence: Evidence) -> Path:
-    return evidence_storage.storage_path_for(evidence.Claim_ID, evidence.Evidence_ID, evidence.File_Name)
-
-
-def _load_fingerprint(evidence: Evidence) -> Fingerprint | None:
+def _load_fingerprint(photo: claim_photos.ClaimPhoto) -> Fingerprint | None:
     """None when the stored file is missing or cannot be read at all -
     e.g. seeded development rows that never had a physical file."""
-    try:
-        content = _stored_path(evidence).read_bytes()
-    except (OSError, ValueError):
-        return None
-    if not content:
-        return None
-    return fingerprint_bytes(content)
+    content = claim_photos.read_bytes(photo)
+    return fingerprint_bytes(content) if content else None
 
 
 def compare_fingerprints(a: Fingerprint, b: Fingerprint) -> tuple[str, int | None] | None:
@@ -247,12 +240,13 @@ def _result_for(
 
 def check_claim_evidence(db: Session, claim: Claim) -> ClaimEvidenceDuplicationResult:
     """Entry point routers should call. Fingerprints every readable stored
-    evidence photo once, then compares each photo on this claim with every
-    other one (same claim and other claims). Read-only."""
-    own = crud_evidence.list_by_claim(db, claim.Claim_ID)
-    readable: list[tuple[Evidence, Fingerprint]] = []
+    photo (surveyor evidence and customer accident photos) once, then
+    compares each photo on this claim with every other one (same claim and
+    other claims). Read-only."""
+    own = claim_photos.claim_photos(db, claim.Claim_ID)
+    readable: list[tuple[claim_photos.ClaimPhoto, Fingerprint]] = []
     fingerprints: dict[str, Fingerprint | None] = {}
-    for evidence in crud_evidence.list_all(db):
+    for evidence in claim_photos.all_photos(db):
         fp = _load_fingerprint(evidence)
         fingerprints[evidence.Evidence_ID] = fp
         if fp is not None:

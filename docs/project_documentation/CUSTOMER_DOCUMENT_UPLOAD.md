@@ -145,6 +145,56 @@ The existing `DocumentOut` schema is reused unchanged: `Document_ID`, `Claim_ID`
 - **No download endpoint.** Only metadata is exposed; retrieving the actual file content was explicitly out of scope for this task.
 - **No virus/malware scanning** of uploaded files.
 
+## 15. RC, licence and policy copies are not kept; accident photos are camera-only
+
+Added after the sections above; where it differs from them, this section is current.
+
+**Which customer documents are kept** (`backend/app/services/claim_copy_retention.py`)
+
+| Category (upload key) | Required | How it is added | File kept? |
+|---|---|---|---|
+| Driving Licence (`driving_licence`), RC (`rc_book`), Insurance Policy (`insurance_policy`) | With every claim, even when the insurer already holds a reference record | File upload | **No** |
+| Accident Photos (`accident_photos`) | Own Damage / Third Party (completeness rule) | Portal camera only | Yes |
+| FIR (`fir_copy`), Repair Estimate (`repair_estimate`) | When applicable to the claim type | File upload | Yes |
+| Survey Report (`survey_report`) | Not required from customers | File upload | Yes |
+
+Insurer-held reference records (the `vehicles` / `policies` tables) and the copies a customer submits are separate sources; one is never treated as the other.
+
+**Processing path for an RC / licence / policy copy** (`document_upload._record_unretained_copy`):
+
+1. The same ownership, type, extension, size, emptiness and magic-byte checks as every other upload run first.
+2. The bytes are held in memory and passed to `document_analysis.extract_document_bytes`, which writes them into a private `tempfile.TemporaryDirectory` (PyMuPDF and Pillow take a path) and extracts the text there. The directory is removed when the call returns, including when extraction raises. Nothing is written under `DOCUMENT_STORAGE_ROOT`. Extraction runs in a worker thread, so the request waits for it.
+3. `Extracted_Text` stores only `claim_copy_retention.verification_record(text)`. It keeps the label-and-value spans the checks read:
+   - registration and policy numbers (`entity_extraction`);
+   - the RC validity date, licence number, licence validity date and licence classes (`document_fields`, used by `document_validity`).
+
+   Names, addresses, dates of birth, issue dates and every other line are dropped. The tests check that re-extracting from the kept record gives the same candidates as the full text.
+4. A `documents` row is still created (so completeness counts the copy), with `Verification_Status="Pending"`.
+   - `Document_Name` is a neutral `rc-copy` / `driving-licence-copy` / `policy-copy` name plus the extension. The customer's filename is not kept, because it can contain a name.
+   - The API reports `Copy_Retained: false` for these types (a derived field, not a column).
+5. `POST /documents/{id}/analyze` on such a copy returns `extraction_status="copy_not_retained"` with the kept record, and never overwrites it.
+
+Limits:
+
+- pytesseract writes and deletes its own short-lived temporary images while OCR runs.
+- If the server crashes in the middle of a request, the operating system's temp folder may keep that one temporary copy.
+- RC / licence / policy files uploaded **before** this change are still on disk. Re-analysis reads such a file and keeps only its record, but the file is not deleted (that would be a data change).
+- If text could not be extracted at upload (for example Tesseract was missing for a scanned copy), it cannot be extracted later, because the file is gone. The kept record is then empty, and the analyze result says so.
+- The licence copy's validity date and class, and the RC copy's validity date, are checked on the accident date (`services/document_validity.py`).
+  - There is no insurer licence record and no registry or licensing API, so the licence number and those dates cannot be cross-checked against a reference.
+  - Copies uploaded before the fields were kept have records without them, so their validity is INCONCLUSIVE.
+- Copies stored by an earlier version: none exist on this development machine. `infra/storage/documents/` holds one empty `TEST-` folder and no files (read-only inventory, 26 October 2026). Database rows were not inspected.
+
+**Accident photos** (`frontend/src/components/customer/AccidentPhotoCapture.jsx`):
+
+- Taken with `getUserMedia` (rear camera preferred) and encoded as JPEG (longest side at most 1920 px, at most 10 MB, at most 10 photos).
+- Each photo can be previewed, retaken or removed before submission, and each becomes its own `accident_photos` upload.
+- There is no file input, drag-and-drop or gallery fallback. When the camera is blocked, missing, busy or unsupported, the customer sees why and cannot add photos.
+- The backend additionally rejects PDFs for this type.
+- Camera capture only stops existing images being chosen in this form. It does not prove when or where a photo was taken, and the API can still be called directly with any JPEG.
+
+**Photo checks:** the duplicate and quality checks (`evidence_duplication`, `evidence_quality`) now read customer accident photos as well as surveyor evidence (`services/claim_photos.py`). Customer photos are labelled `Accident Photo (customer upload)`. Whether a customer's and a surveyor's photos show the same vehicle or damage is **not** checked: no image-recognition model exists.
+
 ## 14. Future cloud storage migration
 
 `document_storage.py` is the single seam for this: replace `save_file()` (write to S3/Azure Blob/MinIO instead of the local disk) and `delete_file()` (equivalent remote delete), and change what `storage_path_for()` returns (an object key / blob path instead of a local `Path`). No change would be needed to the `documents` table, the router, or `document_upload.py`'s validation/ownership/transaction logic - they only ever call these three functions and never touch the filesystem directly.

@@ -449,7 +449,7 @@ def test_single_document_analyze_persists_text_and_confidence_but_not_completene
     client, customer1_token, seed_data, analyzed_document_ids
 ):
     upload = _upload(
-        client, customer1_token, seed_data["claim1"], "rc_book", "rc.pdf", _text_pdf_bytes(["RC book contents."])
+        client, customer1_token, seed_data["claim1"], "fir_copy", "fir.pdf", _text_pdf_bytes(["FIR copy contents."])
     )
     document_id = upload.json()["Document_ID"]
     analyzed_document_ids.append(document_id)
@@ -460,7 +460,7 @@ def test_single_document_analyze_persists_text_and_confidence_but_not_completene
     db = SessionLocal()
     try:
         row = db.query(Document).filter(Document.Document_ID == document_id).first()
-        assert "RC book contents" in row.Extracted_Text
+        assert "FIR copy contents" in row.Extracted_Text
         assert row.OCR_Confidence_Score == Decimal("1.0000")
         # Completeness is a claim-level fact - the single-document endpoint
         # does not mutate it (see analyze_claim_documents for that).

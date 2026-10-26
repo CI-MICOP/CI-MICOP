@@ -22,6 +22,7 @@ result instead of crashing (see docs, Section 7/14).
 
 from __future__ import annotations
 
+import tempfile
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -35,7 +36,7 @@ from app.core.config import settings
 from app.crud import document as crud_document
 from app.db_models.claim import Claim
 from app.db_models.document import Document
-from app.services import document_storage
+from app.services import claim_copy_retention, document_storage
 
 if settings.TESSERACT_CMD:
     pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
@@ -58,7 +59,9 @@ _NATIVE_TEXT_CONFIDENCE = 1.0
 class ExtractionResult:
     text: str
     confidence: float  # genuine 0.0-1.0, or an honest 0.0
-    status: str  # extracted_native | extracted_ocr | extracted_ocr_no_confidence | partial | empty | unavailable
+    # extracted_native | extracted_ocr | extracted_ocr_no_confidence | partial | empty | unavailable,
+    # or copy_not_retained (analyze_document, for a copy that is not kept - see claim_copy_retention)
+    status: str
     limitations: list[str]
 
 
@@ -257,6 +260,19 @@ def extract_document_text(path: Path) -> ExtractionResult:
     )
 
 
+def extract_document_bytes(content: bytes, extension: str) -> ExtractionResult:
+    """Extracts text from an upload that must not be stored (see
+    services/claim_copy_retention.py). PyMuPDF and Pillow are given a file
+    path, so the bytes are written to a private temporary directory that is
+    removed when this returns - normally or by an exception. Nothing is
+    written to DOCUMENT_STORAGE_ROOT. (pytesseract also writes and deletes
+    its own short-lived temporary images while OCR runs.)"""
+    with tempfile.TemporaryDirectory(prefix="ci-micop-copy-") as directory:
+        path = Path(directory) / f"copy{extension.lower()}"
+        path.write_bytes(content)
+        return extract_document_text(path)
+
+
 # ---------------------------------------------------------------------------
 # B. Deterministic document completeness (rule-based, not ML)
 # ---------------------------------------------------------------------------
@@ -333,6 +349,8 @@ def analyze_document(db: Session, document: Document) -> ExtractionResult:
     effect of analyzing a single document in isolation. Never touches
     Document_Status/Verification_Status - those reflect the human
     submission/verification workflow, not the automated OCR step."""
+    if not claim_copy_retention.is_copy_retained(document.Document_Type):
+        return _analyze_unretained_copy(db, document)
     path = resolve_document_path(document)
     if not path.exists():
         result = ExtractionResult(
@@ -351,6 +369,45 @@ def analyze_document(db: Session, document: Document) -> ExtractionResult:
     db.commit()
     db.refresh(document)
     return result
+
+
+_COPY_NOT_RETAINED_NOTE = (
+    "This copy was read when it was uploaded and is not kept, so it cannot be read again. "
+    "Only the registration / policy-number details found in it were saved, and they are shown here."
+)
+
+
+def _analyze_unretained_copy(db: Session, document: Document) -> ExtractionResult:
+    """RC / licence / policy copy: never re-reads or overwrites what was kept
+    at upload. A file stored before copies stopped being kept is still read,
+    and only its verification record is saved from it."""
+    path = resolve_document_path(document)
+    if path.exists():
+        result = extract_document_text(path)
+        record = claim_copy_retention.verification_record(result.text)
+        crud_document.update_analysis_fields(
+            db, document, Extracted_Text=record, OCR_Confidence_Score=Decimal(str(round(result.confidence, 4)))
+        )
+        db.commit()
+        db.refresh(document)
+        return ExtractionResult(
+            text=record, confidence=result.confidence, status=result.status,
+            limitations=result.limitations + [
+                "This copy was stored before copies stopped being kept; only its registration / "
+                "policy-number details were saved from it."
+            ],
+        )
+    limitations = [_COPY_NOT_RETAINED_NOTE]
+    if not document.Extracted_Text:
+        limitations.append(
+            "No registration or policy number was found when it was uploaded, or its text could not be read then."
+        )
+    return ExtractionResult(
+        text=document.Extracted_Text or "",
+        confidence=float(document.OCR_Confidence_Score or 0),
+        status="copy_not_retained",
+        limitations=limitations,
+    )
 
 
 def analyze_claim_documents(db: Session, claim: Claim) -> tuple[list[Document], list[ExtractionResult], CompletenessResult]:

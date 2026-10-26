@@ -25,6 +25,7 @@ const EXTRACTION_STATUS_LABEL = {
   partial: "Partially extracted",
   empty: "No text found",
   unavailable: "Unavailable",
+  copy_not_retained: "Copy not kept - saved details shown",
 };
 
 export default function DocumentsPage() {
@@ -128,6 +129,12 @@ export default function DocumentsPage() {
               <Row label="Submitted" value={formatDate(selectedDocument.Document_Submitted_Date)} />
               <Row label="Status" value={selectedDocument.Document_Status} />
               <Row label="Verification Status" value={selectedDocument.Verification_Status} />
+              {selectedDocument.Copy_Retained === false && (
+                <Row
+                  label="Copy Kept"
+                  value="No - this copy was read when you uploaded it and is not stored. Only the details needed for checking were saved."
+                />
+              )}
             </dl>
 
             <div className="border-t border-border pt-4">
