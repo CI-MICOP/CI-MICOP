@@ -15,6 +15,10 @@ class EntityConsistencyOut(BaseModel):
     matched_document_type: str | None
     matched_document_id: str | None
     explanation: str
+    # Added alongside `status`, never replacing it: VERIFIED | MISMATCH |
+    # NOT_SUBMITTED | REFERENCE_UNAVAILABLE | INVALID_OR_EXPIRED |
+    # VERIFICATION_UNAVAILABLE | INCONCLUSIVE (services/verification_outcome.py).
+    outcome: str | None = None
 
 
 class DocumentConsistencyOut(BaseModel):

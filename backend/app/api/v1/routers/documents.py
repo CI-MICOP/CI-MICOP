@@ -131,6 +131,7 @@ def analyze_document(
                 matched_document_type=consistency.registration.matched_document_type,
                 matched_document_id=consistency.registration.matched_document_id,
                 explanation=consistency.registration.explanation,
+                outcome=consistency.registration.outcome or None,
             ),
             policy=EntityConsistencyOut(
                 status=consistency.policy.status,
@@ -139,6 +140,7 @@ def analyze_document(
                 matched_document_type=consistency.policy.matched_document_type,
                 matched_document_id=consistency.policy.matched_document_id,
                 explanation=consistency.policy.explanation,
+                outcome=consistency.policy.outcome or None,
             ),
         ),
         limitations=result.limitations,

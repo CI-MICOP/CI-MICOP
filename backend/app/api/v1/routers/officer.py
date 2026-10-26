@@ -39,7 +39,9 @@ from app.schemas.semantic_consistency import (
     AccidentDetailsConsistencyOut,
     ClaimSemanticConsistencyOut,
     DocumentRefOut,
+    DocumentValidityOut,
     SemanticConsistencyOut,
+    ValidityCheckOut,
 )
 from app.schemas.surveyor import SurveyorInspectionOut
 from app.services import (
@@ -49,6 +51,7 @@ from app.services import (
     claim_decision,
     document_analysis,
     document_consistency,
+    document_validity,
     entity_extraction,
     evidence_duplication,
     evidence_quality,
@@ -218,6 +221,7 @@ def analyze_claim_documents(
                 matched_document_type=consistency.registration.matched_document_type,
                 matched_document_id=consistency.registration.matched_document_id,
                 explanation=consistency.registration.explanation,
+                outcome=consistency.registration.outcome or None,
             ),
             policy=EntityConsistencyOut(
                 status=consistency.policy.status,
@@ -226,6 +230,7 @@ def analyze_claim_documents(
                 matched_document_type=consistency.policy.matched_document_type,
                 matched_document_id=consistency.policy.matched_document_id,
                 explanation=consistency.policy.explanation,
+                outcome=consistency.policy.outcome or None,
             ),
         )
 
@@ -315,6 +320,11 @@ def analyze_claim_semantic_consistency(
     narrative = semantic_consistency.compare_claim_narrative(db, claim)
     deterministic = document_consistency.compare_claim_documents(db, claim)
     accident = accident_consistency.compare_claim_accident_details(db, claim)
+    validity = document_validity.check_claim_validity(db, claim)
+
+    def _validity_out(check):
+        return ValidityCheckOut(outcome=check.outcome, explanation=check.explanation,
+                                evidence=check.evidence, limitations=check.limitations)
 
     def _ref_out(ref):
         if ref is None:
@@ -329,6 +339,7 @@ def analyze_claim_semantic_consistency(
             matched_document_type=result.matched_document_type,
             matched_document_id=result.matched_document_id,
             explanation=result.explanation,
+            outcome=result.outcome or None,
         )
 
     return ClaimSemanticConsistencyOut(
@@ -349,6 +360,7 @@ def analyze_claim_semantic_consistency(
                 matched_document_type=deterministic.registration.matched_document_type,
                 matched_document_id=deterministic.registration.matched_document_id,
                 explanation=deterministic.registration.explanation,
+                outcome=deterministic.registration.outcome or None,
             ),
             policy=EntityConsistencyOut(
                 status=deterministic.policy.status,
@@ -357,12 +369,16 @@ def analyze_claim_semantic_consistency(
                 matched_document_type=deterministic.policy.matched_document_type,
                 matched_document_id=deterministic.policy.matched_document_id,
                 explanation=deterministic.policy.explanation,
+                outcome=deterministic.policy.outcome or None,
             ),
         ),
         accident_details=AccidentDetailsConsistencyOut(
             accident_date=_entity_out(accident.accident_date),
             fir_number=_entity_out(accident.fir_number),
             accident_time=_entity_out(accident.accident_time),
+        ),
+        validity=DocumentValidityOut(
+            **{name: _validity_out(getattr(validity, name)) for name in DocumentValidityOut.model_fields}
         ),
     )
 

@@ -11,7 +11,7 @@ a bundled long-term third-party cover) is checked against that single
 period, and the result says so.
 
 Read-time only: never writes to the database. Not exposed through an
-endpoint by itself.
+endpoint by itself; officers see it through document_validity.check_policy.
 """
 
 from __future__ import annotations

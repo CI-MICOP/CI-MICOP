@@ -34,6 +34,7 @@ from app.crud import vehicle as crud_vehicle
 from app.db_models.claim import Claim
 from app.db_models.document import Document
 from app.services import entity_extraction
+from app.services import verification_outcome as vo
 
 STATUS_MATCH = "MATCH"
 STATUS_MISMATCH = "MISMATCH"
@@ -67,6 +68,8 @@ class ConsistencyResult:
     matched_document_type: str | None
     matched_document_id: str | None
     explanation: str
+    # The finer distinction behind `status` (services/verification_outcome.py).
+    outcome: str = ""
 
 
 @dataclass
@@ -75,8 +78,11 @@ class ClaimConsistencyResult:
     policy: ConsistencyResult
 
 
-def _unavailable(structured_value: str | None, matched_document_type: str | None, explanation: str) -> ConsistencyResult:
+def _unavailable(
+    structured_value: str | None, matched_document_type: str | None, explanation: str, outcome: str
+) -> ConsistencyResult:
     return ConsistencyResult(
+        outcome=outcome,
         status=STATUS_UNAVAILABLE,
         structured_value=structured_value,
         extracted_value=None,
@@ -118,6 +124,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
         return _unavailable(
             structured_reference, None,
             f"{label} could not be compared because no {target_type} document exists for this claim.",
+            vo.NOT_SUBMITTED,
         )
 
     pairs = _candidate_document_pairs(relevant_documents, entity_type)
@@ -125,12 +132,14 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
         return _unavailable(
             structured_reference, target_type,
             f"{label} could not be compared because no usable entity was extracted from this claim's {target_type} document(s).",
+            vo.no_text_outcome(relevant_documents),
         )
 
     if not structured_reference:
         return _unavailable(
             None, target_type,
             f"{label} could not be compared because this claim has no structured reference value on file.",
+            vo.REFERENCE_UNAVAILABLE,
         )
 
     normalized_reference = normalize(structured_reference)
@@ -148,6 +157,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
         if candidate.normalized_value == normalized_reference:
             return ConsistencyResult(
                 status=STATUS_MATCH,
+            outcome=vo.VERIFIED,
                 structured_value=structured_reference,
                 extracted_value=candidate.value,
                 matched_document_type=document.Document_Type,
@@ -156,6 +166,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
             )
         return ConsistencyResult(
             status=STATUS_MISMATCH,
+            outcome=vo.MISMATCH,
             structured_value=structured_reference,
             extracted_value=candidate.value,
             matched_document_type=document.Document_Type,
@@ -172,6 +183,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
         candidate, document = _pair_for(normalized_reference)
         return ConsistencyResult(
             status=STATUS_MATCH,
+            outcome=vo.VERIFIED,
             structured_value=structured_reference,
             extracted_value=candidate.value,
             matched_document_type=document.Document_Type,
@@ -196,6 +208,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
         candidate, document = pairs[0]
         return ConsistencyResult(
             status=STATUS_MISMATCH,
+            outcome=vo.MISMATCH,
             structured_value=structured_reference,
             extracted_value=candidate.value,
             matched_document_type=document.Document_Type,
@@ -210,6 +223,7 @@ def _compare_entity(entity_type: str, structured_reference: str | None, document
         structured_reference, target_type,
         f"{label} could not be reliably compared - multiple disagreeing candidates were found in this "
         "claim's documents and at least one is a low-confidence, unverified-format candidate.",
+        vo.INCONCLUSIVE,
     )
 
 

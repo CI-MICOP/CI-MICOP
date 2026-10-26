@@ -38,6 +38,7 @@ from app.services.document_consistency import (
     STATUS_UNAVAILABLE,
     ConsistencyResult,
 )
+from app.services import verification_outcome as vo
 
 FIR_DOCUMENT_TYPES = ("FIR",)
 DATE_DOCUMENT_TYPES = ("FIR", "Survey Report")
@@ -246,8 +247,9 @@ class AccidentConsistencyResult:
     accident_time: ConsistencyResult
 
 
-def _unavailable(structured_value: str | None, explanation: str) -> ConsistencyResult:
+def _unavailable(structured_value: str | None, explanation: str, outcome: str) -> ConsistencyResult:
     return ConsistencyResult(
+        outcome=outcome,
         status=STATUS_UNAVAILABLE,
         structured_value=structured_value,
         extracted_value=None,
@@ -259,6 +261,7 @@ def _unavailable(structured_value: str | None, explanation: str) -> ConsistencyR
 
 def _result(status, structured_value, extracted_value, document, explanation) -> ConsistencyResult:
     return ConsistencyResult(
+        outcome=vo.VERIFIED if status == STATUS_MATCH else vo.MISMATCH,
         status=status,
         structured_value=structured_value,
         extracted_value=extracted_value,
@@ -271,7 +274,9 @@ def _result(status, structured_value, extracted_value, document, explanation) ->
 def compare_fir_number(reference: str | None, documents: list[Document]) -> ConsistencyResult:
     firs = [d for d in documents if d.Document_Type in FIR_DOCUMENT_TYPES]
     if not firs:
-        return _unavailable(reference, "FIR number could not be compared because no FIR document exists for this claim.")
+        return _unavailable(
+            reference, "FIR number could not be compared because no FIR document exists for this claim.", vo.NOT_SUBMITTED
+        )
 
     pairs = [(value, d) for d in firs for value in extract_fir_numbers(d.Extracted_Text)]
     if not pairs:
@@ -279,9 +284,13 @@ def compare_fir_number(reference: str | None, documents: list[Document]) -> Cons
             reference,
             "FIR number could not be compared because no labelled FIR number (e.g. 'FIR No: ...') "
             "was found in this claim's FIR document text.",
+            vo.no_text_outcome(firs),
         )
     if not reference:
-        return _unavailable(None, "FIR number could not be compared because this claim has no FIR number on record.")
+        return _unavailable(
+            None, "FIR number could not be compared because this claim has no FIR number on record.",
+            vo.REFERENCE_UNAVAILABLE,
+        )
 
     normalized_reference = normalize_fir_number(reference)
     distinct = {normalize_fir_number(value) for value, _ in pairs}
@@ -304,6 +313,7 @@ def compare_fir_number(reference: str | None, documents: list[Document]) -> Cons
         reference,
         "FIR number could not be reliably compared - several different FIR numbers were found in this "
         "claim's FIR document text and none matches the accident record.",
+        vo.INCONCLUSIVE,
     )
 
 
@@ -312,7 +322,8 @@ def compare_accident_date(reference: date | None, documents: list[Document]) -> 
     sources = [d for d in documents if d.Document_Type in DATE_DOCUMENT_TYPES]
     if not sources:
         return _unavailable(
-            reference_text, "Accident date could not be compared because no FIR or Survey Report document exists for this claim."
+            reference_text, "Accident date could not be compared because no FIR or Survey Report document exists for this claim.",
+            vo.NOT_SUBMITTED,
         )
 
     stated = [(raw, parsed, d) for d in sources for raw, parsed in extract_accident_dates(d.Extracted_Text)]
@@ -321,9 +332,13 @@ def compare_accident_date(reference: date | None, documents: list[Document]) -> 
             reference_text,
             "Accident date could not be compared because no labelled accident date (e.g. 'Date of accident: ...') "
             "was found in this claim's FIR or Survey Report text.",
+            vo.no_text_outcome(sources),
         )
     if reference is None:
-        return _unavailable(None, "Accident date could not be compared because this claim has no accident date on record.")
+        return _unavailable(
+            None, "Accident date could not be compared because this claim has no accident date on record.",
+            vo.REFERENCE_UNAVAILABLE,
+        )
 
     differing = [(raw, parsed, d) for raw, parsed, d in stated if parsed != reference]
     if not differing:
@@ -348,7 +363,8 @@ def compare_accident_time(reference: time | None, documents: list[Document]) -> 
     sources = [d for d in documents if d.Document_Type in DATE_DOCUMENT_TYPES]
     if not sources:
         return _unavailable(
-            reference_text, "Accident time could not be compared because no FIR or Survey Report document exists for this claim."
+            reference_text, "Accident time could not be compared because no FIR or Survey Report document exists for this claim.",
+            vo.NOT_SUBMITTED,
         )
 
     stated = [(raw, parsed, d) for d in sources for raw, parsed in extract_accident_times(d.Extracted_Text)]
@@ -357,12 +373,14 @@ def compare_accident_time(reference: time | None, documents: list[Document]) -> 
             reference_text,
             "Accident time could not be compared because no labelled accident time (e.g. 'Time of accident: ...') "
             "was found in this claim's FIR or Survey Report text.",
+            vo.no_text_outcome(sources),
         )
     if not recorded:
         return _unavailable(
             None,
             "Accident time could not be compared because this claim has no accident time on record "
             "(00:00 is stored when the time is left blank).",
+            vo.REFERENCE_UNAVAILABLE,
         )
 
     differing = [(raw, p, d) for raw, p, d in stated if _minutes_apart(p, reference) > TIME_TOLERANCE_MINUTES]
@@ -391,9 +409,9 @@ def compare_claim_accident_details(db: Session, claim: Claim) -> AccidentConsist
     if accident is None:
         missing = "this claim has no accident record on file"
         return AccidentConsistencyResult(
-            accident_date=_unavailable(None, f"Accident date could not be compared because {missing}."),
-            fir_number=_unavailable(None, f"FIR number could not be compared because {missing}."),
-            accident_time=_unavailable(None, f"Accident time could not be compared because {missing}."),
+            accident_date=_unavailable(None, f"Accident date could not be compared because {missing}.", vo.REFERENCE_UNAVAILABLE),
+            fir_number=_unavailable(None, f"FIR number could not be compared because {missing}.", vo.REFERENCE_UNAVAILABLE),
+            accident_time=_unavailable(None, f"Accident time could not be compared because {missing}.", vo.REFERENCE_UNAVAILABLE),
         )
     return AccidentConsistencyResult(
         accident_date=compare_accident_date(accident.Accident_Date, documents),

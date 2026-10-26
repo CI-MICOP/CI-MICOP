@@ -13,9 +13,12 @@ stored copy of a sensitive document:
     extract_document_bytes), and never writes the file to
     DOCUMENT_STORAGE_ROOT;
   - Document.Extracted_Text then holds only `verification_record(text)` -
-    the label-and-value spans that entity_extraction's registration and
-    policy-number patterns match. Names, addresses, dates of birth and the
-    rest of the document are dropped.
+    the label-and-value spans that the checks read: entity_extraction's
+    registration and policy-number patterns, and document_fields' labelled
+    RC validity date, licence number, licence validity date and licence
+    classes (needed for the validity checks in document_validity). Names,
+    addresses, dates of birth, issue dates and the rest of the document are
+    dropped.
 
 The Document row itself is still created, because claim completeness
 (document_analysis.calculate_claim_document_completeness) counts it.
@@ -25,7 +28,7 @@ evidence and are stored as before.
 
 from __future__ import annotations
 
-from app.services import entity_extraction
+from app.services import document_fields, entity_extraction
 
 NOT_RETAINED_DOCUMENT_TYPES = frozenset({"Driving Licence", "RC", "Insurance Policy"})
 
@@ -36,6 +39,7 @@ _VERIFICATION_PATTERNS = (
     entity_extraction._REG_KEYWORD,
     entity_extraction._POLICY_STRICT,
     entity_extraction._POLICY_KEYWORD,
+    *document_fields.RETAINED_FIELD_PATTERNS,
 )
 
 

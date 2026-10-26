@@ -49,3 +49,24 @@ class ClaimSemanticConsistencyOut(BaseModel):
     narrative: SemanticConsistencyOut
     deterministic: DocumentConsistencyOut
     accident_details: AccidentDetailsConsistencyOut
+    # RC / licence validity and policy cover on the accident date
+    # (services/document_validity.py). Optional so older clients still parse.
+    validity: "DocumentValidityOut | None" = None
+
+
+class ValidityCheckOut(BaseModel):
+    outcome: str  # services/verification_outcome.py
+    explanation: str
+    evidence: dict[str, str | None]
+    limitations: list[str]
+
+
+class DocumentValidityOut(BaseModel):
+    rc_validity: ValidityCheckOut
+    licence_number: ValidityCheckOut
+    licence_validity: ValidityCheckOut
+    licence_class: ValidityCheckOut
+    policy_cover: ValidityCheckOut
+
+
+ClaimSemanticConsistencyOut.model_rebuild()
