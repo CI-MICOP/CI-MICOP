@@ -1,218 +1,128 @@
-"""Tests for POST /api/v1/surveyor/evidence (Step 5.8.6).
+"""Tests for surveyor evidence: the retired file upload (POST
+/api/v1/surveyor/evidence, now 410) and in-app camera capture (POST
+/api/v1/surveyor/evidence/capture).
 
-Per project rules these run against the real PostgreSQL database and the
-real local filesystem storage (see tests/conftest.py); every evidence row
-and physical file created here is removed afterward regardless of
-outcome.
+Database-backed (see tests/conftest.py) and using the real local
+filesystem storage; every evidence row and file created here is removed
+afterward by the surveyor_records fixture. Deferred until a test database
+is available - tests/test_survey_report_rules.py covers the same rules
+without a database.
 """
-
-import re
-from pathlib import Path
 
 import pytest
 
-import app.services.evidence_upload as evidence_upload_module
 from app.db.session import SessionLocal
 from app.db_models.evidence import Evidence
-from app.services import evidence_storage
+from app.services import evidence_capture, evidence_storage
 from tests.conftest import auth_headers
+from tests.surveyor_records import active_claim1_inspection, real_jpeg, surveyor_records  # noqa: F401 - fixtures
 
-JPG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 20
-PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 20
-
-EVIDENCE_ID_PATTERN = re.compile(r"^EVD-\d{8}-[0-9A-F]{6}$")
-
-FORM_FIELDS = {
-    "evidence_type": "Damage Photo",
-    "evidence_date": "2026-09-10",
-    "evidence_source": "Surveyor",
-}
+# Damage/evidence writes need an active, scheduled, complete inspection
+# (services/surveyor_workflow.py); seed_data inspection1 is already submitted.
+pytestmark = pytest.mark.usefixtures("active_claim1_inspection")
 
 
-def _fields(claim_id, **overrides):
-    body = {"claim_id": claim_id, **FORM_FIELDS}
-    body.update(overrides)
-    return body
+def _capture(client, token, claim_id, content=None, **fields):
+    data = {"claim_id": claim_id, "evidence_type": "Vehicle Damage Close-up", "latitude": "13.08", "longitude": "80.27", "accuracy_m": "10"}
+    data.update(fields)
+    return client.post(
+        "/api/v1/surveyor/evidence/capture",
+        headers=auth_headers(token) if token else {},
+        data=data,
+        files={"photo": ("capture.jpg", real_jpeg() if content is None else content, "image/jpeg")},
+    )
 
 
 @pytest.fixture()
 def created_evidence_ids():
+    """Evidence rows other suites create through _upload, removed afterwards
+    with their photos and capture records."""
     ids: list[str] = []
     yield ids
     if not ids:
         return
     db = SessionLocal()
     try:
-        rows = db.query(Evidence).filter(Evidence.Evidence_ID.in_(ids)).all()
-        for row in rows:
+        for row in db.query(Evidence).filter(Evidence.Evidence_ID.in_(ids)).all():
             path = evidence_storage.storage_path_for(row.Claim_ID, row.Evidence_ID, row.File_Name)
             evidence_storage.delete_file(path)
+            evidence_storage.delete_file(evidence_capture.metadata_path_for(path))
         db.query(Evidence).filter(Evidence.Evidence_ID.in_(ids)).delete(synchronize_session=False)
         db.commit()
     finally:
         db.close()
 
 
-def _upload(client, token, claim_id, filename, content, content_type="image/jpeg", **field_overrides):
-    headers = auth_headers(token) if token else {}
-    return client.post(
-        "/api/v1/surveyor/evidence",
-        headers=headers,
-        data=_fields(claim_id, **field_overrides),
-        files={"file": (filename, content, content_type)},
-    )
+def _upload(client, token, claim_id, filename, content, content_type="image/jpeg", **fields):
+    """Stores a surveyor photo for suites that need evidence rows (duplicate,
+    quality and live-signal checks). The file-upload endpoint is retired, so
+    this goes through the camera-capture endpoint - the only way a surveyor
+    photo is stored. `filename` and `content_type` are accepted for the
+    callers' signature; the server names the file and checks the bytes."""
+    return _capture(client, token, claim_id, content, **fields)
 
 
-# ---------------------------------------------------------------- 9/10/11/12: auth + role + assignment
+def test_file_upload_endpoint_is_retired(surveyor_records):
+    assert surveyor_records.legacy_upload().status_code == 410
 
 
-def test_unauthenticated_evidence_upload_returns_401(client, seed_data):
-    response = _upload(client, None, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    assert response.status_code == 401
+@pytest.mark.parametrize("token_fixture", ["customer1_token", "officer_token", "admin_token"])
+def test_only_surveyors_can_capture(client, seed_data, request, token_fixture):
+    token = request.getfixturevalue(token_fixture)
+    assert _capture(client, token, seed_data["claim1"]).status_code == 403
 
 
-def test_customer_cannot_upload_evidence(client, customer1_token, seed_data):
-    response = _upload(client, customer1_token, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    assert response.status_code == 403
+def test_unauthenticated_capture_returns_401(client, seed_data):
+    assert _capture(client, None, seed_data["claim1"]).status_code == 401
 
 
-def test_officer_cannot_upload_evidence(client, officer_token, seed_data):
-    response = _upload(client, officer_token, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    assert response.status_code == 403
+def test_unassigned_and_other_surveyors_claims_are_rejected(client, surveyor_token, unassigned_claim, other_surveyor_claim):
+    assert _capture(client, surveyor_token, unassigned_claim).status_code == 403
+    assert _capture(client, surveyor_token, other_surveyor_claim["claim_id"]).status_code == 403
 
 
-def test_unassigned_surveyor_evidence_upload_rejected(client, surveyor_token, unassigned_claim):
-    response = _upload(client, surveyor_token, unassigned_claim, "photo.jpg", JPG_BYTES)
-    assert response.status_code == 403
-
-
-def test_wrong_surveyor_evidence_upload_rejected(client, surveyor_token, other_surveyor_claim):
-    response = _upload(client, surveyor_token, other_surveyor_claim["claim_id"], "photo.jpg", JPG_BYTES)
-    assert response.status_code == 403
-
-
-# ---------------------------------------------------------------- 13/14/15/16: valid upload + persistence
-
-
-def test_assigned_surveyor_evidence_upload_succeeds(client, surveyor_token, seed_data, created_evidence_ids):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "damage.jpg", JPG_BYTES)
+def test_capture_persists_photo_metadata_and_capture_record(client, surveyor_token, seed_data, surveyor_records):
+    response = _capture(client, surveyor_token, seed_data["claim1"], surveyor_employee_id="FORGED")
     assert response.status_code == 201, response.text
     body = response.json()
-    created_evidence_ids.append(body["Evidence_ID"])
-
-    assert body["Claim_ID"] == seed_data["claim1"]
-    assert body["Evidence_Type"] == "Damage Photo"
+    surveyor_records.evidence_ids.append(body["Evidence_ID"])
     assert body["Evidence_Source"] == "Surveyor"
-    assert body["Verification_Status"] == "Pending"
-
-
-def test_png_upload_also_succeeds(client, surveyor_token, seed_data, created_evidence_ids):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.png", PNG_BYTES, content_type="image/png")
-    assert response.status_code == 201, response.text
-    created_evidence_ids.append(response.json()["Evidence_ID"])
-
-
-def test_evidence_id_generated_server_side(client, surveyor_token, seed_data, created_evidence_ids):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    body = response.json()
-    created_evidence_ids.append(body["Evidence_ID"])
-    assert EVIDENCE_ID_PATTERN.match(body["Evidence_ID"])
-
-
-def test_physical_file_exists_after_successful_upload(client, surveyor_token, seed_data, created_evidence_ids):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    body = response.json()
-    created_evidence_ids.append(body["Evidence_ID"])
+    assert body["Evidence_Type"] == "Vehicle Damage Close-up"
+    assert body["capture"]["server"]["surveyor_employee_id"] == seed_data["employee_surveyor"]
+    assert body["qualifying_capture"] is True
 
     path = evidence_storage.storage_path_for(body["Claim_ID"], body["Evidence_ID"], body["File_Name"])
-    assert path.exists()
-    assert path.read_bytes() == JPG_BYTES
+    assert path.is_file()
+    assert evidence_capture.metadata_path_for(path).is_file()
 
 
-def test_database_metadata_persists(client, surveyor_token, seed_data, created_evidence_ids):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    evidence_id = response.json()["Evidence_ID"]
-    created_evidence_ids.append(evidence_id)
-
-    db = SessionLocal()
-    try:
-        row = db.query(Evidence).filter(Evidence.Evidence_ID == evidence_id).first()
-        assert row is not None
-        assert row.Claim_ID == seed_data["claim1"]
-        assert row.Verification_Status == "Pending"
-        # Honest "not yet analyzed" placeholders, never fabricated AI output.
-        assert row.Evidence_Confidence_Score == 0
-        assert row.Vehicle_Damage_Detected is False
-    finally:
-        db.close()
+@pytest.mark.parametrize(
+    "content, fields",
+    [
+        (b"\xff\xd8\xff" + b"garbage" * 5, {}),
+        (b"%PDF-1.7", {}),
+        (None, {"evidence_type": "Damage Photo"}),  # dataset types are not capture types
+        (None, {"evidence_date": "2099-01-01"}),
+        (None, {"latitude": "123"}),
+    ],
+)
+def test_invalid_captures_are_rejected(client, surveyor_token, seed_data, content, fields):
+    assert _capture(client, surveyor_token, seed_data["claim1"], content=content, **fields).status_code == 400
 
 
-# ---------------------------------------------------------------- 17: rollback
+def test_surveyor_sees_only_their_own_captures(client, surveyor_token, seed_data, surveyor_records):
+    body = _capture(client, surveyor_token, seed_data["claim1"]).json()
+    surveyor_records.evidence_ids.append(body["Evidence_ID"])
+    detail = client.get(f"/api/v1/surveyor/claims/{seed_data['claim1']}", headers=auth_headers(surveyor_token)).json()
+    assert [e["Evidence_ID"] for e in detail["evidence"]] == [body["Evidence_ID"]]
+    image = client.get(f"/api/v1/surveyor/evidence/{body['Evidence_ID']}/image", headers=auth_headers(surveyor_token))
+    assert image.status_code == 200 and image.content.startswith(b"\xff\xd8\xff")
 
 
-def test_failed_database_operation_removes_saved_file(client, surveyor_token, seed_data, monkeypatch):
-    fixed_evidence_id = "EVD-19990101-ABCDEF"
-    monkeypatch.setattr(evidence_upload_module.crud_evidence, "generate_evidence_id", lambda db: fixed_evidence_id)
-
-    def _boom(db, evidence):
-        raise RuntimeError("simulated database failure")
-
-    monkeypatch.setattr(evidence_upload_module.crud_evidence, "create", _boom)
-
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.jpg", JPG_BYTES)
-    assert response.status_code == 500
-
-    expected_path = evidence_storage.storage_path_for(seed_data["claim1"], fixed_evidence_id, "photo.jpg")
-    assert not expected_path.exists()
-
-    db = SessionLocal()
-    try:
-        assert db.query(Evidence).filter(Evidence.Evidence_ID == fixed_evidence_id).first() is None
-    finally:
-        db.close()
-
-
-# ---------------------------------------------------------------- 18/19: file validation
-
-
-def test_invalid_file_type_rejected(client, surveyor_token, seed_data):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "malware.exe", b"MZ\x90\x00", content_type="application/octet-stream")
-    assert response.status_code == 400
-
-
-def test_empty_file_rejected(client, surveyor_token, seed_data):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "empty.jpg", b"")
-    assert response.status_code == 400
-
-
-def test_content_not_matching_extension_rejected(client, surveyor_token, seed_data):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "fake.jpg", b"not really a jpeg")
-    assert response.status_code == 400
-
-
-def test_invalid_evidence_type_rejected(client, surveyor_token, seed_data):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.jpg", JPG_BYTES, evidence_type="Not A Real Type")
-    assert response.status_code == 400
-
-
-def test_invalid_evidence_source_rejected(client, surveyor_token, seed_data):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "photo.jpg", JPG_BYTES, evidence_source="Nobody")
-    assert response.status_code == 400
-
-
-# ---------------------------------------------------------------- 20: path traversal
-
-
-def test_filename_path_traversal_is_prevented(client, surveyor_token, seed_data, created_evidence_ids):
-    response = _upload(client, surveyor_token, seed_data["claim1"], "../../../evil.jpg", JPG_BYTES)
-    assert response.status_code == 201, response.text
-    body = response.json()
-    created_evidence_ids.append(body["Evidence_ID"])
-
-    storage_root = Path(evidence_upload_module.settings.EVIDENCE_STORAGE_ROOT).resolve()
-    stored_path = evidence_storage.storage_path_for(body["Claim_ID"], body["Evidence_ID"], "../../../evil.jpg")
-
-    assert storage_root in stored_path.parents
-    assert stored_path.parent == storage_root / seed_data["claim1"]
-    assert stored_path.exists()
-    assert ".." not in stored_path.name
+def test_customer_cannot_see_surveyor_photos(client, customer1_token, surveyor_token, seed_data, surveyor_records):
+    body = _capture(client, surveyor_token, seed_data["claim1"]).json()
+    surveyor_records.evidence_ids.append(body["Evidence_ID"])
+    for path in (f"/api/v1/surveyor/evidence/{body['Evidence_ID']}/image", f"/api/v1/surveyor/claims/{seed_data['claim1']}"):
+        assert client.get(path, headers=auth_headers(customer1_token)).status_code == 403
+    documents = client.get(f"/api/v1/documents?claim_id={seed_data['claim1']}", headers=auth_headers(customer1_token)).json()
+    assert body["Evidence_ID"] not in {d["Document_ID"] for d in documents}

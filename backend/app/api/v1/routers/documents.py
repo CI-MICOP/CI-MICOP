@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -9,10 +11,61 @@ from app.schemas.document import DocumentOut
 from app.schemas.document_analysis import DocumentAnalysisOut, DocumentCompletenessOut
 from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
-from app.services import document_analysis, document_consistency, document_upload, entity_extraction
+from app.services import claim_photos, document_analysis, document_consistency, document_upload, entity_extraction
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+def _hidden_from(current_user: AuthenticationUser, document) -> bool:
+    """Customer accident photos are customer evidence: a surveyor captures
+    their own photos and never sees the customer's (they stay available to
+    the customer and to claims officers). The claim's other documents - RC,
+    driving licence, policy, FIR, estimates - stay visible to the surveyor
+    assigned to the claim."""
+    return current_user.Role == "Surveyor" and document.Document_Type == claim_photos.CUSTOMER_ACCIDENT_PHOTO_TYPE
+
+
+def _get_visible_document_or_404(db: Session, document_id: str, current_user: AuthenticationUser):
+    """A document on a claim the caller may access (the customer's own
+    claim, a claim assigned to the surveyor, or any claim for officers),
+    checked against the database. A missing document, one on someone
+    else's claim and one hidden from the caller all get the same 404, so
+    a guessed ID reveals nothing about another customer's documents."""
+    not_found = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    document = crud_document.get(db, document_id)
+    if document is None:
+        raise not_found
+    try:
+        get_claim_or_403(db, document.Claim_ID, current_user)
+    except HTTPException as exc:
+        raise not_found from exc
+    if _hidden_from(current_user, document):
+        raise not_found
+    return document
+
+
+def _without_accident_photos(completeness, claim_type: str):
+    """Completeness as a surveyor may see it: whether the customer's
+    accident photos are present is not disclosed, so that type is left out
+    of the required/present/missing lists and the ratio."""
+    label = claim_photos.CUSTOMER_ACCIDENT_PHOTO_TYPE
+    required = [t for t in completeness.required if t != label]
+    present = [t for t in completeness.present if t != label]
+    missing = [t for t in completeness.missing if t != label]
+    if not completeness.available or required == completeness.required:
+        return replace(completeness, required=required, present=present, missing=missing)
+    return replace(
+        completeness,
+        required=required,
+        present=present,
+        missing=missing,
+        ratio=(len(present) / len(required)) if required else 1.0,
+        explanation=(
+            f"{len(present)} of {len(required)} required document type(s) are present for this "
+            f"'{claim_type}' claim (customer accident photos are not shown to surveyors)."
+        ),
+    )
 
 
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
@@ -37,7 +90,7 @@ def list_documents(
     db: Session = Depends(get_db),
 ):
     get_claim_or_403(db, claim_id, current_user)
-    return crud_document.list_by_claim(db, claim_id)
+    return [d for d in crud_document.list_by_claim(db, claim_id) if not _hidden_from(current_user, d)]
 
 
 @router.get("/{document_id}", response_model=DocumentOut)
@@ -46,11 +99,7 @@ def read_document(
     current_user: AuthenticationUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    document = crud_document.get(db, document_id)
-    if document is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    get_claim_or_403(db, document.Claim_ID, current_user)
-    return document
+    return _get_visible_document_or_404(db, document_id, current_user)
 
 
 @router.post("/{document_id}/analyze", response_model=DocumentAnalysisOut)
@@ -68,16 +117,15 @@ def analyze_document(
     keeps a single-document view from silently rewriting every other
     document row on the claim. Analysis-only: never touches
     Final_Decision, Approved_Amount, or claim_decision_audit."""
-    document = crud_document.get(db, document_id)
-    if document is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    get_claim_or_403(db, document.Claim_ID, current_user)
+    document = _get_visible_document_or_404(db, document_id, current_user)
 
     result = document_analysis.analyze_document(db, document)
 
     claim = crud_claim.get(db, document.Claim_ID)
-    documents = crud_document.list_by_claim(db, document.Claim_ID)
+    documents = [d for d in crud_document.list_by_claim(db, document.Claim_ID) if not _hidden_from(current_user, d)]
     completeness = document_analysis.calculate_claim_document_completeness(claim.Claim_Type, documents)
+    if current_user.Role == "Surveyor":
+        completeness = _without_accident_photos(completeness, claim.Claim_Type)
 
     # Step 5.8.13-A: best-effort, deterministic, read-time-only entity
     # extraction from the text just produced above - never persisted, never

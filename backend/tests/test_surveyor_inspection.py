@@ -15,6 +15,7 @@ import pytest
 from app.db.session import SessionLocal
 from app.db_models.surveyor_inspection import SurveyorInspection
 from tests.conftest import auth_headers
+from tests.surveyor_records import surveyor_records  # noqa: F401 - fixture
 
 # unassigned_claim and other_surveyor_claim fixtures live in conftest.py -
 # shared with tests/test_vehicle_damage.py and tests/test_evidence.py.
@@ -256,13 +257,8 @@ def test_incomplete_report_cannot_be_submitted(client, surveyor_token, seed_data
         db.close()
 
 
-def test_report_submission_persists_and_completes_status(client, surveyor_token, seed_data, created_inspection_ids):
-    created = client.post(
-        "/api/v1/surveyor/inspections",
-        json={"Claim_ID": seed_data["claim1"]},
-        headers=auth_headers(surveyor_token),
-    ).json()
-    created_inspection_ids.append(created["Inspection_ID"])
+def test_report_submission_persists_and_completes_status(client, surveyor_token, seed_data, surveyor_records):
+    created = surveyor_records.start_inspection()
 
     client.patch(
         f"/api/v1/surveyor/inspections/{created['Inspection_ID']}",
@@ -274,6 +270,11 @@ def test_report_submission_persists_and_completes_status(client, surveyor_token,
         },
         headers=auth_headers(surveyor_token),
     )
+    # Submission also needs the saved records the workflow requires: a
+    # damage record (damage was observed) and a surveyor evidence photo.
+    surveyor_records.add_damage()
+    surveyor_records.capture_photo()
+
     response = client.patch(
         f"/api/v1/surveyor/inspections/{created['Inspection_ID']}",
         json={"Survey_Report_Submitted": True},

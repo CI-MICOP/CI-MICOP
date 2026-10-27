@@ -90,3 +90,13 @@ The existing `PATCH` handler already rejected a surveyor updating another survey
 ## 10. Relationship to future ACO assignment
 
 `ai_ml/surveyor_assignment/` (from the earlier ACO research step) computes an *optimized* claim-to-surveyor mapping as a standalone, synthetic-data research prototype - it is not wired into the live database or API, and this task does not integrate it. If/when a real assignment mechanism is built, the natural integration point is whatever creates the *first* `surveyor_inspections` row for a claim (today, nothing does) - ACO's output could inform *which* surveyor that first row names, but the row itself would still need to be created through an explicit, human-in-the-loop action (e.g. a Claims Officer decision), not automatically by this task's endpoint.
+
+## 11. Claim Documents (Claim Details step)
+
+The Claim Details step has a read-only **Claim Documents** panel for the customer's RC, driving licence, policy, FIR, repair estimate and other claim documents (`GET /api/v1/surveyor/claims/{claim_id}/documents`, viewer: `.../documents/{document_id}/content`; `app/services/surveyor_documents.py`).
+
+- **Security boundary.** Every list and view request is checked on the server: Surveyor role, the claim assigned to this surveyor (otherwise 404, the same answer as an unknown claim), the inspection's scheduled date reached (00:00 IST on `Inspection_Date`, as for every other step), the document on that claim, and a type surveyors may view. The file is located from the database row through `document_storage.storage_path_for` (no client path, no public URL) and served inline, `no-store`, `nosniff`, only when its bytes are a PDF, JPEG or PNG.
+- **Before the scheduled date** the panel is locked and the API answers 409; Claim Details itself stays readable.
+- **Repeat viewing.** There is no view count or one-time link: the surveyor can reopen a document as often as needed, and each request is re-authorised, so a removed assignment stops access on the next request. Documents stay viewable after submission; viewing never changes the inspection, damage records, evidence or report.
+- **Not shown:** customer accident photos (customer evidence, kept apart from surveyor-captured evidence). RC, licence and policy copies are listed with their verification status but have no file to open - their copies are not stored (`claim_copy_retention.py`).
+- **Audit.** Each view is logged (`ci_micop.audit.document_access`: surveyor, claim, document, time - never the content). There is no audit table for this yet.

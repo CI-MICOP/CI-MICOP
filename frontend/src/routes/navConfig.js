@@ -57,15 +57,16 @@ export const NAV_CONFIG = {
     { label: "Settings", path: "settings", icon: Settings, hidden: true },
   ],
   Surveyor: [
-    { label: "Dashboard", path: "", icon: LayoutDashboard, dock: true },
-    { label: "Assigned Claims", dockLabel: "Claims", path: "claims", icon: FileText, dock: true },
-    { label: "Inspections", path: "inspections", icon: ClipboardCheck },
-    { label: "Documents", path: "documents", icon: FolderOpen },
-    { label: "Survey Reports", path: "reports", icon: FileBarChart },
-    { label: "History", path: "history", icon: History, dock: true },
-    { label: "Notifications", dockLabel: "Alerts", path: "notifications", icon: Bell, dock: true },
-    { label: "Profile", path: "profile", icon: UserCircle },
-    { label: "Support", path: "support", icon: LifeBuoy, dock: true },
+    { label: "Home", path: "", icon: House, dock: true },
+    // Surveyors work on inspections; the route stays `claims`.
+    { label: "Inspections", path: "claims", icon: ClipboardCheck, dock: true },
+    // The single entry for the inspection and survey-report history page.
+    // (A separate "Survey Reports" item pointed at an unbuilt page.)
+    { label: "Survey Reports", path: "history", icon: FileBarChart, dock: true },
+    { label: "Profile", path: "profile", icon: UserCircle, account: true },
+    { label: "Support", path: "support", icon: LifeBuoy, account: true },
+    // Covered by the header bell; the page itself is still routed.
+    { label: "Notifications", path: "notifications", icon: Bell, hidden: true },
   ],
   "Claims Officer": [
     { label: "Dashboard", path: "", icon: LayoutDashboard, dock: true },

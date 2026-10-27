@@ -14,6 +14,11 @@ import pytest
 from app.db.session import SessionLocal
 from app.db_models.vehicle_damage import VehicleDamage
 from tests.conftest import auth_headers
+from tests.surveyor_records import active_claim1_inspection, surveyor_records  # noqa: F401 - fixtures
+
+# Damage/evidence writes need an active, scheduled, complete inspection
+# (services/surveyor_workflow.py); seed_data inspection1 is already submitted.
+pytestmark = pytest.mark.usefixtures("active_claim1_inspection")
 
 VALID_PAYLOAD = {
     "Damage_Type": "Front Damage",

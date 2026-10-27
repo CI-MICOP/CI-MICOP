@@ -1,45 +1,43 @@
 import { CheckCircle2 } from "lucide-react";
-import { useCallback, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useCallback, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
-import EmptyState from "../../components/common/EmptyState";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
+import ClaimStepNav from "../../components/surveyor/ClaimStepNav";
 import ClaimTabs from "../../components/surveyor/ClaimTabs";
-import { useAuth } from "../../hooks/useAuth";
+import SurveyReportActions from "../../components/surveyor/SurveyReportActions";
+import SurveyReportContent from "../../components/surveyor/SurveyReportContent";
+import { useSurveyorClaim } from "../../components/surveyor/useSurveyorClaim";
+import { StepLockNotice } from "../../components/surveyor/WorkflowNotices";
+import { SUBMIT_CONFIRM_PROMPT, serverMessage, surveyReportErrorMessage } from "../../components/surveyor/workflowProgress";
 import { useFetch } from "../../hooks/useFetch";
-import { getClaimById } from "../../services/claimService";
-import { getAssignedClaimDetail, updateInspection } from "../../services/surveyorService";
+import { getSurveyReport, updateInspection } from "../../services/surveyorService";
 import { getApiErrorMessage } from "../../utils/errors";
 
 export default function SurveyReportPage() {
   const { claimId } = useParams();
-  const { user } = useAuth();
   const [saveState, setSaveState] = useState({ status: "idle", message: "" });
+  const submittingRef = useRef(false);
 
-  const fetchDetail = useCallback(async () => {
-    const [claim, assigned] = await Promise.all([getClaimById(claimId), getAssignedClaimDetail(claimId)]);
-    return { claim, ...assigned };
-  }, [claimId]);
+  const { data, isLoading, error, reload, progress } = useSurveyorClaim(claimId);
 
-  const { data, isLoading, error, reload } = useFetch(fetchDetail, [fetchDetail]);
-  const inspection = data?.inspections.find((i) => i.Surveyor_ID === user?.Employee_ID) ?? data?.inspections[0];
-
-  async function handleSubmitReport() {
-    setSaveState({ status: "saving", message: "" });
-    try {
-      await updateInspection(inspection.Inspection_ID, { Survey_Report_Submitted: true });
-      setSaveState({ status: "success", message: "Survey report marked as submitted." });
-      reload();
-    } catch (err) {
-      setSaveState({ status: "error", message: getApiErrorMessage(err) });
-    }
-  }
+  // The review is the backend's report - the same data View Report and the
+  // PDF use. It is only requested once the server says it is available;
+  // the backend checks completeness again itself.
+  const reportAvailable = Boolean(progress?.reportAvailable);
+  const submitted = Boolean(progress?.submitted);
+  const fetchReport = useCallback(
+    () => (reportAvailable ? getSurveyReport(claimId) : Promise.resolve(null)),
+    [claimId, reportAvailable]
+  );
+  // `submitted` also re-fetches it, so the review shows "Submitted" afterwards.
+  const report = useFetch(fetchReport, [fetchReport, submitted]);
 
   if (isLoading) return <LoadingState label="Loading survey report..." />;
   if (error) {
@@ -52,80 +50,89 @@ export default function SurveyReportPage() {
   }
 
   const { claim } = data;
+  const { inspection } = progress;
+
+  async function handleSubmitReport() {
+    if (submittingRef.current) return;
+    if (!window.confirm(SUBMIT_CONFIRM_PROMPT)) return;
+    submittingRef.current = true;
+    setSaveState({ status: "saving", message: "" });
+    try {
+      await updateInspection(inspection.Inspection_ID, { Survey_Report_Submitted: true });
+      setSaveState({ status: "success", message: "Final survey report submitted." });
+      reload();
+    } catch (err) {
+      // The backend explains what is still missing (for example a damage
+      // record or a camera-captured photo).
+      setSaveState({ status: "error", message: serverMessage(err, getApiErrorMessage(err)) });
+    } finally {
+      submittingRef.current = false;
+    }
+  }
 
   return (
     <div>
       <Breadcrumbs
         items={[
-          { label: "Assigned Claims", to: "/surveyor/claims" },
+          { label: "Assigned Inspections", to: "/surveyor/claims" },
           { label: claim.Claim_Number, to: `/surveyor/claims/${claim.Claim_ID}` },
           { label: "Survey Report" },
         ]}
       />
       <PageHeader title={`Survey Report — ${claim.Claim_Number}`} />
-      <ClaimTabs claimId={claim.Claim_ID} />
+      <ClaimTabs claimId={claim.Claim_ID} progress={progress} />
 
-      {!inspection ? (
-        <EmptyState title="No inspection record exists for this claim" />
+      {!progress.unlocked.has("report") || !progress.reportAvailable ? (
+        <StepLockNotice progress={progress} claimId={claim.Claim_ID} />
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <Card>
-              <h3 className="mb-4 text-sm font-semibold text-ink">Inspection Findings</h3>
-              <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Detail label="Vehicle Condition" value={inspection.Vehicle_Condition} />
-                <Detail label="Damage Observed" value={inspection.Damage_Observed} />
-                <Detail label="Damage Severity" value={inspection.Damage_Severity} />
-                <Detail label="Parts Required" value={inspection.Parts_Required} />
-                <Detail label="Repair Recommendation" value={inspection.Repair_Recommendation} />
-                <Detail label="Inspection Status" value={inspection.Inspection_Status} />
-              </dl>
-            </Card>
+        <div className="space-y-6">
+          <Card>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-ink">Report Status</h3>
+                <StatusBadge label={submitted ? "Submitted" : "Draft"} tone={submitted ? "success" : "warning"} />
+                <p className="mt-2 text-sm text-muted">
+                  {submitted
+                    ? "This survey report has been submitted and can no longer be changed."
+                    : "Review the report below. To fix a mistake, go back to the step and use “Correct this step”. Viewing or downloading does not submit the report."}
+                </p>
+              </div>
+              <div className="flex flex-col items-start gap-3 sm:items-end">
+                <SurveyReportActions claimId={claim.Claim_ID} claimNumber={claim.Claim_Number} />
+                {!submitted && (
+                  <Button onClick={handleSubmitReport} isLoading={saveState.status === "saving"}>
+                    Submit Final Survey Report
+                  </Button>
+                )}
+              </div>
+            </div>
 
-            <Card>
-              <h3 className="mb-3 text-sm font-semibold text-ink">Surveyor Comments</h3>
-              <p className="text-sm text-ink">{inspection.Surveyor_Comments || "No comments recorded."}</p>
-              <p className="mt-3 text-xs text-muted">
-                To change any of these findings, use the Inspection tab - this page only manages the
-                report-submitted status.
+            {saveState.status === "success" && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-card border border-green-200 bg-green-50 p-3 text-sm text-success">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                {saveState.message} It has moved to
+                <Link to="/surveyor/history" className="font-medium text-brand-700 underline">
+                  Survey Reports
+                </Link>
+              </div>
+            )}
+            {saveState.status === "error" && (
+              <p role="alert" className="mt-4 text-sm text-danger">
+                {saveState.message}
               </p>
-            </Card>
-          </div>
+            )}
+          </Card>
 
-          <div className="space-y-6">
-            <Card>
-              <h3 className="mb-3 text-sm font-semibold text-ink">Report Status</h3>
-              <StatusBadge
-                label={inspection.Survey_Report_Submitted ? "Submitted" : "Not Submitted"}
-                tone={inspection.Survey_Report_Submitted ? "success" : "warning"}
-              />
-
-              {saveState.status === "success" && (
-                <div className="mt-4 flex items-center gap-2 rounded-card border border-green-200 bg-green-50 p-3 text-sm text-success">
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  {saveState.message}
-                </div>
-              )}
-              {saveState.status === "error" && <p className="mt-4 text-sm text-danger">{saveState.message}</p>}
-
-              {!inspection.Survey_Report_Submitted && (
-                <Button className="mt-4 w-full" onClick={handleSubmitReport} isLoading={saveState.status === "saving"}>
-                  Submit Survey Report
-                </Button>
-              )}
-            </Card>
-          </div>
+          {report.isLoading ? (
+            <LoadingState label="Loading report..." />
+          ) : report.data ? (
+            <SurveyReportContent report={report.data} />
+          ) : (
+            <ErrorState message={surveyReportErrorMessage(report.error)} onRetry={report.reload} />
+          )}
         </div>
       )}
-    </div>
-  );
-}
-
-function Detail({ label, value }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted">{label}</dt>
-      <dd className="mt-0.5 text-sm text-ink">{value}</dd>
+      <ClaimStepNav claimId={claim.Claim_ID} current="report" />
     </div>
   );
 }

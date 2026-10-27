@@ -214,7 +214,8 @@ def test_customer_cannot_retrieve_another_customers_document_metadata(
     created_document_ids.append(document_id)
 
     response = client.get(f"/api/v1/documents/{document_id}", headers=auth_headers(customer2_token))
-    assert response.status_code == 403
+    # Same answer as a missing document: another customer's documents are not disclosed.
+    assert response.status_code == 404
 
 
 # ---------------------------------------------------------------- 17: path traversal
@@ -236,3 +237,25 @@ def test_filename_path_traversal_is_prevented(client, customer1_token, seed_data
     assert stored_path.parent == storage_root / seed_data["claim1"]
     assert stored_path.exists()
     assert ".." not in stored_path.name
+
+
+# ---------------------------------------------------------------- customer accident photos stay customer evidence
+
+
+def test_surveyor_never_sees_customer_accident_photos(client, customer1_token, surveyor_token, seed_data, created_document_ids):
+    upload = _upload(client, customer1_token, seed_data["claim1"], "accident_photos", "photo.jpg", JPG_BYTES, "image/jpeg")
+    assert upload.status_code == 201, upload.text
+    body = upload.json()
+    created_document_ids.append(body["Document_ID"])
+
+    listed = client.get(f"/api/v1/documents?claim_id={seed_data['claim1']}", headers=auth_headers(surveyor_token)).json()
+    assert body["Document_ID"] not in {d["Document_ID"] for d in listed}
+    assert client.get(f"/api/v1/documents/{body['Document_ID']}", headers=auth_headers(surveyor_token)).status_code == 404
+    assert client.post(f"/api/v1/documents/{body['Document_ID']}/analyze", headers=auth_headers(surveyor_token)).status_code == 404
+    content = client.get(
+        f"/api/v1/surveyor/claims/{seed_data['claim1']}/documents/{body['Document_ID']}/content", headers=auth_headers(surveyor_token)
+    )
+    assert content.status_code == 404
+
+    # Still the customer's own document.
+    assert client.get(f"/api/v1/documents/{body['Document_ID']}", headers=auth_headers(customer1_token)).status_code == 200

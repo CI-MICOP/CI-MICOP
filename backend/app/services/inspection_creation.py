@@ -21,7 +21,6 @@ model - see that document rather than working around it here).
 
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -31,6 +30,7 @@ from app.crud import claim as crud_claim
 from app.crud import surveyor_inspection as crud_inspection
 from app.db_models.surveyor_inspection import SurveyorInspection
 from app.schemas.surveyor import PENDING, SurveyorInspectionCreate
+from app.services import surveyor_workflow
 
 
 def create_inspection_for_surveyor(
@@ -61,7 +61,9 @@ def create_inspection_for_surveyor(
         Inspection_ID=crud_inspection.generate_inspection_id(db),
         Claim_ID=payload.Claim_ID,
         Surveyor_ID=employee_id,
-        Inspection_Date=date.today(),
+        # Today in India Standard Time - the same calendar the schedule lock
+        # uses (services/surveyor_workflow.py), whatever the server's zone.
+        Inspection_Date=surveyor_workflow.today_ist(),
         # The accident location already recorded on the claim - real,
         # already-known data, not a fabricated inspection finding.
         Inspection_Location=claim.Place_of_Accident,

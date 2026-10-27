@@ -21,6 +21,13 @@ from tests.test_document_analysis import _text_pdf_bytes, analyzed_document_ids 
 from tests.test_document_analysis import _upload as _upload_document
 from tests.test_evidence import _upload as _upload_evidence
 from tests.test_evidence import created_evidence_ids  # noqa: F401
+import pytest
+from tests.surveyor_records import active_claim1_inspection, surveyor_records  # noqa: F401 - fixtures
+
+# Evidence is stored through the camera-capture endpoint (tests/test_evidence.py
+# _upload), which needs the surveyor's active, scheduled, complete inspection.
+pytestmark = pytest.mark.usefixtures("active_claim1_inspection")
+
 
 
 def _run(client, token, claim_id):

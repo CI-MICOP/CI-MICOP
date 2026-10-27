@@ -3,7 +3,8 @@ import LoadingState from "./LoadingState";
 
 /**
  * Generic table.
- * columns: [{ key, header, render?(row) }]
+ * columns: [{ key, header, render?(row), align? }] - align "center" centres the
+ *   header and its values (from sm up); left-aligned otherwise
  * rows: array of plain objects
  * rowKey: field name (or function) used as the React key per row
  */
@@ -31,7 +32,11 @@ export default function DataTable({
         <thead className="max-sm:hidden">
           <tr className="border-b border-border bg-surface text-xs uppercase tracking-wide text-muted">
             {columns.map((column) => (
-              <th key={column.key} scope="col" className="px-4 py-3 font-medium">
+              <th
+                key={column.key}
+                scope="col"
+                className={`px-4 py-3 align-middle font-medium ${column.align === "center" ? "text-center" : ""}`}
+              >
                 {column.header}
               </th>
             ))}
@@ -50,10 +55,10 @@ export default function DataTable({
                 <td
                   key={column.key}
                   data-label={typeof column.header === "string" ? column.header : undefined}
-                  className="px-4 py-3 text-ink max-sm:flex max-sm:items-center max-sm:justify-between
+                  className={`px-4 py-3 align-middle text-ink ${column.align === "center" ? "sm:text-center" : ""} max-sm:flex max-sm:items-center max-sm:justify-between
                     max-sm:gap-4 max-sm:py-1.5 max-sm:text-right max-sm:before:shrink-0 max-sm:before:text-left
                     max-sm:before:text-xs max-sm:before:font-medium max-sm:before:uppercase
-                    max-sm:before:tracking-wide max-sm:before:text-muted max-sm:before:content-[attr(data-label)]"
+                    max-sm:before:tracking-wide max-sm:before:text-muted max-sm:before:content-[attr(data-label)]`}
                 >
                   {column.render ? column.render(row) : row[column.key]}
                 </td>

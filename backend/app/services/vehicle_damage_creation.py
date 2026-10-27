@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.crud import vehicle_damage as crud_damage
 from app.db_models.vehicle_damage import VehicleDamage
 from app.schemas.surveyor import VehicleDamageCreate
+from app.services import surveyor_workflow
 from app.services.claim_access import get_claim_assigned_to_surveyor_or_403
 
 
@@ -20,6 +21,9 @@ def create_vehicle_damage_for_surveyor(
     db: Session, employee_id: str, payload: VehicleDamageCreate
 ) -> VehicleDamage:
     claim = get_claim_assigned_to_surveyor_or_403(db, payload.Claim_ID, employee_id)
+    # An active (not submitted) inspection whose scheduled time has arrived,
+    # with the Inspection step complete - see services/surveyor_workflow.py.
+    surveyor_workflow.require_writable_step(db, payload.Claim_ID, employee_id, surveyor_workflow.STEP_DAMAGE)
 
     damage = VehicleDamage(
         Damage_ID=crud_damage.generate_damage_id(db),

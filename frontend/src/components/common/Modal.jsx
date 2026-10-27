@@ -1,7 +1,9 @@
 import { X } from "lucide-react";
 import { useEffect } from "react";
 
-export default function Modal({ isOpen, onClose, title, children }) {
+const SIZES = { md: "max-w-lg", xl: "max-w-4xl" };
+
+export default function Modal({ isOpen, onClose, title, children, size = "md" }) {
   useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -19,7 +21,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-card border border-border bg-card p-6 shadow-soft"
+        className={`w-full ${SIZES[size] ?? SIZES.md} rounded-card border border-border bg-card p-6 shadow-soft`}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink">{title}</h2>

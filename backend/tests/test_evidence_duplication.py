@@ -25,6 +25,12 @@ from app.services import evidence_duplication as ed
 from tests.conftest import TEST_PASSWORD, auth_headers
 from tests.evidence_duplication_corpus import CORPUS, jpeg_bytes, scene
 from tests.test_evidence import _upload, created_evidence_ids  # noqa: F401
+from tests.surveyor_records import active_claim1_inspection, surveyor_records  # noqa: F401 - fixtures
+
+# Evidence is stored through the camera-capture endpoint (tests/test_evidence.py
+# _upload), which needs the surveyor's active, scheduled, complete inspection.
+pytestmark = pytest.mark.usefixtures("active_claim1_inspection")
+
 
 
 def _check(client, token, claim_id):

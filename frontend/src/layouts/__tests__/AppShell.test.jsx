@@ -99,10 +99,28 @@ describe("AppShell floating dock", () => {
     expect(within(dock()).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
-  it("does not activate a parent when a sibling nav item is the exact page (Surveyor)", () => {
+  it("activates Survey Reports, not Home, on the surveyor's report history page", () => {
     renderShell("Surveyor", "/surveyor/history");
-    expect(within(dock()).getByRole("link", { name: "History" })).toHaveAttribute("aria-current", "page");
-    expect(within(dock()).getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+    expect(within(dock()).getByRole("link", { name: "Survey Reports" })).toHaveAttribute("aria-current", "page");
+    expect(within(dock()).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("gives the surveyor Home, Inspections and Survey Reports on the dock, with no More menu", () => {
+    renderShell("Surveyor");
+    const links = within(dock()).getAllByRole("link");
+    expect(links.map((link) => link.textContent)).toEqual(["Home", "Inspections", "Survey Reports"]);
+    expect(within(dock()).getByRole("link", { name: "Inspections" })).toHaveAttribute("href", "/surveyor/claims");
+    expect(within(dock()).getByRole("link", { name: "Survey Reports" })).toHaveAttribute("href", "/surveyor/history");
+    expect(moreButton()).not.toBeInTheDocument();
+    for (const removed of ["Dashboard", "Claims", "Documents", "Alerts", "History", "Profile", "Support"]) {
+      expect(within(dock()).queryByRole("link", { name: removed })).not.toBeInTheDocument();
+    }
+  });
+
+  it("keeps Inspections active on a claim's inspection sub-pages (Surveyor)", () => {
+    renderShell("Surveyor", "/surveyor/claims/CLM-1/inspection");
+    expect(within(dock()).getByRole("link", { name: "Inspections" })).toHaveAttribute("aria-current", "page");
+    expect(within(dock()).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
   it("keeps a section active on its sub-pages", () => {
@@ -142,6 +160,21 @@ describe("AppShell top header", () => {
     const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
     expect(items).toEqual(["Profile", "Support", "Log out"]);
     expect(screen.getByRole("menuitem", { name: "Support" })).toHaveAttribute("href", "/customer/support");
+  });
+
+  it("puts surveyor Support in the profile menu, next to Profile and Log out, and keeps the bell", () => {
+    renderShell("Surveyor");
+    const header = screen.getByRole("banner");
+    expect(within(header).queryByRole("link", { name: "Support" })).not.toBeInTheDocument();
+    expect(within(header).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+
+    openProfileMenu();
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Profile", "Support", "Log out"]);
+    expect(screen.getByRole("menuitem", { name: "Support" })).toHaveAttribute("href", "/surveyor/support");
+    expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute("href", "/surveyor/profile");
+
+    fireEvent.click(within(header).getByRole("button", { name: "Notifications" }));
+    expect(screen.getByRole("menu", { name: "Notifications" })).toBeInTheDocument();
   });
 
   it("offers support as a header shortcut when it is not on the dock (Claims Officer)", () => {

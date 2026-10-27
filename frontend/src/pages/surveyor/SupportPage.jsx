@@ -1,4 +1,4 @@
-import { HelpCircle, MessageCircle, Phone } from "lucide-react";
+import { HelpCircle, Phone } from "lucide-react";
 
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
@@ -7,7 +7,7 @@ import PageHeader from "../../components/common/PageHeader";
 const FAQS = [
   {
     question: "How do I update an inspection?",
-    answer: "Open the claim from \"Assigned Claims\", go to the Inspection tab, edit the fields, and click Save Inspection.",
+    answer: "Open the claim from \"Inspections\" on the menu at the bottom of the screen, go to the Inspection tab, edit the fields, and click Save Inspection.",
   },
   {
     question: "How do I submit a survey report?",
@@ -15,7 +15,7 @@ const FAQS = [
   },
   {
     question: "Where can I see my past inspections?",
-    answer: "Use \"History\" from the sidebar to see every inspection you have carried out.",
+    answer: "Open \"Survey Reports\" on the menu at the bottom of the screen to see every inspection you have carried out and whether its report was submitted.",
   },
 ];
 
@@ -25,12 +25,7 @@ export default function SurveyorSupportPage() {
       <PageHeader title="Support" subtitle="Get help with inspections and claim assignments." />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <h3 className="mb-3 text-sm font-semibold text-ink">Chat with Support</h3>
-          <EmptyState icon={MessageCircle} title="Live chat isn't available yet" message="This feature is not yet connected to a support backend." />
-        </Card>
-
-        <Card>
+        <Card className="lg:col-span-2">
           <h3 className="mb-3 text-sm font-semibold text-ink">Contact Support</h3>
           <EmptyState icon={Phone} title="Contact details aren't configured yet" message="Support-request submission isn't connected to a backend yet." />
         </Card>

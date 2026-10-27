@@ -406,7 +406,8 @@ def test_customer_cannot_analyze_another_customers_document(
     analyzed_document_ids.append(document_id)
 
     response = client.post(f"/api/v1/documents/{document_id}/analyze", headers=auth_headers(customer2_token))
-    assert response.status_code == 403
+    # Same answer as a missing document: another customer's documents are not disclosed.
+    assert response.status_code == 404
 
 
 def test_assigned_surveyor_can_analyze_document_on_their_claim(
@@ -685,7 +686,8 @@ def test_cross_customer_cannot_analyze_document_to_read_its_entities(
     analyzed_document_ids.append(document_id)
 
     response = client.post(f"/api/v1/documents/{document_id}/analyze", headers=auth_headers(customer2_token))
-    assert response.status_code == 403
+    # Same answer as a missing document: another customer's documents are not disclosed.
+    assert response.status_code == 404
 
 
 def test_claim_level_analyze_includes_entities_per_document(

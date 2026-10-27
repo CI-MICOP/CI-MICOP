@@ -23,6 +23,7 @@ from app.db_models.claim_decision_audit import ClaimDecisionAudit
 from app.db_models.repair_estimate import RepairEstimate
 from app.services import repair_estimate_checks as rec
 from tests.conftest import auth_headers
+from tests.surveyor_records import active_claim1_inspection, surveyor_records  # noqa: F401 - fixtures
 from tests.repair_estimate_corpus import (
     CLAIM_AMOUNT_RATIO,
     CORPUS,
@@ -36,6 +37,10 @@ from tests.test_repair_estimate import _payload as estimate_payload
 from tests.test_repair_estimate import created_estimate_ids  # noqa: F401
 from tests.test_vehicle_damage import _payload as damage_payload
 from tests.test_vehicle_damage import created_damage_ids  # noqa: F401
+
+# Damage/evidence writes need an active, scheduled, complete inspection
+# (services/surveyor_workflow.py); seed_data inspection1 is already submitted.
+pytestmark = pytest.mark.usefixtures("active_claim1_inspection")
 
 ACCIDENT_DATE = date(2026, 8, 20)
 

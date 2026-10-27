@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Card from "../../components/common/Card";
@@ -8,42 +8,34 @@ import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useFetch } from "../../hooks/useFetch";
-import { listClaims } from "../../services/claimService";
-import { getMyInspections } from "../../services/surveyorService";
+import { getActiveInspections } from "../../services/surveyorService";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatCurrency, formatDate } from "../../utils/format";
 import { getStatusTone } from "../../utils/statusTone";
 
+/**
+ * Active inspections only: the server lists the surveyor's inspections
+ * whose report has not been submitted (GET /surveyor/active-inspections).
+ * A submitted claim leaves this list for the Survey Reports history.
+ */
 export default function SurveyorClaimsListPage() {
   const [search, setSearch] = useState("");
-
-  const fetchData = useCallback(async () => {
-    const [claims, inspections] = await Promise.all([listClaims({ limit: 200 }), getMyInspections()]);
-    return { claims, inspections };
-  }, []);
-  const { data, isLoading, error, reload } = useFetch(fetchData, [fetchData]);
-
-  const inspectionByClaim = useMemo(() => {
-    const map = new Map();
-    (data?.inspections ?? []).forEach((i) => map.set(i.Claim_ID, i));
-    return map;
-  }, [data]);
+  const { data, isLoading, error, reload } = useFetch(getActiveInspections, []);
+  const rows = useMemo(() => (data ?? []).filter((row) => row.claim), [data]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return data?.claims ?? [];
-    return (data?.claims ?? []).filter(
-      (c) =>
-        c.Claim_Number.toLowerCase().includes(term) ||
-        c.Claim_Type.toLowerCase().includes(term) ||
-        c.Customer_ID.toLowerCase().includes(term) ||
-        c.Vehicle_ID.toLowerCase().includes(term)
+    if (!term) return rows;
+    return rows.filter(({ claim }) =>
+      [claim.Claim_Number, claim.Claim_Type, claim.Customer_ID, claim.Vehicle_ID].some((value) =>
+        value.toLowerCase().includes(term)
+      )
     );
-  }, [data, search]);
+  }, [rows, search]);
 
   return (
     <div>
-      <PageHeader title="Assigned Claims" subtitle="Claims currently assigned to you for inspection." />
+      <PageHeader title="Assigned Inspections" subtitle="Claims currently assigned to you for inspection." />
 
       {error ? (
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />
@@ -57,38 +49,44 @@ export default function SurveyorClaimsListPage() {
           />
           <DataTable
             isLoading={isLoading}
-            rows={filtered}
-            rowKey="Claim_ID"
-            emptyMessage={data?.claims?.length ? "No claims match your search." : "You have no assigned claims yet."}
+            rows={filtered.map((row) => ({ ...row, key: row.inspection.Inspection_ID }))}
+            rowKey="key"
+            emptyMessage={rows.length ? "No claims match your search." : "You have no active inspections."}
             columns={[
-              { key: "number", header: "Claim Number", render: (c) => c.Claim_Number },
-              { key: "customer", header: "Customer ID", render: (c) => c.Customer_ID },
-              { key: "vehicle", header: "Vehicle ID", render: (c) => c.Vehicle_ID },
-              { key: "date", header: "Claim Date", render: (c) => formatDate(c.Claim_Date) },
-              { key: "type", header: "Claim Type", render: (c) => c.Claim_Type },
-              { key: "amount", header: "Claim Amount", render: (c) => formatCurrency(c.Claim_Amount) },
+              { key: "number", align: "center", header: "Claim Number", render: (r) => r.claim.Claim_Number },
+              { key: "customer", align: "center", header: "Customer ID", render: (r) => r.claim.Customer_ID },
+              { key: "vehicle", align: "center", header: "Vehicle ID", render: (r) => r.claim.Vehicle_ID },
+              { key: "type", align: "center", header: "Claim Type", render: (r) => r.claim.Claim_Type },
+              { key: "amount", align: "center", header: "Claim Amount", render: (r) => formatCurrency(r.claim.Claim_Amount) },
               {
-                key: "status",
-                header: "Status",
-                render: (c) => <StatusBadge label={c.Claim_Status} tone={getStatusTone(c.Claim_Status)} />,
+                key: "scheduled",
+                align: "center",
+                header: "Scheduled For",
+                render: (r) => (
+                  <span className="whitespace-nowrap">
+                    {formatDate(r.inspection.Inspection_Date)}
+                    {r.schedule && !r.schedule.reached && <span className="block text-xs text-amber-700">Not open yet</span>}
+                  </span>
+                ),
               },
               {
                 key: "inspection",
+                align: "center",
                 header: "Inspection Status",
-                render: (c) => {
-                  const inspection = inspectionByClaim.get(c.Claim_ID);
-                  return inspection ? (
-                    <StatusBadge label={inspection.Inspection_Status} tone={getStatusTone(inspection.Inspection_Status)} />
-                  ) : (
-                    <span className="text-muted">-</span>
-                  );
-                },
+                render: (r) => <StatusBadge label={r.inspection.Inspection_Status} tone={getStatusTone(r.inspection.Inspection_Status)} />,
               },
               {
                 key: "action",
+                align: "center",
                 header: "Action",
-                render: (c) => (
-                  <Link to={`/surveyor/claims/${c.Claim_ID}`} className="font-medium text-brand-600 hover:text-brand-700">
+                render: (r) => (
+                  // A link (it navigates) styled like the small primary Button.
+                  <Link
+                    to={`/surveyor/claims/${r.claim.Claim_ID}`}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-brand-600 px-3
+                      py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline
+                      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                  >
                     View Details
                   </Link>
                 ),

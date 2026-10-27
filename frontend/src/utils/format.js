@@ -1,8 +1,13 @@
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 export function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  // A date-only value ("2026-10-28") is a calendar date, parsed as UTC
+  // midnight - format it in UTC so no time zone shifts it a day earlier.
+  const timeZone = typeof value === "string" && DATE_ONLY.test(value) ? "UTC" : undefined;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone });
 }
 
 export function formatCurrency(value) {
