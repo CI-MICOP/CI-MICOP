@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import DataTable from "../../components/common/DataTable";
 import ErrorState from "../../components/common/ErrorState";
@@ -9,6 +10,7 @@ import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useFetch } from "../../hooks/useFetch";
 import { listClaimsForProcessing } from "../../services/officerService";
+import { COMPLETED_STATUS, isCompleted } from "../../utils/claimWorkflow";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatCurrency, formatDate } from "../../utils/format";
 import { getStatusTone } from "../../utils/statusTone";
@@ -16,23 +18,32 @@ import { getStatusTone } from "../../utils/statusTone";
 export default function AllClaimsPage() {
   const [search, setSearch] = useState("");
 
-  const { data: claims, isLoading, error, reload } = useFetch(() => listClaimsForProcessing({ limit: 200 }), []);
+  // Server-side filtered by the claim's persisted status (crud/claim.py's
+  // list_all), then narrowed client-side with the same check the Queue
+  // page uses - a claim still Under Review belongs there, not here (see
+  // utils/claimWorkflow.js).
+  const { data: claims, isLoading, error, reload } = useFetch(
+    () => listClaimsForProcessing({ limit: 200, claim_status: COMPLETED_STATUS }),
+    []
+  );
+  const completed = useMemo(() => (claims ?? []).filter(isCompleted), [claims]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return claims ?? [];
-    return (claims ?? []).filter(
+    if (!term) return completed;
+    return completed.filter(
       (c) =>
         c.Claim_Number.toLowerCase().includes(term) ||
         c.Customer_ID.toLowerCase().includes(term) ||
         c.Vehicle_ID.toLowerCase().includes(term) ||
         c.Policy_ID.toLowerCase().includes(term)
     );
-  }, [claims, search]);
+  }, [completed, search]);
 
   return (
     <div>
-      <PageHeader title="All Claims" subtitle="Every claim visible to Claims Officer / Admin." />
+      <PageHeader title="All Claims" subtitle="Claims that have completed officer review." />
+      <BackButton fallback="/officer" />
 
       {error ? (
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />
@@ -48,7 +59,7 @@ export default function AllClaimsPage() {
             isLoading={isLoading}
             rows={filtered}
             rowKey="Claim_ID"
-            emptyMessage={claims?.length ? "No claims match your search." : "No claims found."}
+            emptyMessage={completed.length ? "No claims match your search." : "No completed claims yet."}
             columns={[
               { key: "number", header: "Claim Number", render: (c) => c.Claim_Number },
               { key: "customer", header: "Customer ID", render: (c) => c.Customer_ID },

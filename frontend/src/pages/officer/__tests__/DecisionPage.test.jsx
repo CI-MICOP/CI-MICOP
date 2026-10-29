@@ -165,6 +165,116 @@ describe("DecisionPage", () => {
     expect(screen.getByText(/this is a recommendation, not the final decision/i)).toBeInTheDocument();
   });
 
+  it("locks the form and hides the Submit button once a final decision (Approved) is recorded", async () => {
+    getClaimWorkspaceData.mockResolvedValue(
+      baseWorkspace({
+        claim: { ...CLAIM, Final_Decision: "Approved", Decision_Reason: "Fully supported by evidence.", Approved_Amount: 42000 },
+        decision_audit: [
+          {
+            Audit_ID: "AUD-1",
+            Claim_ID: "CLM-1",
+            AI_Recommendation: "Pending",
+            AI_Confidence_Score: 0,
+            Human_Review_Required: true,
+            Final_Decision: "Approved",
+            Decision_Reason: "Fully supported by evidence.",
+            Approved_Amount: 42000,
+            Officer_Comments: "Standard approval.",
+            Decision_Date: "2026-09-01",
+            Escalation_Status: "Not Escalated",
+          },
+        ],
+      })
+    );
+    renderPage();
+
+    expect(await screen.findByText(/final decision recorded\. this claim's decision is locked and cannot be edited\./i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/final decision/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/decision reason/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/approved amount/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/officer comments/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /submit decision/i })).not.toBeInTheDocument();
+
+    // The saved decision is still visible, read-only.
+    expect(screen.getByText("Fully supported by evidence.")).toBeInTheDocument();
+    expect(screen.getByText("Standard approval.")).toBeInTheDocument();
+  });
+
+  it("locks the form once a final decision (Rejected) is recorded", async () => {
+    getClaimWorkspaceData.mockResolvedValue(
+      baseWorkspace({ claim: { ...CLAIM, Final_Decision: "Rejected", Approved_Amount: 0 } })
+    );
+    renderPage();
+
+    expect(await screen.findByText(/final decision recorded/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /submit decision/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps the claim summary, status and decision history visible while locked", async () => {
+    getClaimWorkspaceData.mockResolvedValue(
+      baseWorkspace({
+        claim: { ...CLAIM, Final_Decision: "Approved" },
+        decision_audit: [
+          {
+            Audit_ID: "AUD-1",
+            Claim_ID: "CLM-1",
+            AI_Recommendation: "Pending",
+            AI_Confidence_Score: 0,
+            Human_Review_Required: false,
+            Final_Decision: "Approved",
+            Approved_Amount: 42000,
+            Decision_Date: "2026-09-01",
+            Escalation_Status: "Not Escalated",
+          },
+        ],
+      })
+    );
+    renderPage();
+
+    await screen.findByText(/final decision recorded/i);
+    expect(screen.getByText("Claim Summary")).toBeInTheDocument();
+    expect(screen.getByText("Under Investigation")).toBeInTheDocument();
+    expect(screen.getByText("Decision History")).toBeInTheDocument();
+  });
+
+  it("stays locked after the claim is reopened (a fresh fetch returning the same finalized claim)", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace({ claim: { ...CLAIM, Final_Decision: "Approved" } }));
+    const { unmount } = renderPage();
+    await screen.findByText(/final decision recorded/i);
+    unmount();
+
+    renderPage();
+    expect(await screen.findByText(/final decision recorded/i)).toBeInTheDocument();
+  });
+
+  it("does not lock the form for a claim with no final decision yet (Pending)", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace());
+    renderPage();
+    expect(await screen.findByLabelText(/final decision/i)).toBeInTheDocument();
+    expect(screen.queryByText(/final decision recorded/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a single Back button, and it is unaffected by the decision lock", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace({ claim: { ...CLAIM, Final_Decision: "Approved" } }));
+    renderPage();
+    await screen.findByText(/final decision recorded/i);
+    expect(screen.getAllByRole("button", { name: /back/i })).toHaveLength(1);
+  });
+
+  it("maps a 409 from the backend (already finalized) to a clear message", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace());
+    submitDecision.mockRejectedValueOnce({
+      response: { status: 409, data: { detail: "This claim's decision has already been finalized and cannot be changed." } },
+    });
+
+    renderPage();
+    fireEvent.change(await screen.findByLabelText(/final decision/i), { target: { value: "Approved" } });
+    fillReasonAndAmount();
+    fireEvent.click(screen.getByRole("button", { name: /submit decision/i }));
+
+    expect(await screen.findByText("This claim's decision has already been finalized and cannot be changed.")).toBeInTheDocument();
+  });
+
   it("shows AI information as unavailable when no genuine recommendation exists", async () => {
     getClaimWorkspaceData.mockResolvedValue(
       baseWorkspace({

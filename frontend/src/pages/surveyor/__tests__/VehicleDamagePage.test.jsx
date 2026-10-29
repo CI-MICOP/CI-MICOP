@@ -9,13 +9,20 @@ vi.mock("../../../services/claimService", () => ({
 vi.mock("../../../services/surveyorService", () => ({
   getAssignedClaimDetail: vi.fn(),
   createVehicleDamage: vi.fn(),
+  updateVehicleDamage: vi.fn(),
   openCorrection: vi.fn(),
   closeCorrection: vi.fn(),
 }));
 
 import { COMPLETE_INSPECTION, schedule, workflow } from "../../../components/surveyor/__tests__/workflowFixture";
 import { getClaimById } from "../../../services/claimService";
-import { closeCorrection, createVehicleDamage, getAssignedClaimDetail, openCorrection } from "../../../services/surveyorService";
+import {
+  closeCorrection,
+  createVehicleDamage,
+  getAssignedClaimDetail,
+  openCorrection,
+  updateVehicleDamage,
+} from "../../../services/surveyorService";
 import VehicleDamagePage from "../VehicleDamagePage";
 
 const CLAIM = { Claim_ID: "CLM-1", Claim_Number: "CLM-2026-AAAA" };
@@ -208,5 +215,171 @@ describe("VehicleDamagePage", () => {
     expect(screen.queryByRole("button", { name: /add another|correct this step/i })).not.toBeInTheDocument();
     fireEvent.click(nextButton());
     expect(await screen.findByText("Evidence step")).toBeInTheDocument();
+  });
+
+  describe("editing an existing record (Correct this step)", () => {
+    const correctingWorkflow = (count) =>
+      workflow("damage", { damage_count: count, open_corrections: { inspection: false, damage: true } });
+
+    it("clicking Correct this step reopens the one saved record, prepopulated, for editing", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1]))
+        .mockResolvedValue({ ...saved([DAMAGE_1]), workflow: correctingWorkflow(1) });
+      openCorrection.mockResolvedValueOnce({});
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await waitFor(() => expect(openCorrection).toHaveBeenCalledWith("INSP-1", "damage"));
+
+      expect(await screen.findByRole("heading", { name: "Edit Damage Record" })).toBeInTheDocument();
+      expect(screen.getByLabelText(/damaged part/i)).toHaveValue("Bumper");
+      expect(screen.getByLabelText(/estimated damage cost/i)).toHaveValue(15000);
+      expect(screen.getByLabelText(/damage description/i)).toHaveValue("Cracked bumper.");
+      expect(screen.getByRole("button", { name: /update damage record/i })).toBeInTheDocument();
+    });
+
+    it("saving changes calls the update endpoint with the existing Damage_ID and shows the updated values", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1]))
+        .mockResolvedValueOnce({ ...saved([DAMAGE_1]), workflow: correctingWorkflow(1) })
+        .mockResolvedValueOnce(saved([{ ...DAMAGE_1, Damaged_Part: "Rear Bumper" }]));
+      openCorrection.mockResolvedValueOnce({});
+      updateVehicleDamage.mockResolvedValueOnce({ ...DAMAGE_1, Damaged_Part: "Rear Bumper" });
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await screen.findByRole("heading", { name: "Edit Damage Record" });
+      fireEvent.change(screen.getByLabelText(/damaged part/i), { target: { value: "Rear Bumper" } });
+      fireEvent.click(screen.getByRole("button", { name: /update damage record/i }));
+
+      await waitFor(() =>
+        expect(updateVehicleDamage).toHaveBeenCalledWith("DMG-1", expect.objectContaining({ Damaged_Part: "Rear Bumper" }))
+      );
+      expect(createVehicleDamage).not.toHaveBeenCalled();
+      expect(await screen.findByText("Damage record updated.")).toBeInTheDocument();
+      const summary = (await screen.findByRole("heading", { name: "Saved Damage Records" })).closest("div");
+      expect(within(summary).getByText("Rear Bumper")).toBeInTheDocument();
+      expect(screen.queryByLabelText(/damaged part/i)).not.toBeInTheDocument();
+    });
+
+    it("does not create a duplicate record when updating", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1]))
+        .mockResolvedValue({ ...saved([DAMAGE_1]), workflow: correctingWorkflow(1) });
+      openCorrection.mockResolvedValueOnce({});
+      updateVehicleDamage.mockResolvedValueOnce(DAMAGE_1);
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await screen.findByRole("heading", { name: "Edit Damage Record" });
+      fireEvent.click(screen.getByRole("button", { name: /update damage record/i }));
+
+      await waitFor(() => expect(updateVehicleDamage).toHaveBeenCalledTimes(1));
+      expect(createVehicleDamage).not.toHaveBeenCalled();
+    });
+
+    it("keeps the record unsaved (and the original data intact) when the update fails", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1]))
+        .mockResolvedValue({ ...saved([DAMAGE_1]), workflow: correctingWorkflow(1) });
+      openCorrection.mockResolvedValueOnce({});
+      updateVehicleDamage.mockRejectedValueOnce({ response: { status: 409, data: { detail: "The Vehicle Damage step is not complete, so it can be edited without a correction." } } });
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await screen.findByRole("heading", { name: "Edit Damage Record" });
+      fireEvent.change(screen.getByLabelText(/damaged part/i), { target: { value: "Rear Bumper" } });
+      fireEvent.click(screen.getByRole("button", { name: /update damage record/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("not complete");
+      // The form keeps the surveyor's in-progress edit; the saved table row is untouched.
+      expect(screen.getByLabelText(/damaged part/i)).toHaveValue("Rear Bumper");
+      const summary = within((await screen.findByRole("heading", { name: "Saved Damage Records" })).closest("div"));
+      expect(summary.getByText("Bumper")).toBeInTheDocument();
+    });
+
+    it("shows a per-row Edit action for multiple saved records, and editing one does not disturb the other", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1, DAMAGE_2]))
+        .mockResolvedValue({ ...saved([DAMAGE_1, DAMAGE_2]), workflow: correctingWorkflow(2) });
+      openCorrection.mockResolvedValueOnce({});
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+      expect(screen.getByText("Headlight")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await waitFor(() => expect(openCorrection).toHaveBeenCalled());
+      // With two records, nothing is auto-opened - the surveyor picks one.
+      expect(screen.queryByLabelText(/damaged part/i)).not.toBeInTheDocument();
+
+      fireEvent.click(await screen.findByRole("button", { name: /edit headlight/i }));
+      expect(await screen.findByRole("heading", { name: "Edit Damage Record" })).toBeInTheDocument();
+      expect(screen.getByLabelText(/damaged part/i)).toHaveValue("Headlight");
+    });
+
+    it("adding a brand-new record still works independently while a correction is open", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1, DAMAGE_2]))
+        .mockResolvedValue({ ...saved([DAMAGE_1, DAMAGE_2]), workflow: correctingWorkflow(2) });
+      openCorrection.mockResolvedValueOnce({});
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /add another damage record/i }));
+
+      expect(screen.getByRole("heading", { name: "Add Another Damage Record" })).toBeInTheDocument();
+      expect(screen.getByLabelText(/damaged part/i)).toHaveValue("");
+      expect(screen.getByRole("button", { name: /save damage record/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /update damage record/i })).not.toBeInTheDocument();
+    });
+
+    it("Cancel while editing discards the change and returns to the saved view without updating", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1]))
+        .mockResolvedValue({ ...saved([DAMAGE_1]), workflow: correctingWorkflow(1) });
+      openCorrection.mockResolvedValueOnce({});
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await screen.findByRole("heading", { name: "Edit Damage Record" });
+      fireEvent.change(screen.getByLabelText(/damaged part/i), { target: { value: "Rear Bumper" } });
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+      expect(screen.queryByLabelText(/damaged part/i)).not.toBeInTheDocument();
+      expect(updateVehicleDamage).not.toHaveBeenCalled();
+      const summary = (await screen.findByRole("heading", { name: "Saved Damage Records" })).closest("div");
+      expect(within(summary).getByText("Bumper")).toBeInTheDocument();
+    });
+
+    it("blocks Next while an edit has unsaved changes, and allows it again once saved", async () => {
+      getAssignedClaimDetail
+        .mockResolvedValueOnce(saved([DAMAGE_1]))
+        .mockResolvedValueOnce({ ...saved([DAMAGE_1]), workflow: correctingWorkflow(1) });
+      openCorrection.mockResolvedValueOnce({});
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      renderPage();
+      expect(await screen.findByText("Bumper")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /correct this step/i }));
+      await screen.findByRole("heading", { name: "Edit Damage Record" });
+      expect(nextButton()).not.toBeDisabled();
+
+      fireEvent.change(screen.getByLabelText(/damaged part/i), { target: { value: "Rear Bumper" } });
+      expect(nextButton()).toBeDisabled();
+      expect(screen.getByRole("status")).toHaveTextContent(/save or cancel your changes/i);
+    });
   });
 });

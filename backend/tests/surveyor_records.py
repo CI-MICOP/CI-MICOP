@@ -114,6 +114,30 @@ class SurveyorRecords:
         self.evidence_ids.append(response.json()["Evidence_ID"])
         return response.json()
 
+    def capture_photo_at_map_location(
+        self, latitude=13.0827, longitude=80.2707, address_label=None, evidence_type="Vehicle Damage Close-up"
+    ) -> dict:
+        """A photo through the in-app camera endpoint, with an indoor-friendly
+        map-selected location instead of a device GPS reading."""
+        data = {
+            "claim_id": self.claim_id,
+            "evidence_type": evidence_type,
+            "location_source": "map",
+            "latitude": str(latitude),
+            "longitude": str(longitude),
+        }
+        if address_label is not None:
+            data["address_label"] = address_label
+        response = self.client.post(
+            "/api/v1/surveyor/evidence/capture",
+            headers=auth_headers(self.token),
+            data=data,
+            files={"photo": ("capture.jpg", real_jpeg(), "image/jpeg")},
+        )
+        assert response.status_code == 201, response.text
+        self.evidence_ids.append(response.json()["Evidence_ID"])
+        return response.json()
+
     def cleanup(self) -> None:
         db = SessionLocal()
         try:

@@ -4,9 +4,10 @@
 // labelled as such; nothing is called verified that the server did not check.
 
 const LOCATION_STATUS = {
-  captured: "Location captured",
+  captured: "GPS verified",
+  map_selected: "Map-selected — GPS not verified",
   unavailable: "Location unavailable",
-  accuracy_insufficient: "Location accuracy insufficient",
+  accuracy_insufficient: "GPS accuracy insufficient",
 };
 
 const CLIENT_TIME_STATUS = {
@@ -31,7 +32,12 @@ export function locationText(capture) {
   const client = capture?.client;
   if (!capture) return "Not available";
   if (client?.latitude == null) return `Not available (${(client?.error ?? "not provided").replaceAll("_", " ")})`;
-  return `${Number(client.latitude).toFixed(6)}, ${Number(client.longitude).toFixed(6)} (±${Math.round(client.accuracy_m)} m)`;
+  const coords = `${Number(client.latitude).toFixed(6)}, ${Number(client.longitude).toFixed(6)}`;
+  // A map-selected point has no GPS accuracy figure - never fabricated.
+  if (client.accuracy_m == null) {
+    return client.address_label ? `${coords} (${client.address_label})` : coords;
+  }
+  return `${coords} (±${Math.round(client.accuracy_m)} m)`;
 }
 
 export function locationStatusText(capture) {

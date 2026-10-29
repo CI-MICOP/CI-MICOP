@@ -12,18 +12,17 @@ import LoadingState from "../common/LoadingState";
 import Modal from "../common/Modal";
 import StatusBadge from "../common/StatusBadge";
 
-const LABELS = { RC: "Registration Certificate (RC)", "Driving Licence": "Driving Licence (DL)", FIR: "FIR" };
+const LABELS = { RC: "Registration Certificate (RC)", "Driving Licence": "Driving Licence (DL)" };
 
 // What the server reports about each document (services/surveyor_documents.py).
 const AVAILABILITY = {
   available: { label: "Available", tone: "success" },
   not_uploaded: { label: "Not uploaded", tone: "neutral" },
-  not_retained: {
-    label: "Copy not kept",
-    tone: "neutral",
-    note: "Only its verification details were recorded when it was submitted.",
+  unavailable: {
+    label: "Unavailable",
+    tone: "danger",
+    note: "The file could not be found. If this copy was submitted before files were kept for this document type, ask the customer to upload it again.",
   },
-  unavailable: { label: "Unavailable", tone: "danger", note: "The file could not be found." },
   unsupported: { label: "Cannot be previewed", tone: "warning", note: "This file type is not shown in the browser." },
 };
 
@@ -35,11 +34,13 @@ function verificationBadge(status) {
 }
 
 /**
- * Claim Documents on the Claim Details step: the customer's RC, licence,
- * policy, FIR and other claim documents, read-only, for the assigned
- * surveyor from the scheduled inspection date. Customer accident photos are
- * never part of it. Every list and view request is authorised by the server;
- * documents can be reopened as often as needed.
+ * Claim Documents on the Claim Details step: the customer's RC, driving
+ * licence and insurance policy copies only, read-only, for the assigned
+ * surveyor from the scheduled inspection date. FIR, Repair Estimate, Survey
+ * Report and customer accident photos are never part of it - the server
+ * (services/surveyor_documents.py) enforces this, not just this panel.
+ * Every list and view request is authorised by the server; documents can
+ * be reopened as often as needed.
  */
 export default function ClaimDocumentsPanel({ claimId, progress }) {
   const unlocked = Boolean(progress.workflow) && progress.scheduleReached;

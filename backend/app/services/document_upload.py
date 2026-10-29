@@ -7,10 +7,14 @@ transaction - live here in one place. See
 docs/project_documentation/CUSTOMER_DOCUMENT_UPLOAD.md for the full
 rationale.
 
-RC, driving-licence and insurance-policy copies are not stored: they are
-read in memory, only their verification details are kept on the Document
-row, and the file itself is never written (see
-services/claim_copy_retention.py).
+RC, driving-licence and insurance-policy copies are now stored like every
+other document type, so an authorized surveyor can view them (see
+services/surveyor_documents.py). Two deliberate differences remain for
+these three identity-document types, preserved from before the file was
+kept (services/claim_copy_retention.py): the Extracted_Text column holds
+only the reduced verification record (never the full OCR text - no name,
+address or date of birth), and the stored filename is a neutral
+placeholder, never the customer's own filename.
 """
 
 from __future__ import annotations
@@ -140,8 +144,12 @@ async def upload_document_for_customer(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is empty.")
     _validate_signature(ext, content)
 
+    # RC / Driving Licence / Insurance Policy: still stored (see
+    # _record_identity_copy), but with reduced Extracted_Text and a neutral
+    # filename - is_copy_retained now governs that text reduction, not
+    # whether a file is written.
     if not claim_copy_retention.is_copy_retained(document_type_label):
-        return await _record_unretained_copy(db, claim_id, document_type_label, upload_file.filename, content, ext)
+        return await _record_identity_copy(db, claim_id, document_type_label, content, ext)
 
     # 5-6. Generate Document_ID and a safe, server-controlled storage path.
     document_id = crud_document.generate_document_id(db)
@@ -192,12 +200,16 @@ async def upload_document_for_customer(
 _COPY_NAMES = {"RC": "rc-copy", "Driving Licence": "driving-licence-copy", "Insurance Policy": "policy-copy"}
 
 
-async def _record_unretained_copy(
-    db: Session, claim_id: str, document_type_label: str, filename: str | None, content: bytes, ext: str
+async def _record_identity_copy(
+    db: Session, claim_id: str, document_type_label: str, content: bytes, ext: str
 ) -> Document:
-    """RC / licence / policy copy: extract its text from memory (through a
-    temporary directory removed before this returns), keep only the
-    verification record, and create the Document row without a file."""
+    """RC / licence / policy copy: stored like any other document (an
+    authorized surveyor can view it - services/surveyor_documents.py), with
+    two differences kept from before the file was retained: the stored
+    filename is a neutral placeholder, never the customer's own filename
+    (which could itself identify them, e.g. "DL_<name>.pdf"), and
+    Extracted_Text is reduced to only the verification record (never the
+    full OCR text - no name, address or date of birth)."""
     try:
         extraction = await run_in_threadpool(document_analysis.extract_document_bytes, content, ext)
     except OSError as exc:
@@ -206,13 +218,15 @@ async def _record_unretained_copy(
             detail="The document could not be processed. Nothing was saved.",
         ) from exc
 
+    document_id = crud_document.generate_document_id(db)
+    neutral_name = _COPY_NAMES[document_type_label] + ext
+    stored_path = document_storage.storage_path_for(claim_id, document_id, neutral_name)
+
     document = Document(
-        Document_ID=crud_document.generate_document_id(db),
+        Document_ID=document_id,
         Claim_ID=claim_id,
         Document_Type=document_type_label,
-        # A neutral name, not the customer's filename: no file is kept behind
-        # it, and a filename such as "DL_<name>.pdf" can identify a person.
-        Document_Name=_COPY_NAMES[document_type_label] + ext,
+        Document_Name=neutral_name,
         Document_Submitted_Date=date.today(),
         Document_Status="Submitted",
         # Genuinely extracted at upload, reduced to what the registration /
@@ -223,14 +237,28 @@ async def _record_unretained_copy(
         Document_Mismatch_Indicator=False,
         Verification_Status="Pending",
     )
+
+    # Save the physical file first, then the metadata row, in one
+    # transaction - same ordering and failure handling as the main path
+    # below, so a failed write never leaves an orphaned file or a document
+    # row with nothing behind it.
+    try:
+        document_storage.save_file(stored_path, content)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The file could not be stored. No document was saved.",
+        ) from exc
+
     try:
         crud_document.create(db, document)
         db.commit()
     except Exception as exc:
         db.rollback()
+        document_storage.delete_file(stored_path)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The document could not be saved.",
+            detail="The document could not be saved. No file was retained.",
         ) from exc
 
     db.refresh(document)

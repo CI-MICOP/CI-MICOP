@@ -31,6 +31,25 @@ export async function uploadDocument(claimId, documentType, file) {
   return response.data;
 }
 
+// The Customer Portal's "My Documents" identity section: RC, Driving
+// Licence and Insurance Policy documents imported directly onto the
+// authenticated customer's own record (backend/app/services/document_import.py),
+// independent of any claim. Customer_ID is derived from the JWT on the
+// backend, never sent from here.
+export async function listIdentityDocuments() {
+  const response = await apiClient.get("/documents/identity");
+  return response.data;
+}
+
+// One identity document, as a Blob (fetched with the bearer token; there
+// is no public URL). Re-authorised on every call.
+export async function getIdentityDocumentContent(documentId) {
+  const response = await apiClient.get(`/documents/identity/${documentId}/content`, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
 // There is no "my documents" aggregate endpoint on the backend, so this
 // composes the two that do exist: the current user's claims, then the
 // documents attached to each one. Used by the Documents page and the

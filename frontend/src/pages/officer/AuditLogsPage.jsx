@@ -1,17 +1,23 @@
 import { Info } from "lucide-react";
 import { useState } from "react";
 
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
+import { useAuth } from "../../hooks/useAuth";
 import { useFetch } from "../../hooks/useFetch";
 import { getClaimProcessingDetail, listClaimsForProcessing } from "../../services/officerService";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatDate } from "../../utils/format";
 
+// This page is also mounted at /admin/audit-logs (unchanged, pre-existing
+// sharing - see routes/AppRoutes.jsx) - the Back button is this task's
+// addition for the Claims Officer only, so it must not appear for Admin.
 export default function AuditLogsPage() {
+  const { role } = useAuth();
   const [claimId, setClaimId] = useState("");
   const { data: claims, isLoading: claimsLoading, error: claimsError, reload: reloadClaims } = useFetch(
     () => listClaimsForProcessing({ limit: 200 }),
@@ -26,6 +32,7 @@ export default function AuditLogsPage() {
   return (
     <div>
       <PageHeader title="Audit Logs" subtitle="Decision audit trail for a selected claim." />
+      {role === "Claims Officer" && <BackButton fallback="/officer" />}
 
       <p className="mb-6 flex items-start gap-2 rounded-card border border-surface bg-surface p-3 text-xs text-muted">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />

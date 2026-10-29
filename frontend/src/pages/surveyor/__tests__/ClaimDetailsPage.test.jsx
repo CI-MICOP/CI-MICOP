@@ -63,14 +63,15 @@ function renderPage() {
   );
 }
 
+// Only RC, Driving Licence and Insurance Policy are ever returned by the
+// real API (services/surveyor_documents.py) - FIR and Repair Estimate are
+// excluded server-side, so this fixture never includes them.
 const DOCUMENTS = {
   claim_id: "DEV-CLAIM-001",
   documents: [
-    { document_id: "DOC-RC", document_type: "RC", submitted_date: "2026-08-20", availability: "not_retained", media_type: null, verification_status: "Pending" },
+    { document_id: "DOC-RC", document_type: "RC", submitted_date: "2026-08-20", availability: "available", media_type: "application/pdf", verification_status: "Pending" },
     { document_id: null, document_type: "Driving Licence", submitted_date: null, availability: "not_uploaded", media_type: null, verification_status: null },
-    { document_id: "DOC-POL", document_type: "Insurance Policy", submitted_date: "2026-08-20", availability: "unavailable", media_type: null, verification_status: "Pending" },
-    { document_id: "DOC-FIR", document_type: "FIR", submitted_date: "2026-08-21", availability: "available", media_type: "application/pdf", verification_status: "Pending" },
-    { document_id: "DOC-EST", document_type: "Repair Estimate", submitted_date: "2026-08-22", availability: "available", media_type: "image/png", verification_status: "Verified" },
+    { document_id: "DOC-POL", document_type: "Insurance Policy", submitted_date: "2026-08-20", availability: "available", media_type: "image/png", verification_status: "Verified" },
   ],
 };
 
@@ -166,35 +167,38 @@ describe("SurveyorClaimDetailsPage", () => {
     expect(listClaimDocuments).toHaveBeenCalledWith("DEV-CLAIM-001");
   });
 
-  it("shows each document's real availability and verification status from the server", async () => {
+  it("shows each document's real availability and verification status from the server, and excludes FIR/Repair Estimate", async () => {
     renderPage();
     const list = await screen.findByRole("list", { name: "Claim documents" });
     const row = (name) => within(list).getByText(name).closest("li");
-    expect(within(row("Registration Certificate (RC)")).getByText("Copy not kept")).toBeInTheDocument();
+    expect(within(row("Registration Certificate (RC)")).getByText("Available")).toBeInTheDocument();
+    expect(within(row("Registration Certificate (RC)")).getByText("Verification pending")).toBeInTheDocument();
     expect(within(row("Driving Licence (DL)")).getByText("Not uploaded")).toBeInTheDocument();
-    expect(within(row("Insurance Policy")).getByText("Unavailable")).toBeInTheDocument();
-    expect(within(row("FIR")).getByText("Available")).toBeInTheDocument();
-    expect(within(row("FIR")).getByText("Verification pending")).toBeInTheDocument();
-    expect(within(row("Repair Estimate")).getByText("Verification: Verified")).toBeInTheDocument();
+    expect(within(row("Insurance Policy")).getByText("Verification: Verified")).toBeInTheDocument();
     // Only documents with a file can be opened; nothing offers a download.
-    expect(within(list).getAllByRole("button", { name: /^view /i }).map((b) => b.getAttribute("aria-label"))).toEqual(["View FIR", "View Repair Estimate"]);
+    expect(within(list).getAllByRole("button", { name: /^view /i }).map((b) => b.getAttribute("aria-label"))).toEqual([
+      "View Registration Certificate (RC)",
+      "View Insurance Policy",
+    ]);
     expect(within(list).queryByText(/accident photo/i)).not.toBeInTheDocument();
+    expect(within(list).queryByText(/^FIR$/)).not.toBeInTheDocument();
+    expect(within(list).queryByText(/repair estimate/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /download/i })).not.toBeInTheDocument();
   });
 
   it("opens a document in the viewer as often as needed and returns to Claim Details", async () => {
     getClaimDocumentContent.mockResolvedValue(new Blob(["%PDF-1.7"], { type: "application/pdf" }));
     renderPage();
-    const view = await screen.findByRole("button", { name: "View FIR" });
+    const view = await screen.findByRole("button", { name: "View Registration Certificate (RC)" });
     for (let opened = 1; opened <= 2; opened += 1) {
       fireEvent.click(view);
-      const dialog = await screen.findByRole("dialog", { name: "FIR" });
-      expect(await within(dialog).findByTitle("FIR")).toHaveAttribute("src", "blob:document");
+      const dialog = await screen.findByRole("dialog", { name: "Registration Certificate (RC)" });
+      expect(await within(dialog).findByTitle("Registration Certificate (RC)")).toHaveAttribute("src", "blob:document");
       fireEvent.click(within(dialog).getByRole("button", { name: /back to claim details/i }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(getClaimDocumentContent).toHaveBeenCalledTimes(opened);
     }
-    expect(getClaimDocumentContent).toHaveBeenCalledWith("DEV-CLAIM-001", "DOC-FIR");
+    expect(getClaimDocumentContent).toHaveBeenCalledWith("DEV-CLAIM-001", "DOC-RC");
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:document");
     expect(screen.getByRole("heading", { name: "Claim Information" })).toBeInTheDocument();
   });
@@ -202,8 +206,8 @@ describe("SurveyorClaimDetailsPage", () => {
   it("shows an image document as an image", async () => {
     getClaimDocumentContent.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "View Repair Estimate" }));
-    expect(await within(screen.getByRole("dialog")).findByRole("img", { name: "Repair Estimate" })).toHaveAttribute("src", "blob:document");
+    fireEvent.click(await screen.findByRole("button", { name: "View Insurance Policy" }));
+    expect(await within(screen.getByRole("dialog")).findByRole("img", { name: "Insurance Policy" })).toHaveAttribute("src", "blob:document");
   });
 
   it.each([
@@ -214,7 +218,7 @@ describe("SurveyorClaimDetailsPage", () => {
   ])("explains a document that cannot be shown (%#)", async (error, message) => {
     getClaimDocumentContent.mockRejectedValue(error);
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "View FIR" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View Registration Certificate (RC)" }));
     expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent(message);
   });
 

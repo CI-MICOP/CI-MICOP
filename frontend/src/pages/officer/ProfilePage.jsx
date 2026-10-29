@@ -1,3 +1,4 @@
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import PageHeader from "../../components/common/PageHeader";
 import { useAuth } from "../../hooks/useAuth";
@@ -9,6 +10,7 @@ export default function OfficerProfilePage() {
   return (
     <div>
       <PageHeader title="Profile Settings" subtitle="Your account information on file with CI-MICOP." />
+      <BackButton fallback="/officer" />
       <Card className="max-w-2xl">
         <p className="mb-4 text-xs text-muted">
           This information is read-only. Profile editing is not yet supported by the backend.

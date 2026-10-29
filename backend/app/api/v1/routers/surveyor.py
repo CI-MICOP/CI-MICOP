@@ -18,11 +18,13 @@ from app.db_models.surveyor_inspection import SurveyorInspection
 from app.schemas.claim import ClaimSummaryOut
 from app.schemas.claim_detail import AccidentOut, EvidenceOut, RepairEstimateOut, VehicleDamageOut
 from app.schemas.surveyor import (
+    EvidenceKeptUpdate,
     RepairEstimateCreate,
     SurveyorInspectionCreate,
     SurveyorInspectionOut,
     SurveyorInspectionUpdate,
     VehicleDamageCreate,
+    VehicleDamageUpdate,
 )
 from app.services import (
     evidence_capture,
@@ -309,6 +311,21 @@ def create_vehicle_damage(
     return vehicle_damage_creation.create_vehicle_damage_for_surveyor(db, employee_id, payload)
 
 
+@router.patch("/vehicle-damage/{damage_id}", response_model=VehicleDamageOut)
+def update_vehicle_damage(
+    damage_id: str,
+    payload: VehicleDamageUpdate,
+    employee_id: str = Depends(require_surveyor_employee_id),
+    db: Session = Depends(get_db),
+):
+    """Surveyor edits their own previously saved vehicle-damage record
+    (the "Correct this step" flow). Updates the existing row in place -
+    never creates a new one. Same assignment/schedule/step-open checks as
+    creation, re-derived from the record's own Claim_ID - see
+    services/vehicle_damage_creation.py."""
+    return vehicle_damage_creation.update_vehicle_damage_for_surveyor(db, employee_id, damage_id, payload)
+
+
 @router.post("/repair-estimates", response_model=RepairEstimateOut, status_code=status.HTTP_201_CREATED)
 def create_repair_estimate(
     payload: RepairEstimateCreate,
@@ -347,13 +364,19 @@ async def capture_evidence(
     accuracy_m: float | None = Form(None),
     location_error: str | None = Form(None),
     evidence_date: str | None = Form(None),
+    location_source: str = Form("gps"),
+    address_label: str | None = Form(None),
     employee_id: str = Depends(require_surveyor_employee_id),
     db: Session = Depends(get_db),
 ):
     """A photo taken with the in-app camera, with the browser-reported
-    capture time and location. The surveyor, claim, inspection, source and
-    receipt time are established by the server (see
-    services/evidence_upload.py capture_evidence_for_surveyor)."""
+    capture time and location - either a device GPS reading or an
+    indoor-friendly map/address-search pick the surveyor confirmed
+    (location_source). The surveyor, claim, inspection, source and receipt
+    time are established by the server (see
+    services/evidence_upload.py capture_evidence_for_surveyor), which also
+    re-derives the location status from the raw coordinates - the request
+    cannot submit a status directly."""
     evidence, metadata = await evidence_upload.capture_evidence_for_surveyor(
         db,
         employee_id,
@@ -366,6 +389,8 @@ async def capture_evidence(
         accuracy_m,
         location_error,
         evidence_date,
+        location_source,
+        address_label,
     )
     inspection = crud_inspection.get(db, metadata["server"]["inspection_id"])
     return {
@@ -373,6 +398,40 @@ async def capture_evidence(
         "capture": evidence_capture.public_view(metadata),
         "qualifying_capture": evidence_capture.qualifies_for_inspection(metadata, inspection),
     }
+
+
+@router.patch("/evidence/{evidence_id}")
+def set_evidence_kept(
+    evidence_id: str,
+    payload: EvidenceKeptUpdate,
+    employee_id: str = Depends(require_surveyor_employee_id),
+    db: Session = Depends(get_db),
+):
+    """The surveyor's explicit Keep/un-keep decision for one of their own
+    saved photos, while the survey report is still editable. Enforced the
+    same way as deleting one (see services/evidence_upload.py) - a
+    submitted report answers 409, another surveyor's or claim's evidence
+    answers 404."""
+    evidence, metadata = evidence_upload.set_evidence_kept_for_surveyor(db, employee_id, evidence_id, payload.kept)
+    inspection = crud_inspection.get(db, metadata["server"]["inspection_id"])
+    return {
+        **EvidenceOut.model_validate(evidence).model_dump(),
+        "capture": evidence_capture.public_view(metadata),
+        "qualifying_capture": evidence_capture.qualifies_for_inspection(metadata, inspection),
+    }
+
+
+@router.delete("/evidence/{evidence_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_evidence(
+    evidence_id: str,
+    employee_id: str = Depends(require_surveyor_employee_id),
+    db: Session = Depends(get_db),
+):
+    """Removes one of the surveyor's own saved photos - before the survey
+    report is submitted only (services/evidence_upload.py enforces this,
+    the same rule that locks every other write once submitted)."""
+    evidence_upload.delete_evidence_for_surveyor(db, employee_id, evidence_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/evidence/{evidence_id}/image")

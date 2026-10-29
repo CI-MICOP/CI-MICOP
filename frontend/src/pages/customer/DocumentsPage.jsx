@@ -10,6 +10,7 @@ import Modal from "../../components/common/Modal";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
+import IdentityDocumentsPanel from "../../components/customer/IdentityDocumentsPanel";
 import { useFetch } from "../../hooks/useFetch";
 import { analyzeDocument, listMyDocuments } from "../../services/documentService";
 import { getApiErrorMessage } from "../../utils/errors";
@@ -75,6 +76,10 @@ export default function DocumentsPage() {
           </Link>
         }
       />
+
+      <div className="mb-6">
+        <IdentityDocumentsPanel />
+      </div>
 
       {error ? (
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />

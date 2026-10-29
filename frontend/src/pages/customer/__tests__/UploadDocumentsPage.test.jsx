@@ -70,15 +70,21 @@ describe("UploadDocumentsPage", () => {
     uploadDocument.mockResolvedValue({});
     renderPage();
     await chooseClaimAndFile("fir copy", pdf("fir.pdf"));
-    fireEvent.change(screen.getByLabelText(/survey report/i), { target: { files: [pdf("survey.pdf")] } });
+    fireEvent.change(screen.getByLabelText(/repair estimate/i), { target: { files: [pdf("estimate.pdf")] } });
 
     fireEvent.click(screen.getByRole("button", { name: /upload selected documents/i }));
 
     expect(await screen.findByText(/all 2 documents uploaded/i)).toBeInTheDocument();
     expect(uploadDocument.mock.calls.map((call) => call.slice(0, 2))).toEqual([
       ["CLM-1", "fir_copy"],
-      ["CLM-1", "survey_report"],
+      ["CLM-1", "repair_estimate"],
     ]);
+  });
+
+  it("does not offer a Survey Report upload - that belongs to the surveyor's inspection workflow", async () => {
+    renderPage();
+    await screen.findByLabelText(/^claim/i);
+    expect(screen.queryByLabelText(/survey report/i)).not.toBeInTheDocument();
   });
 
   it("shows the backend's reason when an upload fails and lets the customer retry", async () => {

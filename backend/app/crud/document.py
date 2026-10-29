@@ -18,6 +18,42 @@ def list_by_type(db: Session, document_type: str) -> list[Document]:
     return db.query(Document).filter(Document.Document_Type == document_type).order_by(Document.Document_ID).all()
 
 
+def list_identity_documents_by_customer(db: Session, customer_id: str) -> list[Document]:
+    """Claim-independent RC / Driving Licence / Insurance Policy documents
+    imported directly onto this customer (services/document_import.py).
+    Never returns a claim-scoped document - Claim_ID is always null here."""
+    return (
+        db.query(Document)
+        .filter(Document.Customer_ID == customer_id, Document.Claim_ID.is_(None))
+        .order_by(Document.Document_ID)
+        .all()
+    )
+
+
+def find_identity_document(
+    db: Session,
+    document_type: str,
+    customer_id: str,
+    vehicle_id: str | None,
+    policy_id: str | None,
+) -> Document | None:
+    """An existing claim-independent identity document for this exact
+    (type, customer, vehicle, policy) combination, if one was already
+    imported - used so re-running an import is a no-op for rows already
+    present, never a duplicate."""
+    return (
+        db.query(Document)
+        .filter(
+            Document.Claim_ID.is_(None),
+            Document.Document_Type == document_type,
+            Document.Customer_ID == customer_id,
+            Document.Vehicle_ID == vehicle_id,
+            Document.Policy_ID == policy_id,
+        )
+        .first()
+    )
+
+
 def create(db: Session, document: Document) -> Document:
     db.add(document)
     return document

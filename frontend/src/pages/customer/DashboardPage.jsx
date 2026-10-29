@@ -1,7 +1,8 @@
-import { FileText, FolderOpen, ShieldCheck } from "lucide-react";
+import { FilePlus, FileText, FolderOpen, ShieldCheck } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 
+import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
 import DataTable from "../../components/common/DataTable";
 import ErrorState from "../../components/common/ErrorState";
@@ -88,6 +89,14 @@ export default function CustomerDashboardPage() {
       <PageHeader
         title={`Good morning, ${user?.Username ?? ""}`}
         subtitle="Track your motor insurance claims with ease."
+        actions={
+          <Link to="/customer/claims/new">
+            <Button>
+              <FilePlus className="h-4 w-4" aria-hidden="true" />
+              File a New Claim
+            </Button>
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

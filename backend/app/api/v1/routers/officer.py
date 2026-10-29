@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_db, require_claims_officer_employee_id, require_roles
+from app.crud import accident as crud_accident
 from app.crud import authentication_user as crud_user
 from app.crud import claim as crud_claim
 from app.crud import claim_decision_audit as crud_audit
 from app.crud import cross_document_consistency as crud_consistency
 from app.crud import document as crud_document
+from app.crud import evidence as crud_evidence
 from app.crud import fraud_risk_analysis as crud_fraud
 from app.crud import repair_estimate as crud_repair_estimate
 from app.crud import surveyor_inspection as crud_inspection
@@ -14,8 +17,10 @@ from app.crud import vehicle_damage as crud_vehicle_damage
 from app.db_models.authentication_user import AuthenticationUser
 from app.schemas.claim import ClaimOut, ClaimSummaryOut
 from app.schemas.claim_detail import (
+    AccidentOut,
     ClaimDecisionAuditOut,
     CrossDocumentConsistencyOut,
+    EvidenceOut,
     FraudRiskAnalysisOut,
     RepairEstimateOut,
     VehicleDamageOut,
@@ -53,8 +58,10 @@ from app.services import (
     document_consistency,
     document_validity,
     entity_extraction,
+    evidence_capture,
     evidence_duplication,
     evidence_quality,
+    evidence_storage,
     repair_estimate_checks,
     semantic_consistency,
     surveyor_assignment,
@@ -129,12 +136,23 @@ def read_claim_processing_detail(
     current_user: AuthenticationUser = Depends(_officer_or_admin),
     db: Session = Depends(get_db),
 ):
-    """Aggregated claim-processing view: the claim plus documents,
-    damage, repair estimates, surveyor findings, cross-document
-    consistency, fraud risk, and prior decision audit history."""
+    """Aggregated claim-processing view: the claim plus accident details,
+    documents, damage, repair estimates, surveyor findings, evidence,
+    cross-document consistency, fraud risk, and prior decision audit
+    history. Accidents and evidence are claim-scoped tables (Claim_ID is
+    a NOT NULL FK on both - see db_models/accident.py, db_models/
+    evidence.py); there is no role restriction on either in the database
+    or in crud/accident.py, crud/evidence.py - only the Surveyor-specific
+    /surveyor/claims/{id} endpoint happened to be the only place reading
+    them until now. Each evidence item's capture metadata (location
+    source/status, never a raw storage path) is attached the same way
+    the dedicated .../evidence/locations endpoint already does, via
+    evidence_capture.public_view - None when no verified capture record
+    exists (e.g. a dataset-imported row), never fabricated."""
     claim = get_claim_or_403(db, claim_id, current_user)
     return {
         "claim": ClaimOut.model_validate(claim),
+        "accidents": [AccidentOut.model_validate(a) for a in crud_accident.list_by_claim(db, claim_id)],
         "documents": [DocumentOut.model_validate(d) for d in crud_document.list_by_claim(db, claim_id)],
         "vehicle_damage": [
             VehicleDamageOut.model_validate(d) for d in crud_vehicle_damage.list_by_claim(db, claim_id)
@@ -144,6 +162,13 @@ def read_claim_processing_detail(
         ],
         "surveyor_inspections": [
             SurveyorInspectionOut.model_validate(i) for i in crud_inspection.list_by_claim(db, claim_id)
+        ],
+        "evidence": [
+            {
+                **EvidenceOut.model_validate(e).model_dump(),
+                "capture": evidence_capture.public_view(evidence_capture.read_metadata(e)),
+            }
+            for e in crud_evidence.list_by_claim(db, claim_id)
         ],
         "cross_document_consistency": [
             CrossDocumentConsistencyOut.model_validate(c)
@@ -156,6 +181,41 @@ def read_claim_processing_detail(
             ClaimDecisionAuditOut.model_validate(a) for a in crud_audit.list_by_claim(db, claim_id)
         ],
     }
+
+
+@router.get("/claims/{claim_id}/evidence/{evidence_id}/image")
+def read_claim_evidence_image(
+    claim_id: str,
+    evidence_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """One evidence photo on a claim the officer/admin may already read in
+    full (get_claim_or_403 below). The evidence row is re-checked against
+    this exact claim_id, so an evidence id from a different claim can
+    never be substituted in the URL to leak it. Served from the
+    server-derived storage path only (evidence_storage.storage_path_for
+    sanitizes and root-checks it - no client-supplied path is ever used);
+    answers 404 if the row, the claim link, or the file itself is
+    missing, rather than fabricating an image. Read-only: never changes
+    the evidence, claim, survey, or decision state."""
+    get_claim_or_403(db, claim_id, current_user)
+    not_found = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    evidence = crud_evidence.get(db, evidence_id)
+    if evidence is None or evidence.Claim_ID != claim_id:
+        raise not_found
+    try:
+        path = evidence_storage.storage_path_for(evidence.Claim_ID, evidence.Evidence_ID, evidence.File_Name)
+    except ValueError:
+        raise not_found
+    if not path.is_file():
+        raise not_found
+    metadata = evidence_capture.read_metadata(evidence)
+    image_format = ((metadata or {}).get("server") or {}).get("image_format")
+    if image_format is None:
+        image_format = "PNG" if evidence.File_Name.lower().endswith(".png") else "JPEG"
+    media_type = "image/png" if image_format == "PNG" else "image/jpeg"
+    return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
 
 @router.get("/claims/{claim_id}/ai-analysis", response_model=AiClaimAnalysisOut)
@@ -475,6 +535,23 @@ def check_claim_photo_quality(
         ],
         limitations=result.limitations,
     )
+
+
+@router.get("/claims/{claim_id}/evidence/locations")
+def read_claim_evidence_locations(
+    claim_id: str,
+    current_user: AuthenticationUser = Depends(_officer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Read-only: every surveyor-camera evidence item's location source
+    and status for this claim (services/evidence_capture.py
+    claim_evidence_locations), so the Claims Officer can tell a
+    GPS-verified location from an indoor-friendly map selection - never
+    silently treated as equivalent. No storage path is ever returned."""
+    claim = crud_claim.get(db, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+    return {"Claim_ID": claim_id, "evidence": evidence_capture.claim_evidence_locations(db, claim_id)}
 
 
 @router.post("/claims/{claim_id}/repair-estimates/check", response_model=ClaimRepairEstimateChecksOut)

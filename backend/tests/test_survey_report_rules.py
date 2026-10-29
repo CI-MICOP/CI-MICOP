@@ -1325,9 +1325,11 @@ def _stored_document(store, document_id, document_type, name, content=None, clai
 
 def viewer_store(monkeypatch, **overrides):
     store = FakeStore(monkeypatch, **overrides)
+    _stored_document(store, "DOC-RC", "RC", "rc-copy.pdf", PDF)  # now stored like any other document
+    _stored_document(store, "DOC-POL", "Insurance Policy", "policy-copy.png", _png(), verification="Verified")
+    # Both excluded from this panel (FIR by type, Accident Photos always) -
+    # kept here only to assert they never appear.
     _stored_document(store, "DOC-FIR", "FIR", "fir.pdf", PDF)
-    _stored_document(store, "DOC-EST", "Repair Estimate", "estimate.png", _png(), verification="Verified")
-    _stored_document(store, "DOC-RC", "RC", "rc-copy.pdf")  # copies of the RC are never stored
     _stored_document(store, "DOC-PHOTO", "Accident Photos", "photo.jpg", _jpeg())
     return store
 
@@ -1343,20 +1345,22 @@ def test_assigned_surveyor_sees_each_documents_real_availability(client, monkeyp
     assert response.status_code == 200
     items = {item["document_type"]: item for item in response.json()["documents"]}
 
-    assert "Accident Photos" not in items  # customer evidence, never in this panel
-    assert items["FIR"]["availability"] == "available" and items["FIR"]["media_type"] == "application/pdf"
-    assert items["FIR"]["verification_status"] == "Pending"
-    assert items["Repair Estimate"]["verification_status"] == "Verified"  # as recorded, not inferred
-    assert items["RC"]["availability"] == "not_retained" and items["RC"]["document_id"] == "DOC-RC"
-    for missing in ("Driving Licence", "Insurance Policy"):
-        assert items[missing] == {
-            "document_id": None, "document_type": missing, "submitted_date": None,
-            "availability": "not_uploaded", "media_type": None, "verification_status": None,
-        }
-    assert [item["document_type"] for item in response.json()["documents"]][:5] == [
-        "RC", "Driving Licence", "Insurance Policy", "FIR", "Repair Estimate",
+    # Only RC, Driving Licence and Insurance Policy are ever in this panel -
+    # FIR and customer accident photos (both present on this claim) never are.
+    assert set(items) == {"RC", "Driving Licence", "Insurance Policy"}
+    assert items["RC"]["availability"] == "available" and items["RC"]["media_type"] == "application/pdf"
+    assert items["RC"]["verification_status"] == "Pending"
+    assert items["Insurance Policy"]["availability"] == "available" and items["Insurance Policy"]["media_type"] == "image/png"
+    assert items["Insurance Policy"]["verification_status"] == "Verified"  # as recorded, not inferred
+    assert items["Driving Licence"] == {
+        "document_id": None, "document_type": "Driving Licence", "submitted_date": None,
+        "availability": "not_uploaded", "media_type": None, "verification_status": None,
+    }
+    assert [item["document_type"] for item in response.json()["documents"]] == [
+        "RC", "Driving Licence", "Insurance Policy",
     ]
     assert "path" not in response.text.lower() and "storage" not in response.text.lower()
+    assert "FIR" not in response.text and "Accident Photos" not in response.text
 
 
 def test_documents_can_be_opened_repeatedly_without_changing_anything(client, monkeypatch):
@@ -1366,14 +1370,14 @@ def test_documents_can_be_opened_repeatedly_without_changing_anything(client, mo
     before = dict(vars(inspection))
 
     for _ in range(3):  # no view count, no one-time link
-        response = _content(test_client, "DOC-FIR")
+        response = _content(test_client, "DOC-RC")
         assert response.status_code == 200 and response.content == PDF
         assert response.headers["content-type"] == "application/pdf"
         assert response.headers["cache-control"] == "no-store"
         assert response.headers["x-content-type-options"] == "nosniff"
         assert response.headers["content-disposition"] == 'inline; filename="claim-document.pdf"'
         assert "sandbox" in response.headers["content-security-policy"]
-    image = _content(test_client, "DOC-EST")
+    image = _content(test_client, "DOC-POL")
     assert image.status_code == 200 and image.headers["content-type"] == "image/png"
 
     # Viewing writes nothing: no evidence, no inspection change, same workflow.
@@ -1387,11 +1391,11 @@ def test_document_views_are_audited_without_their_content(client, monkeypatch, c
     test_client, _ = client
     viewer_store(monkeypatch)
     with caplog.at_level("INFO", logger="ci_micop.audit.document_access"):
-        assert _content(test_client, "DOC-FIR").status_code == 200
+        assert _content(test_client, "DOC-RC").status_code == 200
     (record,) = [r for r in caplog.records if r.name == "ci_micop.audit.document_access"]
     message = record.getMessage()
-    assert "surveyor=EMP-1" in message and "claim=CLM-1" in message and "document=DOC-FIR" in message
-    assert "%PDF" not in message and "fir.pdf" not in message
+    assert "surveyor=EMP-1" in message and "claim=CLM-1" in message and "document=DOC-RC" in message
+    assert "%PDF" not in message and "rc-copy.pdf" not in message
 
 
 def test_unauthenticated_requests_are_rejected(client, monkeypatch):
@@ -1435,24 +1439,25 @@ def test_a_document_of_another_claim_cannot_be_opened_through_this_claim(client,
 def test_a_revoked_assignment_blocks_the_next_request(client, monkeypatch):
     test_client, _ = client
     store = viewer_store(monkeypatch)
-    assert _content(test_client, "DOC-FIR").status_code == 200
+    assert _content(test_client, "DOC-RC").status_code == 200
     store.inspections[0].Surveyor_ID = "EMP-2"  # reassigned to someone else
-    assert _content(test_client, "DOC-FIR").status_code == 404
+    assert _content(test_client, "DOC-RC").status_code == 404
     assert test_client.get(DOCS_URL).status_code == 404
 
 
-def test_missing_and_not_retained_files_are_reported_safely(client, monkeypatch):
+def test_missing_files_are_reported_safely_never_as_available(client, monkeypatch):
+    """A row with no file behind it - e.g. an RC/licence/policy copy
+    uploaded before copies were kept - is reported unavailable, never
+    falsely available, and never leaks the storage path."""
     test_client, _ = client
     store = viewer_store(monkeypatch)
-    _stored_document(store, "DOC-GONE", "Survey Report", "report.pdf")  # row without a file
+    _stored_document(store, "DOC-GONE", "Driving Licence", "dl.pdf")  # row without a file
     items = {item["document_id"]: item for item in test_client.get(DOCS_URL).json()["documents"]}
     assert items["DOC-GONE"]["availability"] == "unavailable"
 
     gone = _content(test_client, "DOC-GONE")
     assert (gone.status_code, gone.json()["detail"]) == (404, "The file for this document is not available.")
-    rc = _content(test_client, "DOC-RC")
-    assert rc.status_code == 404 and "verification details" in rc.json()["detail"]
-    assert settings.DOCUMENT_STORAGE_ROOT not in gone.text + rc.text
+    assert settings.DOCUMENT_STORAGE_ROOT not in gone.text
 
 
 def test_stored_names_and_ids_cannot_reach_files_outside_the_claims_storage(client, monkeypatch, tmp_path):
@@ -1461,7 +1466,7 @@ def test_stored_names_and_ids_cannot_reach_files_outside_the_claims_storage(clie
     secret = tmp_path / "secret.pdf"
     secret.write_bytes(PDF + b"SECRET")
     for index, name in enumerate(["../../secret.pdf", "..\\..\\secret.pdf", str(secret), "/etc/passwd"]):
-        _stored_document(store, f"DOC-TRAV-{index}", "FIR", name)
+        _stored_document(store, f"DOC-TRAV-{index}", "RC", name)
         response = _content(test_client, f"DOC-TRAV-{index}")
         assert response.status_code == 404 and b"SECRET" not in response.content
     assert test_client.get("/api/v1/surveyor/claims/CLM-1/documents/..%2F..%2Fsecret.pdf/content").status_code == 404
@@ -1470,7 +1475,7 @@ def test_stored_names_and_ids_cannot_reach_files_outside_the_claims_storage(clie
 def test_content_that_is_not_a_pdf_or_image_is_never_rendered(client, monkeypatch):
     test_client, _ = client
     store = viewer_store(monkeypatch)
-    _stored_document(store, "DOC-HTML", "Survey Report", "report.pdf", b"<html><script>alert(1)</script></html>")
+    _stored_document(store, "DOC-HTML", "Driving Licence", "report.pdf", b"<html><script>alert(1)</script></html>")
     items = {item["document_id"]: item for item in test_client.get(DOCS_URL).json()["documents"]}
     assert items["DOC-HTML"]["availability"] == "unsupported" and items["DOC-HTML"]["media_type"] is None
     response = _content(test_client, "DOC-HTML")
@@ -1509,7 +1514,7 @@ def test_documents_remain_viewable_after_submission_and_the_report_stays_final(c
         inspections=[_inspection(Survey_Report_Submitted=True, Inspection_Status="Completed")],
         damages=[_damage()],
     )
-    assert _content(test_client, "DOC-FIR").status_code == 200
+    assert _content(test_client, "DOC-RC").status_code == 200
     assert _patch(test_client, {"Damage_Severity": "Severe"}).status_code == 409
     assert _patch(test_client, {"Survey_Report_Submitted": False}).status_code == 409
     review = test_client.get("/api/v1/surveyor/claims/CLM-1").json()["workflow"]["submission_review"]

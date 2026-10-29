@@ -32,15 +32,19 @@ def sanitize_filename(original_name: str) -> str:
     return name[:100] or "upload"
 
 
-def storage_path_for(claim_id: str, document_id: str, original_filename: str) -> Path:
-    """infra/storage/documents/<Claim_ID>/<Document_ID>_<safe_filename> -
-    both the claim and document IDs are server-generated/validated
-    already, but they are re-sanitized here too as defense in depth."""
-    safe_claim_id = _UNSAFE_CHARS.sub("_", claim_id) or "unknown-claim"
+def storage_path_for(owner_id: str, document_id: str, original_filename: str) -> Path:
+    """infra/storage/documents/<owner_id>/<Document_ID>_<safe_filename>.
+
+    owner_id is the Claim_ID for an ordinary claim document, or the
+    Customer_ID for a claim-independent identity document imported via
+    services/document_import.py - either way it is server-generated/
+    validated already, but it is re-sanitized here too as defense in depth.
+    """
+    safe_owner_id = _UNSAFE_CHARS.sub("_", owner_id) or "unknown-owner"
     safe_document_id = _UNSAFE_CHARS.sub("_", document_id) or "unknown-document"
     safe_name = sanitize_filename(original_filename)
     root = Path(settings.DOCUMENT_STORAGE_ROOT).resolve()
-    directory = root / safe_claim_id
+    directory = root / safe_owner_id
     path = (directory / f"{safe_document_id}_{safe_name}").resolve()
 
     # Belt-and-braces: confirm the resolved path never escapes the storage

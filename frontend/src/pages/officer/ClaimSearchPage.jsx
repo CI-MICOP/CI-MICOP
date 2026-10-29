@@ -2,6 +2,7 @@ import { Info, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
 import DataTable from "../../components/common/DataTable";
@@ -45,6 +46,7 @@ export default function ClaimSearchPage() {
   return (
     <div>
       <PageHeader title="Claim Search" subtitle="Search claims by claim, customer, vehicle, or policy identifier." />
+      <BackButton fallback="/officer" />
 
       {error ? (
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />

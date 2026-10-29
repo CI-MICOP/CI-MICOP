@@ -2,16 +2,18 @@
 // The order is the upload order - keep it stable. `group` only affects how the
 // upload grid presents the categories. `input` is "file" (choose a file) or
 // "camera" (taken with the portal camera - there is no file picker for it).
-// `retained: false` matches backend/app/services/claim_copy_retention.py: the
-// copy is read for checking and the file is not kept.
+// Every type's file is stored (services/document_upload.py); driving_licence,
+// rc_book and insurance_policy additionally reduce what is saved into
+// Extracted_Text to just the verification record, never the full OCR text
+// (backend/app/services/claim_copy_retention.py) - the stored file itself is
+// the full, unredacted copy, viewable by an assigned surveyor.
 export const DOCUMENT_CATEGORIES = [
-  { key: "fir_copy", label: "FIR Copy", group: "evidence", input: "file", retained: true },
-  { key: "driving_licence", label: "Driving Licence", group: "claim_copy", input: "file", retained: false },
-  { key: "rc_book", label: "RC Book", group: "claim_copy", input: "file", retained: false },
-  { key: "insurance_policy", label: "Insurance Policy", group: "claim_copy", input: "file", retained: false },
-  { key: "repair_estimate", label: "Repair Estimate", group: "evidence", input: "file", retained: true },
-  { key: "accident_photos", label: "Accident Photos", group: "photos", input: "camera", retained: true },
-  { key: "survey_report", label: "Survey Report", group: "evidence", input: "file", retained: true },
+  { key: "fir_copy", label: "FIR Copy", group: "evidence", input: "file" },
+  { key: "driving_licence", label: "Driving Licence", group: "claim_copy", input: "file" },
+  { key: "rc_book", label: "RC Book", group: "claim_copy", input: "file" },
+  { key: "insurance_policy", label: "Insurance Policy", group: "claim_copy", input: "file" },
+  { key: "repair_estimate", label: "Repair Estimate", group: "evidence", input: "file" },
+  { key: "accident_photos", label: "Accident Photos", group: "photos", input: "camera" },
 ];
 
 // Copies required with every claim, whatever the claim type.

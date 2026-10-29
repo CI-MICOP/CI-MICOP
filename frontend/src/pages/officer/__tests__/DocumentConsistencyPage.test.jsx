@@ -72,4 +72,11 @@ describe("DocumentConsistencyPage", () => {
     expect(analyzeClaimDocuments).not.toHaveBeenCalled();
     expect(checkClaimConsistency).not.toHaveBeenCalled();
   });
+
+  it("shows a single Back button below the breadcrumb/tabs", async () => {
+    getClaimWorkspaceData.mockResolvedValue(workspace());
+    renderPage();
+    await screen.findByText("Live Document Consistency");
+    expect(screen.getAllByRole("button", { name: /back/i })).toHaveLength(1);
+  });
 });

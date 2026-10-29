@@ -23,6 +23,10 @@ def create(db: Session, evidence: Evidence) -> Evidence:
     return evidence
 
 
+def delete(db: Session, evidence: Evidence) -> None:
+    db.delete(evidence)
+
+
 def generate_evidence_id(db: Session, attempts: int = 20) -> str:
     """EVD-YYYYMMDD-XXXXXX, checked against the primary key before use -
     never accepted from the browser."""

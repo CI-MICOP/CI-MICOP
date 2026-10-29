@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Card from "../../components/common/Card";
 import LoadingState from "../../components/common/LoadingState";
@@ -45,6 +46,7 @@ export default function AiInsightsPage() {
     return (
       <div>
         <PageHeader title="AI Risk Insights" />
+        <BackButton fallback={`/officer/claims/${claimId}`} />
         <ClaimWorkspaceError error={error} onRetry={reload} />
       </div>
     );
@@ -62,6 +64,7 @@ export default function AiInsightsPage() {
         subtitle="Research-prototype decision support (Step 5.4/5.5), validated only on a synthetic/de-identified dataset. Not production fraud-detection accuracy."
       />
       <ClaimTabs claimId={claim.Claim_ID} />
+      <BackButton fallback={`/officer/claims/${claim.Claim_ID}`} />
 
       <LiveRunPanel claimId={claim.Claim_ID} onAfterRun={reloadAnalysis} />
 

@@ -1,5 +1,6 @@
 import { HelpCircle, MessageCircle, Phone } from "lucide-react";
 
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
 import PageHeader from "../../components/common/PageHeader";
@@ -23,6 +24,7 @@ export default function OfficerSupportPage() {
   return (
     <div>
       <PageHeader title="Help & Support" subtitle="Get help with claims processing and decisions." />
+      <BackButton fallback="/officer" />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>

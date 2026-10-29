@@ -41,14 +41,12 @@ DAMAGE_LOCATION_VALUES = {"Left", "Right", "Front", "Rear", "Multiple"}
 REPAIR_OR_REPLACE_VALUES = {"Repair", "Replace"}
 
 
-class VehicleDamageCreate(BaseModel):
-    """Fields a Surveyor may submit to record a vehicle-damage
-    observation. Neither Surveyor_ID nor Vehicle_ID is accepted here -
-    the surveyor is resolved from the JWT and Vehicle_ID is always
-    derived from the claim itself (see services/vehicle_damage_creation.py).
-    """
+class _VehicleDamageFields(BaseModel):
+    """The fields a Surveyor may set on a vehicle-damage record, shared by
+    VehicleDamageCreate (new record) and VehicleDamageUpdate (editing an
+    existing one via "Correct this step") so both go through identical
+    validation - see services/vehicle_damage_creation.py."""
 
-    Claim_ID: str
     Damage_Type: str
     Damaged_Part: str = Field(min_length=1, max_length=50)
     Damage_Severity: str
@@ -93,6 +91,34 @@ class VehicleDamageCreate(BaseModel):
         if value not in REPAIR_OR_REPLACE_VALUES:
             raise ValueError(f"Repair_or_Replace must be one of {sorted(REPAIR_OR_REPLACE_VALUES)}")
         return value
+
+
+class VehicleDamageCreate(_VehicleDamageFields):
+    """Fields a Surveyor may submit to record a vehicle-damage
+    observation. Neither Surveyor_ID nor Vehicle_ID is accepted here -
+    the surveyor is resolved from the JWT and Vehicle_ID is always
+    derived from the claim itself (see services/vehicle_damage_creation.py).
+    """
+
+    Claim_ID: str
+
+
+class VehicleDamageUpdate(_VehicleDamageFields):
+    """Fields a Surveyor may submit to edit their own previously saved
+    vehicle-damage record (the "Correct this step" flow). No Claim_ID -
+    the record being edited is identified by its Damage_ID in the URL,
+    and its Claim_ID can never be changed (see
+    services/vehicle_damage_creation.py)."""
+
+
+class EvidenceKeptUpdate(BaseModel):
+    """Surveyor's explicit Keep/un-keep decision for one of their own
+    already-saved evidence photos (see services/evidence_upload.py), while
+    the survey report is still editable. Keeping a photo records intent to
+    include it in the submission - it is never treated as proof the photo
+    is genuine or that its location is GPS-verified."""
+
+    kept: bool
 
 
 class RepairEstimateCreate(BaseModel):

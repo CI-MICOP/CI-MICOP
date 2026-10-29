@@ -38,6 +38,8 @@ from pathlib import Path
 from fastapi import HTTPException, status
 from PIL import Image, UnidentifiedImageError
 
+from app.crud import evidence as crud_evidence
+from app.crud import surveyor_inspection as crud_inspection
 from app.services import evidence_storage
 
 CAPTURE_METHOD = "in_app_camera"
@@ -59,6 +61,22 @@ MAX_CLIENT_TIME_SKEW_S = 10 * 60
 LOCATION_CAPTURED = "captured"
 LOCATION_UNAVAILABLE = "unavailable"
 LOCATION_INSUFFICIENT = "accuracy_insufficient"
+# A surveyor-confirmed point picked on the map/address-search fallback
+# (indoor-friendly: device GPS is often unusable indoors). Never upgraded
+# to LOCATION_CAPTURED - a map pick is never presented as GPS-verified.
+LOCATION_MAP_SELECTED = "map_selected"
+
+# The only two statuses that satisfy "a usable location reading" for the
+# surveyor-photo requirement (services/surveyor_workflow.py via
+# qualifies_for_inspection below): a sufficiently accurate GPS fix, or an
+# explicit map selection the surveyor confirmed. accuracy_insufficient and
+# unavailable are recorded honestly but never count - the fix for the
+# original indoor-GPS problem is the map fallback, not silently accepting
+# a bad or missing reading.
+LOCATION_USABLE_STATUSES = frozenset({LOCATION_CAPTURED, LOCATION_MAP_SELECTED})
+
+LOCATION_SOURCE_VALUES = frozenset({"gps", "map"})
+MAX_ADDRESS_LABEL_LENGTH = 255
 
 # Formats a browser canvas produces, identified from the bytes themselves.
 _CAPTURE_FORMATS = ((b"\xff\xd8\xff", ".jpg", "JPEG"), (b"\x89PNG\r\n\x1a\n", ".png", "PNG"))
@@ -95,17 +113,53 @@ def validate_image(content: bytes) -> tuple[str, str, int, int]:
 
 
 def location_record(latitude, longitude, accuracy_m, location_error) -> tuple[dict, str]:
-    """The browser-reported location and the server's verdict on it."""
+    """The device-GPS-reported location and the server's verdict on it.
+    Never called for a map-selected location - see map_location_record."""
     error = location_error if location_error in _LOCATION_ERRORS else ("other" if location_error else None)
     if latitude is None or longitude is None or accuracy_m is None:
-        missing = {"latitude": None, "longitude": None, "accuracy_m": None, "error": error or "not_provided"}
+        missing = {
+            "latitude": None,
+            "longitude": None,
+            "accuracy_m": None,
+            "error": error or "not_provided",
+            "source": "gps",
+            "address_label": None,
+        }
         return missing, LOCATION_UNAVAILABLE
     if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180) or not (accuracy_m > 0):
         raise _bad_request("The reported location is not valid.")
-    location = {"latitude": latitude, "longitude": longitude, "accuracy_m": accuracy_m, "error": None}
+    location = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy_m": accuracy_m,
+        "error": None,
+        "source": "gps",
+        "address_label": None,
+    }
     if accuracy_m > MAX_LOCATION_ACCURACY_M:
         return location, LOCATION_INSUFFICIENT
     return location, LOCATION_CAPTURED
+
+
+def map_location_record(latitude, longitude, address_label: str | None) -> tuple[dict, str]:
+    """A location the surveyor picked themselves on the map/address-search
+    fallback, confirmed before saving. No accuracy figure exists for a
+    manual pick - never fabricated - and this is never classified as
+    LOCATION_CAPTURED (GPS-verified), whatever the client sends."""
+    if latitude is None or longitude is None:
+        raise _bad_request("A map-selected location requires latitude and longitude.")
+    if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+        raise _bad_request("The selected location is not valid.")
+    label = (address_label or "").strip()[:MAX_ADDRESS_LABEL_LENGTH] or None
+    location = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy_m": None,
+        "error": None,
+        "source": "map",
+        "address_label": label,
+    }
+    return location, LOCATION_MAP_SELECTED
 
 
 def client_time_status(captured_at: str | None, received: datetime) -> tuple[str | None, str]:
@@ -167,6 +221,17 @@ def write_metadata(stored_photo_path: Path, metadata: dict) -> Path:
     path = metadata_path_for(stored_photo_path)
     atomic_write_json(path, metadata, exclusive=True)
     return path
+
+
+def update_review(stored_photo_path: Path, metadata: dict, kept: bool, employee_id: str, when: datetime) -> dict:
+    """Records the surveyor's explicit Keep/un-keep decision for an
+    already-captured photo, alongside its existing capture record. Only the
+    "review" key is replaced - everything the server established at capture
+    time (client/server/checks) is carried over exactly as read, so this can
+    never be used to alter the recorded location, time or image facts."""
+    updated = {**metadata, "review": {"kept": kept, "kept_by": employee_id, "kept_at": when.isoformat()}}
+    atomic_write_json(metadata_path_for(stored_photo_path), updated)
+    return updated
 
 
 @functools.lru_cache(maxsize=512)
@@ -252,19 +317,57 @@ def is_surveyor_capture_for(metadata: dict | None, inspection) -> bool:
 
 def qualifies_for_inspection(metadata: dict | None, inspection) -> bool:
     """Whether a photo satisfies the surveyor-photo requirement: a surveyor
-    capture for this inspection with a usable location reading."""
+    capture for this inspection with a usable location reading - a
+    sufficiently accurate GPS fix, or a surveyor-confirmed map selection
+    (see LOCATION_USABLE_STATUSES). Neither an insufficient-accuracy GPS
+    reading nor a missing one ever qualifies."""
     return is_surveyor_capture_for(metadata, inspection) and (metadata.get("checks") or {}).get(
         "location_status"
-    ) == LOCATION_CAPTURED
+    ) in LOCATION_USABLE_STATUSES
 
 
 def public_view(metadata: dict | None) -> dict | None:
     """What the surveyor API and the report show - no storage paths."""
     if not metadata:
         return None
+    review = metadata.get("review") or {}
     return {
         "capture_method": metadata.get("capture_method"),
         "client": metadata.get("client") or {},
         "server": metadata.get("server") or {},
         "checks": metadata.get("checks") or {},
+        # None until the surveyor makes an explicit choice - never defaulted
+        # to "kept" just because the photo was saved.
+        "review": {"kept": review.get("kept"), "kept_at": review.get("kept_at")},
     }
+
+
+# ---------------------------------------------------------------- Claims Officer review
+
+
+def claim_evidence_locations(db, claim_id: str) -> list[dict]:
+    """Every surveyor-camera evidence item on this claim with its location
+    source and status - for the Claims Officer's Evidence Check (never the
+    storage path, never upgraded from what the surveyor actually recorded).
+    Customer evidence (no in-app surveyor capture record) is left out, the
+    same scope the surveyor's own evidence view uses. qualifying_capture is
+    resolved against the capture's OWN inspection (read from its server
+    metadata), not whichever inspection the caller happens to have, since
+    an officer has none of their own."""
+    inspections = {i.Inspection_ID: i for i in crud_inspection.list_by_claim(db, claim_id)}
+    rows = []
+    for evidence in crud_evidence.list_by_claim(db, claim_id):
+        metadata = read_metadata(evidence)
+        if role_of(metadata) != ROLE_SURVEYOR:
+            continue
+        inspection = inspections.get((metadata.get("server") or {}).get("inspection_id"))
+        rows.append(
+            {
+                "Evidence_ID": evidence.Evidence_ID,
+                "Evidence_Type": evidence.Evidence_Type,
+                "Evidence_Date": evidence.Evidence_Date,
+                "capture": public_view(metadata),
+                "qualifying_capture": bool(inspection) and qualifies_for_inspection(metadata, inspection),
+            }
+        )
+    return rows

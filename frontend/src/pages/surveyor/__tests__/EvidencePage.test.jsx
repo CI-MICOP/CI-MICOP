@@ -12,11 +12,19 @@ vi.mock("../../../services/surveyorService", () => ({
   getAssignedClaimDetail: vi.fn(),
   createEvidenceCapture: vi.fn(),
   getEvidenceImage: vi.fn(),
+  setEvidenceKept: vi.fn(),
+  deleteEvidence: vi.fn(),
 }));
 
 import { COMPLETE_INSPECTION, schedule, workflow } from "../../../components/surveyor/__tests__/workflowFixture";
 import { getClaimById } from "../../../services/claimService";
-import { createEvidenceCapture, getAssignedClaimDetail, getEvidenceImage } from "../../../services/surveyorService";
+import {
+  createEvidenceCapture,
+  deleteEvidence,
+  getAssignedClaimDetail,
+  getEvidenceImage,
+  setEvidenceKept,
+} from "../../../services/surveyorService";
 import EvidencePage from "../EvidencePage";
 
 const CLAIM = { Claim_ID: "CLM-1", Claim_Number: "CLM-2026-AAAA" };
@@ -170,7 +178,7 @@ describe("EvidencePage - the capture form", () => {
     // Changing one photo's type does not touch the other.
     fireEvent.change(within(first).getByLabelText(/evidence type/i), { target: { value: "Overall Vehicle Condition" } });
     expect(within(second).getByLabelText(/evidence type/i)).toHaveValue("Accident Scene / Surroundings");
-    expect(within(first).getByText(/location captured/i)).toBeInTheDocument();
+    expect(within(first).getByText(/gps location available/i)).toBeInTheDocument();
     expect(nextButton()).toBeDisabled(); // unsaved images block Next
   });
 
@@ -236,8 +244,8 @@ describe("EvidencePage - the capture form", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/usable location/i);
     expect(createEvidenceCapture).not.toHaveBeenCalled();
 
-    await act(async () => fireEvent.click(within(unsaved()[0]).getByRole("button", { name: /retry location/i })));
-    expect(within(unsaved()[0]).getByText(/location captured/i)).toBeInTheDocument();
+    await act(async () => fireEvent.click(within(unsaved()[0]).getByRole("button", { name: /retry gps/i })));
+    expect(within(unsaved()[0]).getByText(/gps location available/i)).toBeInTheDocument();
   });
 
   it("flags a location that is not precise enough", async () => {
@@ -248,6 +256,71 @@ describe("EvidencePage - the capture form", () => {
     await openCamera();
     await capture();
     expect(within(unsaved()[0]).getByText(/±850 m - not precise enough/i)).toBeInTheDocument();
+  });
+
+  it("offers map selection instead of blocking when GPS accuracy is insufficient, and the map pick can then be saved", async () => {
+    getAssignedClaimDetail
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValue(completed([{ ...SAVED_PHOTO, capture: { ...CAPTURE, checks: { ...CAPTURE.checks, location_status: "map_selected" } } }]));
+    mockCamera();
+    mockLocation({ latitude: 13.08, longitude: 80.27, accuracy: 850 });
+    createEvidenceCapture.mockResolvedValue(SAVED_PHOTO);
+    renderPage();
+    await openCamera();
+    await capture();
+
+    expect(within(unsaved()[0]).getByText(/±850 m - not precise enough/i)).toBeInTheDocument();
+    expect(within(unsaved()[0]).getByRole("button", { name: /choose location on map/i })).toBeInTheDocument();
+    // Never silently blocked: the save button itself is present and clickable...
+    fireEvent.click(screen.getByRole("button", { name: "Save 1 image" }));
+    // ...it is simply not ready without a usable (GPS-verified or map-selected) location yet.
+    expect(await screen.findByRole("alert")).toHaveTextContent(/usable location/i);
+    expect(createEvidenceCapture).not.toHaveBeenCalled();
+
+    fireEvent.click(within(unsaved()[0]).getByRole("button", { name: /choose location on map/i }));
+    expect(await screen.findByText("Choose Location on Map")).toBeInTheDocument();
+    // The insufficient-but-present GPS reading pre-fills the map.
+    fireEvent.click(screen.getByRole("button", { name: /confirm location/i }));
+
+    expect(await within(unsaved()[0]).findByText("Map-selected — GPS not verified")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save 1 image" }));
+    await waitFor(() => expect(createEvidenceCapture).toHaveBeenCalledTimes(1));
+    expect(createEvidenceCapture.mock.calls[0][1]).toMatchObject({
+      latitude: 13.08,
+      longitude: 80.27,
+      accuracy: null,
+      locationSource: "map",
+    });
+  });
+
+  it("offers map selection when GPS is denied or unavailable, instead of leaving the surveyor stuck", async () => {
+    getAssignedClaimDetail.mockResolvedValue(detail());
+    mockCamera();
+    mockLocation({ code: 1 });
+    renderPage();
+    await openCamera();
+    await capture();
+    expect(within(unsaved()[0]).getByText(/location access is blocked/i)).toBeInTheDocument();
+    expect(within(unsaved()[0]).getByRole("button", { name: /choose location on map/i })).toBeInTheDocument();
+  });
+
+  it("lets the surveyor change a map-selected location before saving", async () => {
+    getAssignedClaimDetail.mockResolvedValue(detail());
+    mockCamera();
+    mockLocation({ latitude: 13.08, longitude: 80.27, accuracy: 850 });
+    renderPage();
+    await openCamera();
+    await capture();
+
+    fireEvent.click(within(unsaved()[0]).getByRole("button", { name: /choose location on map/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm location/i }));
+    expect(await within(unsaved()[0]).findByText("Map-selected — GPS not verified")).toBeInTheDocument();
+
+    fireEvent.click(within(unsaved()[0]).getByRole("button", { name: /change location/i }));
+    expect(await screen.findByText("Choose Location on Map")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    // Cancelling the picker keeps the previously confirmed map location.
+    expect(within(unsaved()[0]).getByText("Map-selected — GPS not verified")).toBeInTheDocument();
   });
 
   it("rejects an evidence date in the future or before the scheduled date", async () => {
@@ -322,6 +395,79 @@ describe("EvidencePage - saved evidence and step states", () => {
     expect(within(tile).getByText("Not analysed yet")).toBeInTheDocument();
     await waitFor(() => expect(within(tile).getByRole("img")).toHaveAttribute("src", expect.stringMatching(/^blob:/)));
     expect(nextButton()).toBeEnabled();
+    expect(within(tile).getByRole("button", { name: "Keep Photo" })).toBeInTheDocument();
+    expect(within(tile).getByRole("button", { name: "Delete Photo" })).toBeInTheDocument();
+    expect(within(tile).queryByText("Kept")).not.toBeInTheDocument();
+  });
+
+  it("lets the surveyor keep a saved photo, then change their mind", async () => {
+    const keptPhoto = { ...SAVED_PHOTO, capture: { ...CAPTURE, review: { kept: true, kept_at: "2026-10-28T10:05:00+05:30" } } };
+    getAssignedClaimDetail
+      .mockResolvedValueOnce(completed())
+      .mockResolvedValueOnce(completed([keptPhoto]))
+      .mockResolvedValue(completed());
+    setEvidenceKept.mockResolvedValue({});
+    renderPage();
+
+    let tile = await screen.findByRole("listitem", { name: /saved image/i });
+    fireEvent.click(within(tile).getByRole("button", { name: "Keep Photo" }));
+    await waitFor(() => expect(setEvidenceKept).toHaveBeenCalledWith("EVD-1", true));
+    expect(await screen.findByText("Photo marked as kept.")).toBeInTheDocument();
+    tile = screen.getByRole("listitem", { name: /saved image/i });
+    expect(within(tile).getByText("Kept")).toBeInTheDocument();
+    expect(within(tile).getByRole("button", { name: "Un-keep Photo" })).toBeInTheDocument();
+
+    fireEvent.click(within(tile).getByRole("button", { name: "Un-keep Photo" }));
+    await waitFor(() => expect(setEvidenceKept).toHaveBeenCalledWith("EVD-1", false));
+    expect(await screen.findByText("Photo is no longer marked as kept.")).toBeInTheDocument();
+    tile = screen.getByRole("listitem", { name: /saved image/i });
+    expect(within(tile).queryByText("Kept")).not.toBeInTheDocument();
+  });
+
+  it("deletes a saved photo after confirmation, updating the gallery and image count", async () => {
+    getAssignedClaimDetail
+      .mockResolvedValueOnce(completed())
+      .mockResolvedValue(detail({ evidence: [], wf: workflow("evidence", { qualifying_photo_count: 0 }) }));
+    deleteEvidence.mockResolvedValue();
+    renderPage();
+
+    const tile = await screen.findByRole("listitem", { name: /saved image/i });
+    fireEvent.click(within(tile).getByRole("button", { name: "Delete Photo" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Delete this photo?")).toBeInTheDocument();
+    expect(deleteEvidence).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete Photo" }));
+
+    await waitFor(() => expect(deleteEvidence).toHaveBeenCalledWith("EVD-1"));
+    expect(await screen.findByText("Photo deleted.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Images (0)" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("cancels a delete confirmation safely, deleting nothing", async () => {
+    getAssignedClaimDetail.mockResolvedValue(completed());
+    renderPage();
+
+    const tile = await screen.findByRole("listitem", { name: /saved image/i });
+    fireEvent.click(within(tile).getByRole("button", { name: "Delete Photo" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(deleteEvidence).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Images (1)" })).toBeInTheDocument();
+  });
+
+  it("shows why a keep/delete request failed, without losing the photo", async () => {
+    getAssignedClaimDetail.mockResolvedValue(completed());
+    setEvidenceKept.mockRejectedValue({ response: { status: 409, data: { detail: "This survey report has already been submitted, so the inspection can no longer be changed." } } });
+    renderPage();
+
+    const tile = await screen.findByRole("listitem", { name: /saved image/i });
+    fireEvent.click(within(tile).getByRole("button", { name: "Keep Photo" }));
+    expect(await within(tile).findByRole("alert")).toHaveTextContent(/already been submitted/i);
+    expect(screen.getByRole("heading", { name: "Images (1)" })).toBeInTheDocument();
   });
 
   it("is locked until the earlier steps are complete", async () => {
@@ -345,6 +491,10 @@ describe("EvidencePage - saved evidence and step states", () => {
     expect(await screen.findByText(/can no longer be changed/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /open camera/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Images (1)" })).toBeInTheDocument();
+    // Keep/Delete are disabled on the frontend once submitted - the backend
+    // enforces the same rule (409) if a request were sent anyway.
+    expect(screen.queryByRole("button", { name: /keep photo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /delete photo/i })).not.toBeInTheDocument();
     fireEvent.click(nextButton());
     expect(await screen.findByText("Survey Report step")).toBeInTheDocument();
   });

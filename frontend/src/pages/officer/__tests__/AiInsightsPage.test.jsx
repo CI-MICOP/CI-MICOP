@@ -128,13 +128,20 @@ describe("AiInsightsPage - live AI analysis", () => {
     expect(screen.getAllByText(/final claim decision remains with the claims officer|final decision remains with claims officer/i).length).toBeGreaterThan(0);
   });
 
-  it("the only button on the page runs live analysis - never a decision control", async () => {
+  it("the only non-navigation button on the page runs live analysis - never a decision control", async () => {
     getAiAnalysis.mockResolvedValue(availableAnalysis());
     renderPage();
     await screen.findByText("AI Claim Analysis");
-    const buttons = screen.queryAllByRole("button");
+    const buttons = screen.queryAllByRole("button", { name: (name) => !/back/i.test(name) });
     expect(buttons).toHaveLength(1);
     expect(buttons[0]).toHaveTextContent(/run ai analysis/i);
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+  });
+
+  it("shows a single Back button below the breadcrumb/tabs", async () => {
+    getAiAnalysis.mockResolvedValue(availableAnalysis());
+    renderPage();
+    await screen.findByText("AI Claim Analysis");
+    expect(screen.getAllByRole("button", { name: /back/i })).toHaveLength(1);
   });
 });

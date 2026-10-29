@@ -27,6 +27,14 @@ export async function createVehicleDamage(payload) {
   return response.data;
 }
 
+// Edits an existing vehicle-damage record in place ("Correct this step").
+// Claim_ID is never sent - the backend keeps the existing record's own
+// claim/vehicle association and never accepts a change to it.
+export async function updateVehicleDamage(damageId, payload) {
+  const response = await apiClient.patch(`/surveyor/vehicle-damage/${damageId}`, payload);
+  return response.data;
+}
+
 // Vehicle_ID is never sent - the backend derives it from the claim itself.
 export async function createRepairEstimate(payload) {
   const response = await apiClient.post("/surveyor/repair-estimates", payload);
@@ -38,7 +46,18 @@ export async function createRepairEstimate(payload) {
 // establishes the surveyor, inspection, source and receipt time itself.
 export async function createEvidenceCapture(
   claimId,
-  { evidenceType, evidenceDate, photo, capturedAt, latitude, longitude, accuracy },
+  {
+    evidenceType,
+    evidenceDate,
+    photo,
+    capturedAt,
+    latitude,
+    longitude,
+    accuracy,
+    locationSource,
+    addressLabel,
+    locationError,
+  },
   onProgress
 ) {
   const formData = new FormData();
@@ -47,17 +66,36 @@ export async function createEvidenceCapture(
   if (evidenceDate) formData.append("evidence_date", evidenceDate);
   formData.append("photo", photo, "capture.jpg");
   formData.append("captured_at", capturedAt);
-  if (latitude != null && longitude != null && accuracy != null) {
+  // A map-selected point has coordinates but never an accuracy figure -
+  // send lat/lng whenever they exist, accuracy only when it does too.
+  if (latitude != null && longitude != null) {
     formData.append("latitude", String(latitude));
     formData.append("longitude", String(longitude));
-    formData.append("accuracy_m", String(accuracy));
+    if (accuracy != null) formData.append("accuracy_m", String(accuracy));
   }
+  if (locationSource) formData.append("location_source", locationSource);
+  if (addressLabel) formData.append("address_label", addressLabel);
+  if (locationError) formData.append("location_error", locationError);
   const response = await apiClient.post("/surveyor/evidence/capture", formData, {
     onUploadProgress: (event) => {
       if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
     },
   });
   return response.data;
+}
+
+// The surveyor's explicit Keep/un-keep decision for one of their own
+// already-saved photos, while the survey report is still editable.
+export async function setEvidenceKept(evidenceId, kept) {
+  const response = await apiClient.patch(`/surveyor/evidence/${evidenceId}`, { kept });
+  return response.data;
+}
+
+// Removes one of the surveyor's own saved photos before the survey report
+// is submitted. The backend re-enforces this - a submitted report refuses
+// the request (409), as does another surveyor's or claim's evidence (404).
+export async function deleteEvidence(evidenceId) {
+  await apiClient.delete(`/surveyor/evidence/${evidenceId}`);
 }
 
 // The Claim Documents panel (Claim Details): the claim's customer documents

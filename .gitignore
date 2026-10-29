@@ -50,6 +50,10 @@ infra/storage/evidence/
 *.pt
 *.onnx
 
+# Database backups/dumps (never commit - may contain real claim/customer data)
+backend/backups/
+*.dump
+
 # ---------- Source dataset archives ----------
 *.zip
 

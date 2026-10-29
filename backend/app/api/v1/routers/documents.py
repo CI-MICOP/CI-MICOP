@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_user, get_db, require_customer_id
@@ -11,10 +11,19 @@ from app.schemas.document import DocumentOut
 from app.schemas.document_analysis import DocumentAnalysisOut, DocumentCompletenessOut
 from app.schemas.document_consistency import DocumentConsistencyOut, EntityConsistencyOut
 from app.schemas.entity_extraction import EntityCandidateOut, EntityExtractionResultOut
-from app.services import claim_photos, document_analysis, document_consistency, document_upload, entity_extraction
+from app.services import (
+    claim_photos,
+    customer_identity_documents,
+    document_analysis,
+    document_consistency,
+    document_upload,
+    entity_extraction,
+)
 from app.services.claim_access import get_claim_or_403
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+_IDENTITY_PREVIEW_EXTENSIONS = {"application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png"}
 
 
 def _hidden_from(current_user: AuthenticationUser, document) -> bool:
@@ -91,6 +100,44 @@ def list_documents(
 ):
     get_claim_or_403(db, claim_id, current_user)
     return [d for d in crud_document.list_by_claim(db, claim_id) if not _hidden_from(current_user, d)]
+
+
+@router.get("/identity")
+def list_identity_documents(
+    customer_id: str = Depends(require_customer_id),
+    db: Session = Depends(get_db),
+):
+    """The Customer Portal's "My Documents" identity section: this
+    customer's own RC, Driving Licence and Insurance Policy documents
+    imported directly onto their record (services/document_import.py).
+    Customer_ID always comes from the authenticated JWT, never the
+    request - see services/customer_identity_documents.py. Registered
+    ahead of /{document_id} below so "identity" is never read as a
+    document ID."""
+    return customer_identity_documents.list_identity_documents(db, customer_id)
+
+
+@router.get("/identity/{document_id}/content")
+def read_identity_document_content(
+    document_id: str,
+    customer_id: str = Depends(require_customer_id),
+    db: Session = Depends(get_db),
+):
+    """One of this customer's own identity documents, for the in-dashboard
+    viewer. Served inline from the server-side record, never by path or
+    public URL."""
+    content, media_type, _ = customer_identity_documents.read_identity_document_content(db, customer_id, document_id)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'inline; filename="identity-document{_IDENTITY_PREVIEW_EXTENSIONS[media_type]}"',
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+        },
+    )
 
 
 @router.get("/{document_id}", response_model=DocumentOut)

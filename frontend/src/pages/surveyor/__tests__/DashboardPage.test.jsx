@@ -80,4 +80,10 @@ describe("SurveyorDashboardPage (Home)", () => {
     expect(await screen.findByText("No inspections assigned yet.")).toBeInTheDocument();
     expect(statValue("Total Inspections")).toBe("0");
   });
+
+  it("does not add a Back button - this task's Back button is Claims Officer only", async () => {
+    renderPage();
+    await screen.findByText("Total Inspections");
+    expect(screen.queryByRole("button", { name: /back/i })).not.toBeInTheDocument();
+  });
 });

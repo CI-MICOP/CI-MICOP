@@ -11,6 +11,16 @@ def get(db: Session, claim_id: str) -> Claim | None:
     return db.query(Claim).filter(Claim.Claim_ID == claim_id).first()
 
 
+def get_for_update(db: Session, claim_id: str) -> Claim | None:
+    """Same lookup as get(), but takes a row-level lock (SELECT ... FOR
+    UPDATE) for the rest of this transaction. Used only where a decision is
+    about to be written: a second, concurrent request for the same claim
+    blocks here until the first transaction commits or rolls back, then
+    re-reads the now-committed row - so two requests can never both see
+    Final_Decision as still "Pending" and both finalize the same claim."""
+    return db.query(Claim).filter(Claim.Claim_ID == claim_id).with_for_update().first()
+
+
 def create(db: Session, claim: Claim) -> Claim:
     db.add(claim)
     return claim

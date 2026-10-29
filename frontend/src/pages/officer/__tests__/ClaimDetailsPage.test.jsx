@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,10 +6,12 @@ vi.mock("../../../services/officerService", () => ({
   getClaimWorkspaceData: vi.fn(),
   getSurveyors: vi.fn(),
   assignSurveyor: vi.fn(),
+  getClaimEvidenceImage: vi.fn(),
 }));
 
 import {
   assignSurveyor,
+  getClaimEvidenceImage,
   getClaimWorkspaceData,
   getSurveyors,
 } from "../../../services/officerService";
@@ -53,9 +55,54 @@ function baseWorkspace(overrides = {}) {
     cross_document_consistency: [],
     fraud_risk_analysis: [],
     decision_audit: [],
+    accidents: [],
+    evidence: [],
     ...overrides,
   };
 }
+
+const ACCIDENT = {
+  Accident_ID: "ACC-1",
+  Claim_ID: "CLM-1",
+  Accident_Date: "2026-06-01",
+  Accident_Time: "14:45:00",
+  Accident_Location: "Anna Salai, Chennai",
+  Accident_City: "Chennai",
+  Accident_State: "Tamil Nadu",
+  Accident_Pincode: "600002",
+  Accident_Type: "Collision",
+  Accident_Description: "Rear-ended at a signal.",
+  Weather_Condition: "Clear",
+  Road_Condition: "Dry",
+  Road_Type_Code: "URBAN",
+  Police_Report_Available: true,
+  FIR_Number: "FIR-2026-001",
+  Third_Party_Involved: true,
+  Injury_Reported: false,
+  Witness_Available: true,
+};
+
+const EVIDENCE_ITEM = {
+  Evidence_ID: "EVD-1",
+  Claim_ID: "CLM-1",
+  Evidence_Type: "Vehicle Damage Close-up",
+  File_Name: "camera-capture-1.jpg",
+  Evidence_Date: "2026-06-02",
+  Evidence_Source: "Surveyor",
+  Image_Quality: 0,
+  Vehicle_Damage_Detected: false,
+  Damage_Severity: "Pending",
+  Location_Match: false,
+  Duplicate_Evidence_Indicator: false,
+  Evidence_Confidence_Score: 0,
+  Verification_Status: "Pending",
+  capture: {
+    capture_method: "in_app_camera",
+    client: { latitude: 13.0827, longitude: 80.2707, accuracy_m: 12, source: "gps" },
+    server: {},
+    checks: { location_status: "captured" },
+  },
+};
 
 function renderPage() {
   return render(
@@ -70,6 +117,9 @@ function renderPage() {
 describe("OfficerClaimDetailsPage - Surveyor Assignment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getClaimEvidenceImage.mockResolvedValue(new Blob(["jpeg"], { type: "image/jpeg" }));
+    URL.createObjectURL = vi.fn(() => "blob:evidence-preview");
+    URL.revokeObjectURL = vi.fn();
   });
 
   it("shows the Not Assigned state with an Assign Surveyor button for an unassigned claim", async () => {
@@ -191,5 +241,75 @@ describe("OfficerClaimDetailsPage - Surveyor Assignment", () => {
     expect(await screen.findByText("Own Damage")).toBeInTheDocument();
     expect(screen.getByText("No documents uploaded for this claim")).toBeInTheDocument();
     expect(screen.getByText("No repair estimate on file for this claim")).toBeInTheDocument();
+  });
+
+  it("shows exactly one Back button, below the breadcrumb/tabs and above the main content", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace());
+    renderPage();
+    await screen.findByText("Own Damage");
+    expect(screen.getAllByRole("button", { name: /back/i })).toHaveLength(1);
+  });
+});
+
+describe("OfficerClaimDetailsPage - Accident Information", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getClaimEvidenceImage.mockResolvedValue(new Blob(["jpeg"], { type: "image/jpeg" }));
+    URL.createObjectURL = vi.fn(() => "blob:evidence-preview");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  it("renders accident details from the API response and removes the old API-access warning", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace({ accidents: [ACCIDENT] }));
+    renderPage();
+    expect(await screen.findByText("Anna Salai, Chennai")).toBeInTheDocument();
+    expect(screen.getByText("Chennai")).toBeInTheDocument();
+    expect(screen.getByText("Collision")).toBeInTheDocument();
+    expect(screen.getByText("FIR-2026-001")).toBeInTheDocument();
+    expect(screen.getByText("Rear-ended at a signal.")).toBeInTheDocument();
+    expect(screen.queryByText(/surveyor\/admin inspection api/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/does not have access/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a clear message when no accident record has been recorded", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace());
+    renderPage();
+    expect(await screen.findByText("No detailed accident information has been recorded for this claim")).toBeInTheDocument();
+    expect(screen.queryByText(/surveyor\/admin inspection api/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("OfficerClaimDetailsPage - Evidence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getClaimEvidenceImage.mockResolvedValue(new Blob(["jpeg"], { type: "image/jpeg" }));
+    URL.createObjectURL = vi.fn(() => "blob:evidence-preview");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  it("renders evidence metadata and an image preview from the API response", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace({ evidence: [EVIDENCE_ITEM] }));
+    renderPage();
+    const tile = await screen.findByRole("listitem", { name: /evidence camera-capture-1\.jpg/i });
+    expect(within(tile).getByText("Vehicle Damage Close-up")).toBeInTheDocument();
+    expect(within(tile).getByText("Pending")).toBeInTheDocument();
+    expect(within(tile).getByText("Surveyor")).toBeInTheDocument();
+    await waitFor(() => expect(getClaimEvidenceImage).toHaveBeenCalledWith("CLM-1", "EVD-1"));
+    expect(within(tile).getByRole("img")).toHaveAttribute("src", "blob:evidence-preview");
+    expect(screen.queryByText(/does not have access to through any existing endpoint/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a clear message when no evidence has been uploaded", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace());
+    renderPage();
+    expect(await screen.findByText("No evidence has been uploaded for this claim")).toBeInTheDocument();
+  });
+
+  it("shows the image load error state when the evidence image fails to load", async () => {
+    getClaimWorkspaceData.mockResolvedValue(baseWorkspace({ evidence: [EVIDENCE_ITEM] }));
+    getClaimEvidenceImage.mockRejectedValue({ response: { status: 404 } });
+    renderPage();
+    await waitFor(() => expect(getClaimEvidenceImage).toHaveBeenCalled());
+    expect(await screen.findByLabelText(/evidence image camera-capture-1\.jpg/i)).toBeInTheDocument();
   });
 });

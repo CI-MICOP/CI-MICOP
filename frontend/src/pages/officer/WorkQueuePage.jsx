@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import DataTable from "../../components/common/DataTable";
 import ErrorState from "../../components/common/ErrorState";
@@ -12,6 +13,7 @@ import { useFetch } from "../../hooks/useFetch";
 import { getClaimById } from "../../services/claimService";
 import { listClaimsForProcessing } from "../../services/officerService";
 import { getVehicleById } from "../../services/vehicleService";
+import { isAwaitingReview, UNDER_REVIEW_STATUS } from "../../utils/claimWorkflow";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatCurrency, formatDate, formatVehicleLabel } from "../../utils/format";
 import { getStatusTone } from "../../utils/statusTone";
@@ -29,8 +31,12 @@ export default function WorkQueuePage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchQueue = useCallback(async () => {
-    const summaries = await listClaimsForProcessing({ limit: 200 });
-    const pending = summaries.filter((c) => !c.Final_Decision);
+    // Server-side filtered by the claim's persisted status (crud/claim.py's
+    // list_all), then narrowed to claims that still await a decision - see
+    // utils/claimWorkflow.js for why Final_Decision, not a "Completed"
+    // Claim_Status, is this project's real completion signal.
+    const summaries = await listClaimsForProcessing({ limit: 200, claim_status: UNDER_REVIEW_STATUS });
+    const pending = summaries.filter(isAwaitingReview);
     const [details, customerMap, vehicleMap] = await Promise.all([
       Promise.all(pending.map((c) => getClaimById(c.Claim_ID))),
       dedupedFetch(pending.map((c) => c.Customer_ID), getCustomerById),
@@ -61,6 +67,7 @@ export default function WorkQueuePage() {
   return (
     <div>
       <PageHeader title="My Work Queue" subtitle="Claims awaiting a final decision." />
+      <BackButton fallback="/officer" />
 
       {error ? (
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />

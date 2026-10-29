@@ -75,6 +75,25 @@ export async function checkRepairEstimates(claimId) {
   return response.data;
 }
 
+// Read-only: every surveyor-camera evidence item on this claim with its
+// location source/status (GPS-verified vs indoor-friendly map-selected) -
+// see services/evidence_capture.py claim_evidence_locations. Never writes.
+export async function getClaimEvidenceLocations(claimId) {
+  const response = await apiClient.get(`/officer/claims/${claimId}/evidence/locations`);
+  return response.data;
+}
+
+// One evidence photo on a claim the officer may already read in full
+// (GET /officer/claims/{id}). Fetched as a Blob (an <img> cannot send the
+// bearer token) and re-authorized on every request; there is no public
+// URL for the file.
+export async function getClaimEvidenceImage(claimId, evidenceId) {
+  const response = await apiClient.get(`/officer/claims/${claimId}/evidence/${evidenceId}/image`, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
 export async function getSurveyors() {
   const response = await apiClient.get("/officer/surveyors");
   return response.data;

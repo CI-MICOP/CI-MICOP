@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
@@ -36,6 +37,7 @@ export default function PerformanceReportsPage() {
     return (
       <div>
         <PageHeader title="Performance Reports" />
+        <BackButton fallback="/officer" />
         <LoadingState label="Calculating performance metrics..." />
       </div>
     );
@@ -44,6 +46,7 @@ export default function PerformanceReportsPage() {
     return (
       <div>
         <PageHeader title="Performance Reports" />
+        <BackButton fallback="/officer" />
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />
       </div>
     );
@@ -52,6 +55,7 @@ export default function PerformanceReportsPage() {
   return (
     <div>
       <PageHeader title="Performance Reports" subtitle={`Calculated from the ${data.summaries.length} claims currently visible to this role (API cap: 200).`} />
+      <BackButton fallback="/officer" />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Claims Handled" value={metrics.claimsHandled} />
         <StatCard label="Decisions Completed" value={metrics.decisionsCompleted} />

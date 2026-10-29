@@ -12,6 +12,7 @@ docs/project_documentation/SURVEYOR_DAMAGE_AND_EVIDENCE_WORKFLOW.md.
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -19,9 +20,13 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.crud import claim as crud_claim
 from app.crud import evidence as crud_evidence
+from app.crud import surveyor_inspection as crud_inspection
 from app.db_models.evidence import Evidence
 from app.services import evidence_capture, evidence_storage, surveyor_workflow
+
+audit_log = logging.getLogger("ci_micop.audit.evidence")
 
 # Real values observed in the approved dataset
 # (ai_ml/datasets/CI_MICOP_15_Tables_Complete/10_evidence.xlsx, 1301 rows) -
@@ -93,6 +98,8 @@ async def capture_evidence_for_surveyor(
     accuracy_m: float | None,
     location_error: str | None,
     evidence_date: str | None = None,
+    location_source: str = "gps",
+    address_label: str | None = None,
     now: datetime | None = None,
 ) -> tuple[Evidence, dict]:
     """Stores a photo taken with the surveyor's in-app camera, with its
@@ -102,19 +109,33 @@ async def capture_evidence_for_surveyor(
     database; Evidence_Source is set to "Surveyor" here, never taken from
     the request. A photo without a usable location is still stored but
     flagged, and does not count towards the surveyor-photo requirement.
+
+    location_source distinguishes a device-GPS reading ("gps", the
+    default - backward compatible with every existing caller) from an
+    indoor-friendly map/address-search pick the surveyor confirmed
+    ("map"). The status that results (LOCATION_CAPTURED/INSUFFICIENT/
+    UNAVAILABLE for gps, LOCATION_MAP_SELECTED for map) is always derived
+    here from the raw coordinates/accuracy - the request has no "status"
+    field for the client to set directly, so a map pick can never be
+    submitted as GPS-verified.
     """
     inspection = surveyor_workflow.require_writable_step(
         db, claim_id, employee_id, surveyor_workflow.STEP_EVIDENCE, now
     )
     if evidence_type not in SURVEYOR_CAPTURE_TYPES:
         raise _bad_request(f"Unsupported evidence_type. Allowed values: {list(SURVEYOR_CAPTURE_TYPES)}")
+    if location_source not in evidence_capture.LOCATION_SOURCE_VALUES:
+        raise _bad_request(f"Unsupported location_source. Allowed values: {sorted(evidence_capture.LOCATION_SOURCE_VALUES)}")
 
     content = await _read_limited(photo, settings.EVIDENCE_MAX_UPLOAD_BYTES)
     ext, image_format, width, height = evidence_capture.validate_image(content)
 
     received = now or surveyor_workflow.now_ist()
     photo_date = _evidence_date(evidence_date, inspection, received)
-    location, location_status = evidence_capture.location_record(latitude, longitude, accuracy_m, location_error)
+    if location_source == "map":
+        location, location_status = evidence_capture.map_location_record(latitude, longitude, address_label)
+    else:
+        location, location_status = evidence_capture.location_record(latitude, longitude, accuracy_m, location_error)
     client_time, time_status = evidence_capture.client_time_status(captured_at, received)
 
     evidence_id = crud_evidence.generate_evidence_id(db)
@@ -191,3 +212,103 @@ async def capture_evidence_for_surveyor(
         inspection, ("inspection", "damage"), inspection.Surveyor_ID, "evidence_captured", strict=False
     )
     return evidence, metadata
+
+
+# ---------------------------------------------------------------- keep / delete (before submission)
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found")
+
+
+def _owned_capture_or_404(db: Session, employee_id: str, evidence_id: str) -> tuple[Evidence, dict, object]:
+    """The surveyor's own in-app-camera capture, on a claim still assigned
+    to them, resolved to the exact inspection it was captured for (read from
+    its own capture record) - never "whichever inspection is currently
+    theirs", which would pick the wrong one once a surveyor has more than
+    one submitted inspection on the same claim. Anything else - another
+    surveyor's photo, a customer photo, an unknown id, a claim no longer
+    assigned - answers 404 alike, same as GET .../evidence/{id}/image, so
+    another surveyor's evidence is never disclosed to exist."""
+    evidence = crud_evidence.get(db, evidence_id)
+    if evidence is None or not crud_claim.surveyor_is_assigned(db, evidence.Claim_ID, employee_id):
+        raise _not_found()
+    metadata = evidence_capture.read_metadata(evidence)
+    server = (metadata or {}).get("server") or {}
+    if (
+        metadata is None
+        or server.get("role") != evidence_capture.ROLE_SURVEYOR
+        or server.get("surveyor_employee_id") != employee_id
+    ):
+        raise _not_found()
+    inspection = crud_inspection.get(db, server.get("inspection_id"))
+    if inspection is None:
+        raise _not_found()
+    return evidence, metadata, inspection
+
+
+def set_evidence_kept_for_surveyor(
+    db: Session, employee_id: str, evidence_id: str, kept: bool, now: datetime | None = None
+) -> tuple[Evidence, dict]:
+    """Records the surveyor's explicit Keep/un-keep choice for one of
+    their own saved photos. Purely a review decision the Claims Officer
+    side never sees and submission never depends on - it must never be
+    read as proof the photo is genuine or its location GPS-verified."""
+    evidence, metadata, inspection = _owned_capture_or_404(db, employee_id, evidence_id)
+    surveyor_workflow.assert_inspection_writable(inspection)
+    received = now or surveyor_workflow.now_ist()
+    updated = evidence_capture.update_review(
+        evidence_storage.storage_path_for(evidence.Claim_ID, evidence.Evidence_ID, evidence.File_Name),
+        metadata,
+        kept,
+        employee_id,
+        received,
+    )
+    audit_log.info(
+        "evidence_kept surveyor=%s claim=%s evidence=%s kept=%s at=%s",
+        employee_id,
+        evidence.Claim_ID,
+        evidence_id,
+        kept,
+        received.isoformat(),
+    )
+    return evidence, updated
+
+
+def delete_evidence_for_surveyor(db: Session, employee_id: str, evidence_id: str, now: datetime | None = None) -> None:
+    """Removes one of the surveyor's own saved photos - record and file -
+    while their survey report is still editable. The stored file name
+    embeds this row's own Evidence_ID (services/evidence_storage.py), so no
+    other evidence row can ever reference the same file; nothing else on
+    the claim (the claim, vehicle damage, other evidence) is touched.
+
+    The database row is deleted and committed first; only once that has
+    actually succeeded are the photo and its capture record removed from
+    disk (best-effort - see evidence_storage.delete_file), so a failure
+    never leaves a database row pointing at a deleted file, and a failure
+    to delete the row never leaves the file silently removed either."""
+    evidence, _metadata, inspection = _owned_capture_or_404(db, employee_id, evidence_id)
+    surveyor_workflow.assert_inspection_writable(inspection)
+    stored_path = evidence_storage.storage_path_for(evidence.Claim_ID, evidence.Evidence_ID, evidence.File_Name)
+    metadata_path = evidence_capture.metadata_path_for(stored_path)
+
+    try:
+        crud_evidence.delete(db, evidence)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The photo could not be deleted. Nothing was changed.",
+        ) from exc
+
+    received = now or surveyor_workflow.now_ist()
+    audit_log.info(
+        "evidence_deleted surveyor=%s claim=%s evidence=%s at=%s",
+        employee_id,
+        evidence.Claim_ID,
+        evidence_id,
+        received.isoformat(),
+    )
+    evidence_storage.delete_file(stored_path)
+    evidence_storage.delete_file(metadata_path)

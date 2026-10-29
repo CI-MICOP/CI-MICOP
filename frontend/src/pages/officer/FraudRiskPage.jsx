@@ -1,6 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { useParams } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
@@ -33,6 +34,7 @@ export default function FraudRiskPage() {
     return (
       <div>
         <PageHeader title="Fraud Risk" />
+        <BackButton fallback={`/officer/claims/${claimId}`} />
         <ClaimWorkspaceError error={error} onRetry={reload} />
       </div>
     );
@@ -46,6 +48,7 @@ export default function FraudRiskPage() {
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number, to: `/officer/claims/${claim.Claim_ID}` }, { label: "Fraud Risk" }]} />
       <PageHeader title={`Fraud Risk — ${claim.Claim_Number}`} subtitle="Future AI integration point - only real backend values are shown." />
       <ClaimTabs claimId={claim.Claim_ID} />
+      <BackButton fallback={`/officer/claims/${claim.Claim_ID}`} />
 
       {!risk ? (
         <Card>

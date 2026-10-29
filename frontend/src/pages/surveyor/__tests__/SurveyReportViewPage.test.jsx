@@ -115,7 +115,7 @@ describe("SurveyReportViewPage", () => {
     const evidence = section("E. Evidence and Capture Metadata");
     expect(evidence.getByText("In-app camera")).toBeInTheDocument();
     expect(evidence.getByText("13.082700, 80.270700 (±12 m)")).toBeInTheDocument();
-    expect(evidence.getByText("Location captured")).toBeInTheDocument();
+    expect(evidence.getByText("GPS verified")).toBeInTheDocument();
     expect(evidence.getByText(/No in-app capture record/)).toBeInTheDocument(); // the customer upload
     expect(evidence.getByText(/not proof of where or when/i)).toBeInTheDocument();
   });

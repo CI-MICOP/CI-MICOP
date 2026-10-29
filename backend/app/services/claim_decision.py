@@ -9,6 +9,12 @@ not a placeholder), it is carried forward into the new audit row as
 supporting information only - it never influences Final_Decision, and is
 never regenerated or recomputed here. See
 docs/project_documentation/CLAIMS_OFFICER_DECISION_WORKFLOW.md.
+
+A claim's final decision, once recorded, is permanent: a claim whose
+Final_Decision is already Approved/Rejected/Partially Approved rejects any
+further submission with 409 Conflict, enforced here (not only in the
+frontend) using a row-level lock (crud/claim.py::get_for_update) so two
+concurrent requests for the same claim cannot both finalize it.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ from app.crud import claim_decision_audit as crud_audit
 from app.db_models.claim_decision_audit import ClaimDecisionAudit
 from app.schemas.officer import DecisionCreate
 from app.schemas.surveyor import PENDING
+from app.services.claim_status import COMPLETED_STATUS
 
 # Real values observed in the approved dataset
 # (14_claim_decision_audit.xlsx) - anything outside this set (e.g. the
@@ -41,9 +48,26 @@ NOT_ESCALATED = "Not Escalated"
 def record_decision_for_officer(
     db: Session, employee_id: str, claim_id: str, payload: DecisionCreate
 ) -> ClaimDecisionAudit:
-    claim = crud_claim.get(db, claim_id)
+    # Row-locked: a second, concurrent decision on this same claim blocks
+    # here until this request's transaction ends, then re-reads the
+    # now-committed Final_Decision below - so two requests can never both
+    # pass the "not yet finalized" check for the same claim.
+    claim = crud_claim.get_for_update(db, claim_id)
     if claim is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Claim not found")
+
+    # Once a real decision is recorded, it is permanent - this is the
+    # project's lock, not just a disabled button in the frontend. "Pending"
+    # is the only non-final value (schemas/surveyor.py); Approved/Rejected/
+    # Partially Approved (schemas/officer.py's FINAL_DECISION_VALUES) are
+    # all final outcomes once persisted, with no re-decision or override
+    # path, by design - there is no existing administrative correction
+    # workflow in this project to preserve.
+    if claim.Final_Decision != PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This claim's decision has already been finalized and cannot be changed.",
+        )
 
     # Carry forward a genuinely-existing AI signal as supporting
     # information only - never fabricate one, never recompute one.
@@ -64,17 +88,28 @@ def record_decision_for_officer(
 
     today = date.today()
 
-    # Claim.Final_Decision/Decision_Reason/Approved_Amount/Decision_Date
-    # already exist on the approved schema - persisted directly, per this
-    # task's instruction not to invent a new claim lifecycle. Claim_Status
-    # is deliberately left untouched: the approved dataset shows no
-    # discoverable correlation between Claim_Status and Final_Decision
-    # (near-uniform crosstab across all 5 status x 3 decision
-    # combinations), so there is no existing state-machine rule to reuse.
+    # Claim_Status now mirrors the officer's decision, so the persisted
+    # status and Final_Decision can never disagree (previously Claim_Status
+    # was left untouched by every decision - see
+    # CLAIMS_OFFICER_DECISION_WORKFLOW.md Section 10 - which let a claim
+    # stay "Under Review" forever even once decided). Claim_Status only
+    # ever has two real values in this project (services/claim_status.py):
+    # "Under Review" while a decision is pending, and "Completed" once the
+    # officer has finished processing the claim - whatever that decision
+    # turned out to be. The differentiated outcome (Approved/Rejected/
+    # Partially Approved) is Final_Decision's job, not Claim_Status's: a
+    # rejected or partially approved claim is just as finally decided as an
+    # approved one, and this endpoint only ever runs for one of those three
+    # final values (see the FINAL_DECISION_VALUES check in schemas/
+    # officer.py) - so every call here completes the claim and moves it out
+    # of the active review queue alike.
+    new_status = COMPLETED_STATUS
+
     crud_claim.update(
         db,
         claim,
         {
+            "Claim_Status": new_status,
             "Final_Decision": payload.Final_Decision,
             "Decision_Reason": payload.Decision_Reason,
             "Approved_Amount": payload.Approved_Amount,
@@ -97,9 +132,9 @@ def record_decision_for_officer(
         Escalation_Status=NOT_ESCALATED,
         Escalated_To=None,
         Officer_Comments=payload.Officer_Comments,
-        # A new audit row was created - not overloading this with a claim-
-        # lifecycle "Closed" semantic that this step does not otherwise
-        # manage (Claim_Status is untouched, see above).
+        # A new audit row was created - this reflects the audit row itself,
+        # not the claim's lifecycle (Claim_Status is set directly on the
+        # claim above, not inferred from Audit_Action).
         Audit_Action="Created",
         # Naive UTC, matching api/v1/routers/auth.py's Last_Login convention
         # for this project's other DateTime (not DateTime(timezone=True))

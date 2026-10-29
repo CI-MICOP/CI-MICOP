@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../services/documentService", () => ({
   listMyDocuments: vi.fn(),
   analyzeDocument: vi.fn(),
+  listIdentityDocuments: vi.fn(),
+  getIdentityDocumentContent: vi.fn(),
 }));
 
-import { analyzeDocument, listMyDocuments } from "../../../services/documentService";
+import { analyzeDocument, listIdentityDocuments, listMyDocuments } from "../../../services/documentService";
 import DocumentsPage from "../DocumentsPage";
 
 const DOCUMENT = {
@@ -77,6 +79,7 @@ async function openDocumentModal() {
 describe("DocumentsPage - Step 5.8.12 analyze action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listIdentityDocuments.mockResolvedValue({ customer_id: "CUST-1", documents: [] });
   });
 
   it("renders the Analyze action inside the document detail modal", async () => {

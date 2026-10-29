@@ -1,11 +1,13 @@
 """Tests for POST /api/v1/officer/claims/{claim_id}/decision (Step 5.8.9).
 
 Per project rules these run against the real PostgreSQL database (see
-tests/conftest.py). claim_decision_audit is append-only: repeated
-decisions on the same claim must accumulate rows, never overwrite or
-delete previous ones.
+tests/conftest.py). A claim's first final decision is permanent: once
+Final_Decision moves off "Pending", every later submission for that same
+claim - sequential or concurrent - is rejected with 409 and leaves the
+claim and its single claim_decision_audit row unchanged.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from uuid import uuid4
 
@@ -63,6 +65,10 @@ def _decide(client, claim_id, body, token):
     return client.post(
         f"/api/v1/officer/claims/{claim_id}/decision", json=body, headers=auth_headers(token)
     )
+
+
+def _claim_status(db, claim_id):
+    return db.query(Claim).filter(Claim.Claim_ID == claim_id).first().Claim_Status
 
 
 # ---------------------------------------------------------------- 1/2/3: valid decisions
@@ -182,6 +188,207 @@ def test_claim_fields_are_updated(client, officer_token, seed_data, fresh_claim)
         db.close()
 
 
+def test_approved_decision_sets_claim_status_to_completed(client, officer_token, fresh_claim):
+    """A fresh claim starts "Under Review" - an Approved decision must
+    move it to "Completed" so the persisted status agrees with
+    Final_Decision (see services/claim_decision.py)."""
+    db = SessionLocal()
+    try:
+        assert _claim_status(db, fresh_claim) == "Under Review"
+    finally:
+        db.close()
+
+    response = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
+    assert response.status_code == 201, response.text
+
+    db = SessionLocal()
+    try:
+        assert _claim_status(db, fresh_claim) == "Completed"
+    finally:
+        db.close()
+
+
+def test_rejected_decision_also_sets_claim_status_to_completed(client, officer_token, fresh_claim):
+    """A rejected claim is just as finally decided as an approved one - it
+    must leave "Under Review" too, not be left looking like it is still
+    awaiting a decision (the bug this task fixes)."""
+    response = _decide(client, fresh_claim, VALID_REJECTED, officer_token)
+    assert response.status_code == 201, response.text
+
+    db = SessionLocal()
+    try:
+        assert _claim_status(db, fresh_claim) == "Completed"
+    finally:
+        db.close()
+
+
+def test_partially_approved_decision_also_sets_claim_status_to_completed(client, officer_token, fresh_claim):
+    response = _decide(client, fresh_claim, VALID_PARTIAL, officer_token)
+    assert response.status_code == 201, response.text
+
+    db = SessionLocal()
+    try:
+        assert _claim_status(db, fresh_claim) == "Completed"
+    finally:
+        db.close()
+
+
+def test_claim_without_a_final_decision_remains_under_review(client, officer_token, fresh_claim):
+    """A claim that has not yet been decided must never be shown as
+    finalized - only an actual decision submission changes Claim_Status."""
+    db = SessionLocal()
+    try:
+        assert _claim_status(db, fresh_claim) == "Under Review"
+        claim = db.query(Claim).filter(Claim.Claim_ID == fresh_claim).first()
+        assert claim.Final_Decision in (None, "Pending")
+    finally:
+        db.close()
+
+
+def test_a_second_decision_after_approval_is_rejected_and_the_first_decision_is_unchanged(
+    client, officer_token, fresh_claim
+):
+    """Once finalized, a claim's decision is permanent - no re-decision or
+    override path exists. The second attempt must not alter anything the
+    first one already persisted."""
+    first = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
+    assert first.status_code == 201
+
+    second = _decide(client, fresh_claim, VALID_REJECTED, officer_token)
+    assert second.status_code == 409
+    assert "already been finalized" in second.json()["detail"]
+
+    db = SessionLocal()
+    try:
+        claim = db.query(Claim).filter(Claim.Claim_ID == fresh_claim).first()
+        assert claim.Final_Decision == "Approved"
+        assert claim.Claim_Status == "Completed"
+        assert claim.Approved_Amount == Decimal("45000.00")
+        audit_count = db.query(ClaimDecisionAudit).filter(ClaimDecisionAudit.Claim_ID == fresh_claim).count()
+        assert audit_count == 1
+    finally:
+        db.close()
+
+
+def test_a_second_decision_after_rejection_is_also_rejected(client, officer_token, fresh_claim):
+    first = _decide(client, fresh_claim, VALID_REJECTED, officer_token)
+    assert first.status_code == 201
+
+    second = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
+    assert second.status_code == 409
+
+    db = SessionLocal()
+    try:
+        claim = db.query(Claim).filter(Claim.Claim_ID == fresh_claim).first()
+        assert claim.Final_Decision == "Rejected"
+        assert claim.Claim_Status == "Completed"
+    finally:
+        db.close()
+
+
+def test_a_third_decision_attempt_is_rejected_the_same_way(client, officer_token, fresh_claim):
+    """The lock holds for every attempt after the first, not just the
+    second."""
+    assert _decide(client, fresh_claim, VALID_APPROVED, officer_token).status_code == 201
+    assert _decide(client, fresh_claim, VALID_REJECTED, officer_token).status_code == 409
+    assert _decide(client, fresh_claim, VALID_PARTIAL, officer_token).status_code == 409
+
+    db = SessionLocal()
+    try:
+        audit_count = db.query(ClaimDecisionAudit).filter(ClaimDecisionAudit.Claim_ID == fresh_claim).count()
+        assert audit_count == 1
+    finally:
+        db.close()
+
+
+def test_two_concurrent_decisions_on_the_same_claim_cannot_both_finalize_it(client, officer_token, fresh_claim):
+    """crud/claim.py::get_for_update row-locks the claim for the duration
+    of each decision's transaction, so of two requests racing for the same
+    still-Pending claim, exactly one succeeds and the other is rejected -
+    never both, regardless of request order."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        future_a = pool.submit(_decide, client, fresh_claim, VALID_APPROVED, officer_token)
+        future_b = pool.submit(_decide, client, fresh_claim, VALID_REJECTED, officer_token)
+        status_codes = sorted([future_a.result().status_code, future_b.result().status_code])
+
+    assert status_codes == [201, 409]
+
+    db = SessionLocal()
+    try:
+        audit_count = db.query(ClaimDecisionAudit).filter(ClaimDecisionAudit.Claim_ID == fresh_claim).count()
+        assert audit_count == 1
+        claim = db.query(Claim).filter(Claim.Claim_ID == fresh_claim).first()
+        assert claim.Final_Decision in ("Approved", "Rejected")
+    finally:
+        db.close()
+
+
+def test_claims_list_endpoint_reflects_the_updated_status_after_approval(client, officer_token, fresh_claim):
+    """Bullet 4/5.4 of the task: subsequent API responses (not just the
+    decision endpoint's own response) must return the updated status and
+    final decision - and the queue/all-claims split both read from this
+    same endpoint."""
+    response = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
+    assert response.status_code == 201
+
+    listing = client.get("/api/v1/officer/claims", params={"limit": 200}, headers=auth_headers(officer_token))
+    assert listing.status_code == 200
+    by_id = {c["Claim_ID"]: c for c in listing.json()}
+    assert by_id[fresh_claim]["Claim_Status"] == "Completed"
+    assert by_id[fresh_claim]["Final_Decision"] == "Approved"
+
+    # The same claim must not also still be returned by the Under Review
+    # filter the Queue page actually uses - no duplicates across the two
+    # sections.
+    under_review = client.get(
+        "/api/v1/officer/claims",
+        params={"limit": 200, "claim_status": "Under Review"},
+        headers=auth_headers(officer_token),
+    )
+    assert fresh_claim not in {c["Claim_ID"] for c in under_review.json()}
+
+
+def test_claims_list_endpoint_reflects_the_updated_status_after_rejection(client, officer_token, fresh_claim):
+    """Same as the approval case above, but for a rejection - a rejected
+    claim must leave the Under Review queue and appear under the
+    Completed filter too, the exact bug this task fixes."""
+    response = _decide(client, fresh_claim, VALID_REJECTED, officer_token)
+    assert response.status_code == 201
+
+    completed = client.get(
+        "/api/v1/officer/claims",
+        params={"limit": 200, "claim_status": "Completed"},
+        headers=auth_headers(officer_token),
+    )
+    by_id = {c["Claim_ID"]: c for c in completed.json()}
+    assert by_id[fresh_claim]["Claim_Status"] == "Completed"
+    assert by_id[fresh_claim]["Final_Decision"] == "Rejected"
+
+    under_review = client.get(
+        "/api/v1/officer/claims",
+        params={"limit": 200, "claim_status": "Under Review"},
+        headers=auth_headers(officer_token),
+    )
+    assert fresh_claim not in {c["Claim_ID"] for c in under_review.json()}
+
+
+def test_customer_sees_the_finalized_status_after_a_rejection(client, officer_token, customer1_token, fresh_claim):
+    """The Customer Portal's Claim Details page reads this same endpoint -
+    it must never show "Under Review" once the officer has finalized the
+    claim, on this fetch or any later one (refresh/re-login re-fetch the
+    same way, so there is nothing else to keep in sync)."""
+    response = _decide(client, fresh_claim, VALID_REJECTED, officer_token)
+    assert response.status_code == 201
+
+    seen = client.get(f"/api/v1/claims/{fresh_claim}", headers=auth_headers(customer1_token))
+    assert seen.status_code == 200
+    body = seen.json()
+    assert body["Claim_Status"] == "Completed"
+    assert body["Final_Decision"] == "Rejected"
+    assert body["Decision_Reason"] == VALID_REJECTED["Decision_Reason"]
+    assert body["Decision_Date"] is not None
+
+
 def test_audit_record_is_created_with_correct_officer_id(client, officer_token, seed_data, fresh_claim):
     response = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
     audit_id = response.json()["Audit_ID"]
@@ -213,29 +420,38 @@ def test_no_genuine_ai_recommendation_uses_honest_placeholder(client, officer_to
 # ---------------------------------------------------------------- 15/17: history preserved
 
 
-def test_decision_history_is_preserved_across_repeated_submissions(client, officer_token, fresh_claim):
-    first = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
-    second = _decide(client, fresh_claim, VALID_REJECTED, officer_token)
-    assert first.status_code == 201 and second.status_code == 201
-    assert first.json()["Audit_ID"] != second.json()["Audit_ID"]
-
+def test_decision_audit_history_accumulates_independently_per_claim(client, officer_token, seed_data, fresh_claim):
+    """Each claim now gets exactly one decision (the lock), so "history is
+    preserved" means deciding one claim must not touch another claim's own
+    audit trail or claim record."""
+    other_claim_id = f"TEST-CLM-DECISION-{uuid4().hex[:8].upper()}"
     db = SessionLocal()
-    try:
-        rows = (
-            db.query(ClaimDecisionAudit)
-            .filter(ClaimDecisionAudit.Claim_ID == fresh_claim)
-            .all()
-        )
-        assert len(rows) == 2
-        first_row = db.query(ClaimDecisionAudit).filter(
-            ClaimDecisionAudit.Audit_ID == first.json()["Audit_ID"]
-        ).first()
-        assert first_row is not None
-        assert first_row.Final_Decision == "Approved"
+    other_claim = _make_bare_claim(
+        other_claim_id, f"TEST-CLMNUM-{other_claim_id[-8:]}", seed_data, "A second, unrelated claim."
+    )
+    db.add(other_claim)
+    db.commit()
+    db.close()
 
-        claim = db.query(Claim).filter(Claim.Claim_ID == fresh_claim).first()
-        assert claim.Final_Decision == "Rejected"
+    try:
+        first = _decide(client, fresh_claim, VALID_APPROVED, officer_token)
+        second = _decide(client, other_claim_id, VALID_REJECTED, officer_token)
+        assert first.status_code == 201 and second.status_code == 201
+        assert first.json()["Audit_ID"] != second.json()["Audit_ID"]
+
+        db = SessionLocal()
+        try:
+            assert db.query(ClaimDecisionAudit).filter(ClaimDecisionAudit.Claim_ID == fresh_claim).count() == 1
+            assert db.query(ClaimDecisionAudit).filter(ClaimDecisionAudit.Claim_ID == other_claim_id).count() == 1
+            assert db.query(Claim).filter(Claim.Claim_ID == fresh_claim).first().Final_Decision == "Approved"
+            assert db.query(Claim).filter(Claim.Claim_ID == other_claim_id).first().Final_Decision == "Rejected"
+        finally:
+            db.close()
     finally:
+        db = SessionLocal()
+        db.query(ClaimDecisionAudit).filter(ClaimDecisionAudit.Claim_ID == other_claim_id).delete()
+        db.query(Claim).filter(Claim.Claim_ID == other_claim_id).delete()
+        db.commit()
         db.close()
 
 

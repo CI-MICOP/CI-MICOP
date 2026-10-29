@@ -1,6 +1,7 @@
 import { Info } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
+import BackButton from "../../components/common/BackButton";
 import Card from "../../components/common/Card";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
@@ -30,6 +31,7 @@ export default function SlaReportsPage() {
     return (
       <div>
         <PageHeader title="SLA Reports" />
+        <BackButton fallback="/officer" />
         <LoadingState label="Calculating SLA metrics..." />
       </div>
     );
@@ -38,6 +40,7 @@ export default function SlaReportsPage() {
     return (
       <div>
         <PageHeader title="SLA Reports" />
+        <BackButton fallback="/officer" />
         <ErrorState message={getApiErrorMessage(error)} onRetry={reload} />
       </div>
     );
@@ -46,6 +49,7 @@ export default function SlaReportsPage() {
   return (
     <div>
       <PageHeader title="SLA Reports" subtitle="Processing-time distribution across visible claims." />
+      <BackButton fallback="/officer" />
 
       <p className="mb-6 flex items-start gap-2 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />

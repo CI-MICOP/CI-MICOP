@@ -1,6 +1,7 @@
 import { Calculator } from "lucide-react";
 import { useParams } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
@@ -22,6 +23,7 @@ export default function EstimateAnalysisPage() {
     return (
       <div>
         <PageHeader title="Estimate Analysis" />
+        <BackButton fallback={`/officer/claims/${claimId}`} />
         <ClaimWorkspaceError error={error} onRetry={reload} />
       </div>
     );
@@ -35,6 +37,7 @@ export default function EstimateAnalysisPage() {
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number, to: `/officer/claims/${claim.Claim_ID}` }, { label: "Estimate Analysis" }]} />
       <PageHeader title={`Estimate Analysis — ${claim.Claim_Number}`} subtitle="Future integration point for the Smart Repair Estimate / Claim Leakage model." />
       <ClaimTabs claimId={claim.Claim_ID} />
+      <BackButton fallback={`/officer/claims/${claim.Claim_ID}`} />
 
       <RepairEstimateChecksPanel claimId={claim.Claim_ID} />
 

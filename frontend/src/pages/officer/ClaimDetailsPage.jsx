@@ -1,7 +1,8 @@
-import { CheckCircle2, Info } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
@@ -11,6 +12,8 @@ import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import ClaimTabs from "../../components/officer/ClaimTabs";
 import ClaimWorkspaceError from "../../components/officer/ClaimWorkspaceError";
+import EvidenceThumbnail from "../../components/officer/EvidenceThumbnail";
+import { locationStatusText, locationText } from "../../components/surveyor/captureDisplay";
 import { useClaimWorkspace } from "../../hooks/useClaimWorkspace";
 import { assignSurveyor, getSurveyors } from "../../services/officerService";
 import { formatCurrency, formatDate, formatVehicleLabel } from "../../utils/format";
@@ -71,18 +74,30 @@ export default function OfficerClaimDetailsPage() {
     return (
       <div>
         <PageHeader title="Claim Details" />
+        <BackButton fallback="/officer/claims" />
         <ClaimWorkspaceError error={error} onRetry={reload} />
       </div>
     );
   }
 
-  const { claim, customer, vehicle, policy, documents, surveyor_inspections: inspections, repair_estimates: estimates } = data;
+  const {
+    claim,
+    customer,
+    vehicle,
+    policy,
+    documents,
+    surveyor_inspections: inspections,
+    repair_estimates: estimates,
+    accidents,
+    evidence,
+  } = data;
 
   return (
     <div>
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number }]} />
       <PageHeader title={`Claim ${claim.Claim_Number}`} subtitle={`Filed on ${formatDate(claim.Claim_Date)}`} />
       <ClaimTabs claimId={claim.Claim_ID} />
+      <BackButton fallback="/officer/claims" />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -108,16 +123,55 @@ export default function OfficerClaimDetailsPage() {
 
           <Card>
             <h3 className="mb-4 text-sm font-semibold text-ink">Accident Information</h3>
-            <p className="flex items-start gap-2 text-sm text-muted">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              Detailed accident records are only exposed through the Surveyor/Admin inspection API
-              (/surveyor/claims/{"{id}"}), which the Claims Officer role does not have access to. Only the
-              claim-level accident fields below are available here.
-            </p>
-            <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Detail label="Place of Accident" value={claim.Place_of_Accident} />
-              <Detail label="Accident Pincode" value={claim.Accident_Pincode} />
-            </dl>
+            {accidents.length === 0 ? (
+              <EmptyState title="No detailed accident information has been recorded for this claim" />
+            ) : (
+              accidents.map((accident) => (
+                <div key={accident.Accident_ID} className={accidents.length > 1 ? "mb-6 border-b border-border pb-6 last:mb-0 last:border-0 last:pb-0" : ""}>
+                  <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Detail label="Accident Date" value={formatDate(accident.Accident_Date)} />
+                    <Detail label="Accident Time" value={accident.Accident_Time?.slice(0, 5) || "-"} />
+                    <Detail label="Location" value={accident.Accident_Location} />
+                    <Detail label="City" value={accident.Accident_City} />
+                    <Detail label="State" value={accident.Accident_State} />
+                    <Detail label="Pincode" value={accident.Accident_Pincode} />
+                    <Detail label="Accident Type" value={accident.Accident_Type} />
+                    <Detail label="Road Type" value={accident.Road_Type_Code} />
+                    <Detail label="Weather Condition" value={accident.Weather_Condition} />
+                    <Detail label="Road Condition" value={accident.Road_Condition} />
+                    <Detail label="Police Report Available">
+                      <StatusBadge
+                        label={accident.Police_Report_Available ? "Yes" : "No"}
+                        tone={accident.Police_Report_Available ? "success" : "neutral"}
+                      />
+                    </Detail>
+                    <Detail label="FIR Number" value={accident.FIR_Number || "-"} />
+                    <Detail label="Third Party Involved">
+                      <StatusBadge
+                        label={accident.Third_Party_Involved ? "Yes" : "No"}
+                        tone={accident.Third_Party_Involved ? "warning" : "neutral"}
+                      />
+                    </Detail>
+                    <Detail label="Injury Reported">
+                      <StatusBadge
+                        label={accident.Injury_Reported ? "Yes" : "No"}
+                        tone={accident.Injury_Reported ? "danger" : "neutral"}
+                      />
+                    </Detail>
+                    <Detail label="Witness Available">
+                      <StatusBadge
+                        label={accident.Witness_Available ? "Yes" : "No"}
+                        tone={accident.Witness_Available ? "success" : "neutral"}
+                      />
+                    </Detail>
+                  </dl>
+                  <div className="mt-4">
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">Description</p>
+                    <p className="text-sm text-ink">{accident.Accident_Description}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </Card>
 
           <Card>
@@ -141,11 +195,39 @@ export default function OfficerClaimDetailsPage() {
 
           <Card>
             <h3 className="mb-4 text-sm font-semibold text-ink">Evidence</h3>
-            <p className="flex items-start gap-2 text-sm text-muted">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              Evidence records are only exposed through the Surveyor/Admin inspection API, which the Claims
-              Officer role does not have access to through any existing endpoint.
-            </p>
+            {evidence.length === 0 ? (
+              <EmptyState title="No evidence has been uploaded for this claim" />
+            ) : (
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Evidence images">
+                {evidence.map((item) => (
+                  <li key={item.Evidence_ID} className="overflow-hidden rounded-card border border-border bg-card" aria-label={`Evidence ${item.File_Name}`}>
+                    <EvidenceThumbnail claimId={claim.Claim_ID} evidenceId={item.Evidence_ID} alt={`Evidence image ${item.File_Name}`} />
+                    <dl className="space-y-1 p-3 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge label={item.Evidence_Type} tone="neutral" />
+                        <StatusBadge label={item.Verification_Status} tone={getStatusTone(item.Verification_Status)} />
+                      </div>
+                      <div>
+                        <dt className="inline font-medium text-muted">Source: </dt>
+                        <dd className="inline text-ink">{item.Evidence_Source}</dd>
+                      </div>
+                      <div>
+                        <dt className="inline font-medium text-muted">Date: </dt>
+                        <dd className="inline text-ink">{formatDate(item.Evidence_Date)}</dd>
+                      </div>
+                      {item.capture && (
+                        <div>
+                          <dt className="inline font-medium text-muted">Location: </dt>
+                          <dd className="inline text-ink">
+                            {locationText(item.capture)} &middot; {locationStatusText(item.capture)}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
 
           <Card>

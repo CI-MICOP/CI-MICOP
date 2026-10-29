@@ -1,6 +1,7 @@
 import { FileCheck2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Card from "../../components/common/Card";
 import EmptyState from "../../components/common/EmptyState";
@@ -34,6 +35,7 @@ export default function DocumentConsistencyPage() {
     return (
       <div>
         <PageHeader title="Document Consistency" />
+        <BackButton fallback={`/officer/claims/${claimId}`} />
         <ClaimWorkspaceError error={error} onRetry={reload} />
       </div>
     );
@@ -47,6 +49,7 @@ export default function DocumentConsistencyPage() {
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number, to: `/officer/claims/${claim.Claim_ID}` }, { label: "Document Consistency" }]} />
       <PageHeader title={`Document Consistency — ${claim.Claim_Number}`} />
       <ClaimTabs claimId={claim.Claim_ID} />
+      <BackButton fallback={`/officer/claims/${claim.Claim_ID}`} />
 
       <ConsistencyFindingsPanel claimId={claim.Claim_ID} />
 

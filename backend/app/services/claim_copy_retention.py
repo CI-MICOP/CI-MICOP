@@ -1,29 +1,35 @@
-"""Which customer-submitted claim documents are kept, and what is kept of
-the ones that are not.
+"""Which customer-submitted claim documents keep their full extracted text,
+and what is kept of the ones that do not.
 
 The customer submits a copy of the RC, the driving licence and the
-insurance policy with every claim. The insurer holds its own reference
-records for these (the vehicles / policies tables), so the copy is needed
-only to check the details printed on it - it is not kept as another
-stored copy of a sensitive document:
+insurance policy with every claim, to check the details printed on them
+against the insurer's own reference records (the vehicles / policies
+tables). The file itself is now stored like any other document (see
+services/document_upload.py and services/surveyor_documents.py - an
+assigned surveyor may view it), but what is PERSISTED IN THE DATABASE from
+its text stays reduced, because these are identity documents and the row
+should not hold more of their personal detail than the checks need:
 
-  - services/document_upload.py reads the uploaded bytes into memory,
-    extracts the text through a private temporary directory that is
-    removed before the request returns (document_analysis.
-    extract_document_bytes), and never writes the file to
-    DOCUMENT_STORAGE_ROOT;
+  - services/document_upload.py reads the uploaded bytes, extracts the
+    text through a private temporary directory that is removed before the
+    request returns (document_analysis.extract_document_bytes), and saves
+    the file under a neutral, non-identifying name (never the customer's
+    own filename);
   - Document.Extracted_Text then holds only `verification_record(text)` -
     the label-and-value spans that the checks read: entity_extraction's
     registration and policy-number patterns, and document_fields' labelled
     RC validity date, licence number, licence validity date and licence
     classes (needed for the validity checks in document_validity). Names,
     addresses, dates of birth, issue dates and the rest of the document are
-    dropped.
+    dropped from the database row (the full text still exists in the
+    stored file itself, exactly as the customer submitted it).
 
-The Document row itself is still created, because claim completeness
-(document_analysis.calculate_claim_document_completeness) counts it.
-FIR, repair estimates, accident photos and survey reports are claim
-evidence and are stored as before.
+A document uploaded before this file-retention change has no stored file
+behind it - is_copy_retained() stays type-based and does not know this per
+document; services/surveyor_documents.py and DocumentOut.Copy_Retained
+check the actual file instead of trusting the type for that question.
+FIR, repair estimates, accident photos and survey reports keep their full
+extracted text and were already stored as files, unaffected by this module.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, Pencil, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -14,7 +14,12 @@ import ClaimTabs from "../../components/surveyor/ClaimTabs";
 import { useSurveyorClaim } from "../../components/surveyor/useSurveyorClaim";
 import { CompletedStepBar, StepLockNotice } from "../../components/surveyor/WorkflowNotices";
 import { damageIssues, lockedReason, serverMessage } from "../../components/surveyor/workflowProgress";
-import { closeCorrection, createVehicleDamage, openCorrection } from "../../services/surveyorService";
+import {
+  closeCorrection,
+  createVehicleDamage,
+  openCorrection,
+  updateVehicleDamage,
+} from "../../services/surveyorService";
 import { getApiErrorMessage } from "../../utils/errors";
 import { formatCurrency } from "../../utils/format";
 
@@ -55,6 +60,12 @@ export default function VehicleDamagePage() {
   const [justSaved, setJustSaved] = useState(false);
   const [correctionState, setCorrectionState] = useState({ busy: false, error: "" });
   const [form, setForm] = useState(EMPTY_FORM);
+  // Set while editing a specific saved record ("Correct this step");
+  // null while adding a new one. editSnapshot is that record's values at
+  // the moment editing started, so "unsaved changes" compares against
+  // what is actually saved, not against a blank form.
+  const [editingDamageId, setEditingDamageId] = useState(null);
+  const [editSnapshot, setEditSnapshot] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
   const [saveState, setSaveState] = useState({ status: "idle", message: "" });
   const savingRef = useRef(false);
@@ -74,7 +85,9 @@ export default function VehicleDamagePage() {
 
   const issues = damageIssues(form);
   const errorFor = (field) => (showErrors ? issues.find((issue) => issue.field === field)?.message : undefined);
-  const isDirty = showForm && Object.keys(EMPTY_FORM).some((key) => form[key] !== EMPTY_FORM[key]);
+  const isDirty =
+    showForm &&
+    Object.keys(EMPTY_FORM).some((key) => String(form[key]) !== String((editSnapshot ?? EMPTY_FORM)[key]));
 
   function openForm() {
     setFormRequested(true);
@@ -85,26 +98,56 @@ export default function VehicleDamagePage() {
   function closeForm() {
     setFormRequested(false);
     setForm(EMPTY_FORM);
+    setEditingDamageId(null);
+    setEditSnapshot(null);
     setShowErrors(false);
     setSaveState({ status: "idle", message: "" });
   }
 
-  async function handleAddDamage() {
+  function startEditingDamage(damage) {
+    const snapshot = {
+      Damage_Type: damage.Damage_Type,
+      Damaged_Part: damage.Damaged_Part,
+      Damage_Severity: damage.Damage_Severity,
+      Damage_Location: damage.Damage_Location,
+      Estimated_Damage_Cost: String(damage.Estimated_Damage_Cost),
+      Repair_or_Replace: damage.Repair_or_Replace,
+      Photo_Evidence_Available: damage.Photo_Evidence_Available,
+      Damage_Description: damage.Damage_Description,
+    };
+    setEditingDamageId(damage.Damage_ID);
+    setEditSnapshot(snapshot);
+    setForm(snapshot);
+    setFormRequested(true);
+    setShowErrors(false);
+    setSaveState({ status: "idle", message: "" });
+  }
+
+  async function handleSaveDamage() {
     if (savingRef.current) return;
     setShowErrors(true);
     if (issues.length) return;
     savingRef.current = true;
     setSaveState({ status: "saving", message: "" });
     try {
-      await createVehicleDamage({ Claim_ID: claimId, ...form, Estimated_Damage_Cost: form.Estimated_Damage_Cost });
-      setSaveState({ status: "success", message: "Damage record saved." });
+      if (editingDamageId) {
+        await updateVehicleDamage(editingDamageId, { ...form });
+        setSaveState({ status: "success", message: "Damage record updated." });
+      } else {
+        await createVehicleDamage({ Claim_ID: claimId, ...form, Estimated_Damage_Cost: form.Estimated_Damage_Cost });
+        setSaveState({ status: "success", message: "Damage record saved." });
+        setJustSaved(true);
+      }
       setForm(EMPTY_FORM);
       setFormRequested(false);
-      setJustSaved(true);
+      setEditingDamageId(null);
+      setEditSnapshot(null);
       setShowErrors(false);
       reload();
     } catch (err) {
-      // The form stays open with its input, so the surveyor can retry.
+      // The form stays open with its input (and, for an edit, the
+      // original saved record is untouched until the request succeeds),
+      // so the surveyor can retry without losing anything.
       setSaveState({ status: "error", message: serverMessage(err, getApiErrorMessage(err)) });
     } finally {
       savingRef.current = false;
@@ -128,8 +171,15 @@ export default function VehicleDamagePage() {
     setCorrectionState({ busy: true, error: "" });
     try {
       const inspectionId = progress.inspection.Inspection_ID;
-      if (open) await openCorrection(inspectionId, "damage");
-      else await closeCorrection(inspectionId, "damage");
+      if (open) {
+        await openCorrection(inspectionId, "damage");
+        // The common case: exactly one saved record - reopen it for
+        // editing immediately rather than making the surveyor pick it
+        // from the table.
+        if (damages.length === 1) startEditingDamage(damages[0]);
+      } else {
+        await closeCorrection(inspectionId, "damage");
+      }
       setCorrectionState({ busy: false, error: "" });
       if (!open) closeForm();
       reload();
@@ -139,7 +189,11 @@ export default function VehicleDamagePage() {
   }
 
   async function handleNext() {
-    if (isDirty) return "Save the damage record you are adding before continuing.";
+    if (isDirty) {
+      return editingDamageId
+        ? "Save or cancel your changes to the damage record before continuing."
+        : "Save the damage record you are adding before continuing.";
+    }
     if (formRequested) closeForm();
     if (correcting) {
       // Moving on ends the correction (the server re-checks later steps).
@@ -154,8 +208,11 @@ export default function VehicleDamagePage() {
 
   let blockedReason = "";
   if (locked) blockedReason = lockedReason(progress);
-  else if (!progress.submitted && isDirty) blockedReason = "Save the damage record you are adding before continuing.";
-  else if (!progress.submitted && !progress.damageComplete) {
+  else if (!progress.submitted && isDirty) {
+    blockedReason = editingDamageId
+      ? "Save or cancel your changes to the damage record before continuing."
+      : "Save the damage record you are adding before continuing.";
+  } else if (!progress.submitted && !progress.damageComplete) {
     blockedReason = "Damage was observed during the inspection - save at least one damage record to continue.";
   }
 
@@ -212,6 +269,25 @@ export default function VehicleDamagePage() {
                   { key: "cost", header: "Estimated Cost", render: (d) => formatCurrency(d.Estimated_Damage_Cost) },
                   { key: "photo", header: "Photo", render: (d) => (d.Photo_Evidence_Available ? "Yes" : "No") },
                   { key: "description", header: "Description", render: (d) => d.Damage_Description },
+                  ...(correcting
+                    ? [
+                        {
+                          key: "edit",
+                          header: "",
+                          render: (d) => (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => startEditingDamage(d)}
+                              aria-label={`Edit ${d.Damaged_Part}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                              Edit
+                            </Button>
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </Card>
@@ -220,7 +296,7 @@ export default function VehicleDamagePage() {
           {showForm && (
             <Card className="mb-4">
               <h3 className="mb-1 text-sm font-semibold text-ink">
-                {damages.length > 0 ? "Add Another Damage Record" : "Add Damage Record"}
+                {editingDamageId ? "Edit Damage Record" : damages.length > 0 ? "Add Another Damage Record" : "Add Damage Record"}
               </h3>
               <p className="mb-4 text-xs text-muted">
                 {formRequired && "Damage was observed during the inspection - save at least one damage record to continue. "}
@@ -310,8 +386,8 @@ export default function VehicleDamagePage() {
                     Cancel
                   </Button>
                 )}
-                <Button onClick={handleAddDamage} isLoading={saveState.status === "saving"}>
-                  Save Damage Record
+                <Button onClick={handleSaveDamage} isLoading={saveState.status === "saving"}>
+                  {editingDamageId ? "Update Damage Record" : "Save Damage Record"}
                 </Button>
               </div>
             </Card>

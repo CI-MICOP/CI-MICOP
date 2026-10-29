@@ -7,6 +7,7 @@ import { getLocation, locationMessage, todayIst } from "../../components/camera/
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import ErrorState from "../../components/common/ErrorState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
@@ -15,12 +16,23 @@ import { locationStatusText, locationText } from "../../components/surveyor/capt
 import ClaimStepNav from "../../components/surveyor/ClaimStepNav";
 import ClaimTabs from "../../components/surveyor/ClaimTabs";
 import EvidenceThumbnail from "../../components/surveyor/EvidenceThumbnail";
+import LocationPicker from "../../components/surveyor/LocationPicker";
 import { useSurveyorClaim } from "../../components/surveyor/useSurveyorClaim";
 import { CompletedStepBar, StepLockNotice, SubmissionReviewNotice } from "../../components/surveyor/WorkflowNotices";
 import { lockedReason, serverMessage } from "../../components/surveyor/workflowProgress";
-import { createEvidenceCapture } from "../../services/surveyorService";
+import { createEvidenceCapture, deleteEvidence, setEvidenceKept } from "../../services/surveyorService";
 import { getApiErrorMessage, getUploadErrorMessage } from "../../utils/errors";
 import { formatDate } from "../../utils/format";
+
+// A location is "usable" to save a photo when it is either a sufficiently
+// accurate GPS fix or a surveyor-confirmed map selection - the
+// indoor-friendly fallback for when GPS cannot get a good fix at all.
+// Kept in sync with LOCATION_USABLE_STATUSES in
+// backend/app/services/evidence_capture.py.
+const USABLE_LOCATION_STATUSES = ["captured", "map_selected"];
+// GPS statuses for which a map selection is offered as a non-blocking
+// alternative, instead of leaving the surveyor stuck.
+const GPS_TROUBLE_STATUSES = ["accuracy_insufficient", "unavailable", "permission_denied", "position_unavailable", "timeout", "unsupported"];
 
 // Kept in sync with SURVEYOR_CAPTURE_TYPES in backend/app/services/evidence_upload.py.
 const EVIDENCE_TYPES = [
@@ -48,6 +60,15 @@ export default function EvidencePage() {
   const [pending, setPending] = useState([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  // The pending item id currently choosing a location on the map, or null.
+  const [pickingLocationFor, setPickingLocationFor] = useState(null);
+  // A saved photo's Evidence_ID currently running a Keep/un-keep request.
+  const [savedBusyId, setSavedBusyId] = useState(null);
+  // Per-saved-photo error from a failed Keep or Delete request.
+  const [savedErrors, setSavedErrors] = useState({});
+  // The saved photo's Evidence_ID awaiting delete confirmation, or null.
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const savingRef = useRef(false);
   const retakeRef = useRef(null);
   const pendingRef = useRef(pending);
@@ -67,7 +88,14 @@ export default function EvidencePage() {
   function locate(id) {
     updateItem(id, { location: { status: "locating" } });
     // A fresh reading for this photo, as close to its capture as possible.
-    getLocation().then((location) => updateItem(id, { location }));
+    getLocation().then((location) => updateItem(id, { location: { ...location, source: "gps" } }));
+  }
+
+  function confirmMapLocation({ latitude, longitude, addressLabel }) {
+    updateItem(pickingLocationFor, {
+      location: { status: "map_selected", latitude, longitude, accuracy: null, source: "map", addressLabel },
+    });
+    setPickingLocationFor(null);
   }
 
   function handleCapture(blob, capturedAt) {
@@ -90,6 +118,43 @@ export default function EvidencePage() {
     setCameraOpen(true);
   }
 
+  async function toggleKeep(item) {
+    const nextKept = !item.capture?.review?.kept;
+    setSavedBusyId(item.Evidence_ID);
+    setSavedErrors((errors) => ({ ...errors, [item.Evidence_ID]: "" }));
+    try {
+      await setEvidenceKept(item.Evidence_ID, nextKept);
+      setMessage({ tone: "success", text: nextKept ? "Photo marked as kept." : "Photo is no longer marked as kept." });
+      await reload();
+    } catch (err) {
+      setSavedErrors((errors) => ({
+        ...errors,
+        [item.Evidence_ID]: serverMessage(err, "Could not update this photo. Please try again."),
+      }));
+    } finally {
+      setSavedBusyId(null);
+    }
+  }
+
+  async function confirmDeletePhoto() {
+    const evidenceId = confirmDeleteId;
+    setDeleting(true);
+    try {
+      await deleteEvidence(evidenceId);
+      setConfirmDeleteId(null);
+      setMessage({ tone: "success", text: "Photo deleted." });
+      await reload();
+    } catch (err) {
+      setConfirmDeleteId(null);
+      setSavedErrors((errors) => ({
+        ...errors,
+        [evidenceId]: serverMessage(err, "Could not delete this photo. Please try again."),
+      }));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (isLoading) return <LoadingState label="Loading evidence..." />;
   if (error) {
     return (
@@ -106,7 +171,8 @@ export default function EvidencePage() {
   const canCapture = !locked && progress.canEdit;
   const minDate = progress.schedule?.scheduled_date;
   const maxDate = todayIst();
-  const readyToSave = (item) => item.location.status === "captured" && !dateProblem(item.evidenceDate, minDate, maxDate);
+  const readyToSave = (item) =>
+    USABLE_LOCATION_STATUSES.includes(item.location.status) && !dateProblem(item.evidenceDate, minDate, maxDate);
 
   async function saveAll() {
     if (savingRef.current) return;
@@ -131,6 +197,8 @@ export default function EvidencePage() {
           latitude: item.location.latitude,
           longitude: item.location.longitude,
           accuracy: item.location.accuracy,
+          locationSource: item.location.source,
+          addressLabel: item.location.addressLabel,
         });
         savedCount += 1;
         remove(item);
@@ -271,7 +339,9 @@ export default function EvidencePage() {
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Evidence images">
                 {pending.map((item, index) => {
                   const problem = dateProblem(item.evidenceDate, minDate, maxDate);
-                  const retryable = !["captured", "locating"].includes(item.location.status);
+                  const status = item.location.status;
+                  const offerMapFallback = GPS_TROUBLE_STATUSES.includes(status);
+                  const retryable = !["captured", "locating", "map_selected"].includes(status);
                   return (
                     <li key={item.id} className="overflow-hidden rounded-card border border-amber-200 bg-card" aria-label={`Unsaved image ${index + 1}`}>
                       <img src={item.url} alt={`Captured image ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
@@ -305,14 +375,25 @@ export default function EvidencePage() {
                           />
                           {problem && <span className="mt-1 block text-xs text-danger">{problem}</span>}
                         </label>
-                        <p
-                          className={`flex items-start gap-1 text-xs ${
-                            item.location.status === "captured" ? "text-success" : item.location.status === "locating" ? "text-muted" : "text-amber-800"
-                          }`}
-                        >
-                          <MapPin className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-                          {locationMessage(item.location)}
-                        </p>
+                        <div className="space-y-1.5">
+                          {status === "map_selected" ? (
+                            <>
+                              <StatusBadge label="Map-selected — GPS not verified" tone="info" />
+                              <p className="flex items-start gap-1 text-xs text-muted">
+                                <MapPin className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                                {item.location.latitude.toFixed(6)}, {item.location.longitude.toFixed(6)}
+                                {item.location.addressLabel ? ` — ${item.location.addressLabel}` : ""}
+                              </p>
+                            </>
+                          ) : status === "captured" ? (
+                            <StatusBadge label={`GPS location available (±${Math.round(item.location.accuracy)} m)`} tone="success" />
+                          ) : (
+                            <p className={`flex items-start gap-1 text-xs ${status === "locating" ? "text-muted" : "text-amber-800"}`}>
+                              <MapPin className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                              {locationMessage(item.location)}
+                            </p>
+                          )}
+                        </div>
                         {item.error && (
                           <p role="alert" className="text-xs text-danger">
                             {item.error}
@@ -322,7 +403,18 @@ export default function EvidencePage() {
                           {retryable && (
                             <Button size="sm" variant="secondary" onClick={() => locate(item.id)} disabled={item.saving}>
                               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                              Retry location
+                              Retry GPS
+                            </Button>
+                          )}
+                          {(offerMapFallback || status === "map_selected") && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setPickingLocationFor(item.id)}
+                              disabled={item.saving}
+                            >
+                              <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                              {status === "map_selected" ? "Change location" : "Choose location on map"}
                             </Button>
                           )}
                           <Button size="sm" variant="secondary" onClick={() => retake(item)} disabled={item.saving || !canCapture}>
@@ -338,38 +430,61 @@ export default function EvidencePage() {
                     </li>
                   );
                 })}
-                {saved.map((item) => (
-                  <li key={item.Evidence_ID} className="overflow-hidden rounded-card border border-border bg-card" aria-label={`Saved image ${item.File_Name}`}>
-                    <EvidenceThumbnail evidenceId={item.Evidence_ID} alt={`Saved image ${item.File_Name}`} />
-                    <dl className="space-y-1 p-3 text-xs">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge label="Saved" tone="success" />
-                        <StatusBadge
-                          label={item.qualifying_capture ? "Counts as surveyor photo" : "Does not count"}
-                          tone={item.qualifying_capture ? "info" : "neutral"}
-                        />
-                      </div>
-                      <div>
-                        <dt className="inline font-medium text-muted">Type: </dt>
-                        <dd className="inline text-ink">{item.Evidence_Type}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline font-medium text-muted">Date: </dt>
-                        <dd className="inline text-ink">{formatDate(item.Evidence_Date)}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline font-medium text-muted">Location: </dt>
-                        <dd className="inline text-ink">
-                          {locationText(item.capture)} · {locationStatusText(item.capture)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="inline font-medium text-muted">AI analysis: </dt>
-                        <dd className="inline text-ink">{item.Verification_Status === "Pending" ? "Not analysed yet" : item.Verification_Status}</dd>
-                      </div>
-                    </dl>
-                  </li>
-                ))}
+                {saved.map((item) => {
+                  const kept = item.capture?.review?.kept === true;
+                  const busy = savedBusyId === item.Evidence_ID;
+                  const savedError = savedErrors[item.Evidence_ID];
+                  return (
+                    <li key={item.Evidence_ID} className="overflow-hidden rounded-card border border-border bg-card" aria-label={`Saved image ${item.File_Name}`}>
+                      <EvidenceThumbnail evidenceId={item.Evidence_ID} alt={`Saved image ${item.File_Name}`} />
+                      <dl className="space-y-1 p-3 text-xs">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge label="Saved" tone="success" />
+                          {kept && <StatusBadge label="Kept" tone="info" />}
+                          <StatusBadge
+                            label={item.qualifying_capture ? "Counts as surveyor photo" : "Does not count"}
+                            tone={item.qualifying_capture ? "info" : "neutral"}
+                          />
+                        </div>
+                        <div>
+                          <dt className="inline font-medium text-muted">Type: </dt>
+                          <dd className="inline text-ink">{item.Evidence_Type}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline font-medium text-muted">Date: </dt>
+                          <dd className="inline text-ink">{formatDate(item.Evidence_Date)}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline font-medium text-muted">Location: </dt>
+                          <dd className="inline text-ink">
+                            {locationText(item.capture)} · {locationStatusText(item.capture)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline font-medium text-muted">AI analysis: </dt>
+                          <dd className="inline text-ink">{item.Verification_Status === "Pending" ? "Not analysed yet" : item.Verification_Status}</dd>
+                        </div>
+                      </dl>
+                      {savedError && (
+                        <p role="alert" className="px-3 pb-2 text-xs text-danger">
+                          {savedError}
+                        </p>
+                      )}
+                      {progress.canEdit && (
+                        <div className="flex flex-wrap gap-2 border-t border-border p-3">
+                          <Button size="sm" variant="secondary" onClick={() => toggleKeep(item)} isLoading={busy} disabled={deleting}>
+                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            {kept ? "Un-keep Photo" : "Keep Photo"}
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => setConfirmDeleteId(item.Evidence_ID)} disabled={busy}>
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            Delete Photo
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <p className="mt-4 text-xs text-muted">
@@ -385,6 +500,23 @@ export default function EvidencePage() {
         onNext={handleNext}
         hasUnsavedChanges={pending.length > 0}
         blockedReason={blockedReason}
+      />
+      {pickingLocationFor != null && (
+        <LocationPicker
+          initialLocation={pending.find((item) => item.id === pickingLocationFor)?.location}
+          onConfirm={confirmMapLocation}
+          onClose={() => setPickingLocationFor(null)}
+        />
+      )}
+      <ConfirmDialog
+        isOpen={confirmDeleteId != null}
+        title="Delete this photo?"
+        message="This photo will be permanently removed from the survey evidence. This cannot be undone."
+        confirmLabel="Delete Photo"
+        isDangerous
+        isLoading={deleting}
+        onConfirm={confirmDeletePhoto}
+        onCancel={() => setConfirmDeleteId(null)}
       />
     </div>
   );

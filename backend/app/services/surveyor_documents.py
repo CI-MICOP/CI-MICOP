@@ -9,9 +9,11 @@ JWT and the database (nothing the browser sends is trusted):
      customer's claim is not disclosed;
   3. the surveyor's inspection has reached its scheduled date
      (surveyor_workflow.schedule_reached, 00:00 IST on Inspection_Date);
-  4. the document belongs to that claim and is a type surveyors may view -
-     customer accident photos never are (they are customer evidence, kept
-     apart from surveyor-captured evidence);
+  4. the document belongs to that claim and its type is one of
+     ALLOWED_DOCUMENT_TYPES (RC, Driving Licence, Insurance Policy) - every
+     other type, including FIR, Repair Estimate, Survey Report and customer
+     accident photos, is out of scope for this panel (accident photos are
+     also customer evidence kept apart from surveyor-captured evidence);
   5. the stored file is re-derived from the server-side row
      (document_storage.storage_path_for, which refuses paths outside the
      storage root) and served only if its bytes are a PDF, JPEG or PNG.
@@ -24,9 +26,11 @@ evidence, inspection status and workflow progress are unchanged. Each
 successful view is recorded in the application log (surveyor, claim,
 document, time - never the content).
 
-RC, driving-licence and policy copies are not stored at all
-(services/claim_copy_retention.py), so they are listed with their
-verification status but have no file to open.
+RC, driving-licence and policy copies are now stored like any other
+document (services/document_upload.py), so an assigned surveyor can view
+one once it exists. A copy uploaded before that change has no file behind
+it and is reported unavailable, never falsely "available" - see
+_stored_file.
 """
 from __future__ import annotations
 
@@ -40,22 +44,29 @@ from sqlalchemy.orm import Session
 from app.crud import claim as crud_claim
 from app.crud import document as crud_document
 from app.crud import surveyor_inspection as crud_inspection
-from app.services import claim_copy_retention, document_storage, surveyor_workflow
-from app.services.claim_photos import CUSTOMER_ACCIDENT_PHOTO_TYPE
+from app.services import document_storage, surveyor_workflow
 
 audit_log = logging.getLogger("ci_micop.audit.document_access")
 
+# The only customer documents this panel ever shows: the three ownership /
+# identity verification copies. FIR, Repair Estimate, Survey Report,
+# customer accident photos and any other claim document belong to other
+# workflows (the claims officer's full document review, the surveyor's own
+# inspection/evidence/survey-report workflow) and are out of scope here -
+# enforced both in the list below and in read_document_content, so a
+# document_id for an excluded type cannot be opened even if guessed or
+# linked directly. All three are now stored like any other document
+# (services/document_upload.py); only one uploaded before that change has
+# no file and is reported unavailable (see _stored_file).
+ALLOWED_DOCUMENT_TYPES = frozenset({"RC", "Driving Licence", "Insurance Policy"})
 # Always listed in the panel, so a missing one shows as "Not uploaded".
-EXPECTED_DOCUMENT_TYPES = ("RC", "Driving Licence", "Insurance Policy", "FIR", "Repair Estimate")
-# Never shown to surveyors through this panel (or anywhere else).
-HIDDEN_DOCUMENT_TYPES = frozenset({CUSTOMER_ACCIDENT_PHOTO_TYPE})
+EXPECTED_DOCUMENT_TYPES = ("RC", "Driving Licence", "Insurance Policy")
 
 # Served inline only when the stored bytes are one of these.
 _PREVIEWABLE = ((b"%PDF-", "application/pdf"), (b"\xff\xd8\xff", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "image/png"))
 
 AVAILABLE = "available"
 NOT_UPLOADED = "not_uploaded"
-NOT_RETAINED = "not_retained"
 UNAVAILABLE = "unavailable"
 UNSUPPORTED = "unsupported"
 
@@ -85,9 +96,13 @@ def authorize(db: Session, claim_id: str, employee_id: str, now: datetime | None
 
 
 def _stored_file(document) -> tuple[Path | None, str | None]:
-    """(path, media type) of the document's stored file, or (None, reason)."""
-    if not claim_copy_retention.is_copy_retained(document.Document_Type):
-        return None, NOT_RETAINED
+    """(path, media type) of the document's stored file, or (None, reason).
+    Checked by actually looking for the file - RC, Driving Licence and
+    Insurance Policy copies are stored like any other document now
+    (services/document_upload.py), so a type-based shortcut would wrongly
+    report "not retained" for one that genuinely exists. A document
+    uploaded before that change has no file behind it and correctly comes
+    back unavailable here, never falsely "available"."""
     try:
         path = document_storage.storage_path_for(document.Claim_ID, document.Document_ID, document.Document_Name)
     except ValueError:
@@ -119,14 +134,16 @@ def _entry(document) -> dict:
 
 
 def list_claim_documents(db: Session, claim_id: str, employee_id: str) -> dict:
-    """The Claim Documents panel: every expected type (marked "not_uploaded"
-    when absent) plus any other visible document on the claim."""
+    """The Claim Documents panel: RC, Driving Licence and Insurance Policy
+    only (ALLOWED_DOCUMENT_TYPES), each marked "not_uploaded" when absent.
+    FIR, Repair Estimate and every other claim document type are excluded,
+    not just hidden - they are never fetched into this response."""
     authorize(db, claim_id, employee_id)
     documents = [
         d
         for d in crud_document.list_by_claim(db, claim_id)
         # The claim check is repeated here so a row of another claim can never be listed.
-        if d.Claim_ID == claim_id and d.Document_Type not in HIDDEN_DOCUMENT_TYPES
+        if d.Claim_ID == claim_id and d.Document_Type in ALLOWED_DOCUMENT_TYPES
     ]
     entries = [_entry(d) for d in documents]
     present = {d.Document_Type for d in documents}
@@ -149,10 +166,13 @@ def list_claim_documents(db: Session, claim_id: str, employee_id: str) -> dict:
 
 def read_document_content(db: Session, claim_id: str, document_id: str, employee_id: str) -> tuple[bytes, str, object]:
     """(bytes, media type, document) for one viewable document of the claim.
-    A document of another claim, a hidden type or an unknown ID is a 404."""
+    A document of another claim, a type outside ALLOWED_DOCUMENT_TYPES or an
+    unknown ID is a 404 - this is the same restriction as list_claim_documents,
+    enforced again here so a document_id for an excluded type (FIR, Repair
+    Estimate, ...) cannot be opened directly even if guessed or linked to."""
     authorize(db, claim_id, employee_id)
     document = crud_document.get(db, document_id)
-    if document is None or document.Claim_ID != claim_id or document.Document_Type in HIDDEN_DOCUMENT_TYPES:
+    if document is None or document.Claim_ID != claim_id or document.Document_Type not in ALLOWED_DOCUMENT_TYPES:
         raise _not_found("Document not found")
     path, media_or_reason = _stored_file(document)
     if path is None:
@@ -161,11 +181,7 @@ def read_document_content(db: Session, claim_id: str, document_id: str, employee
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail="This document cannot be previewed in the browser.",
             )
-        raise _not_found(
-            "Only the verification details of this copy were kept; there is no file to view."
-            if media_or_reason == NOT_RETAINED
-            else "The file for this document is not available."
-        )
+        raise _not_found("The file for this document is not available.")
     try:
         content = path.read_bytes()
     except OSError as exc:

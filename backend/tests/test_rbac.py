@@ -56,6 +56,8 @@ def test_officer_can_read_any_claim(client, officer_token, seed_data):
     body = response.json()
     assert body["claim"]["Claim_ID"] == seed_data["claim1"]
     assert "surveyor_inspections" in body
+    assert "accidents" in body
+    assert "evidence" in body
 
 
 def test_officer_cannot_use_admin_endpoint(client, officer_token, seed_data):

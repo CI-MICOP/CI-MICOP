@@ -1,7 +1,8 @@
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, Lock } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
+import BackButton from "../../components/common/BackButton";
 import Breadcrumbs from "../../components/common/Breadcrumbs";
 import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
@@ -36,11 +37,21 @@ function getDecisionErrorMessage(error) {
       return "You don't have permission to record a decision for this claim.";
     case 404:
       return "This claim could not be found.";
+    case 409:
+      return error.response.data?.detail || "This claim's decision has already been finalized and cannot be changed.";
     case 422:
       return error.response.data?.detail || "That decision is not valid. Please check the fields and try again.";
     default:
       return "Something went wrong while saving the decision.";
   }
+}
+
+// "Pending" (schemas/surveyor.py) is the only non-final value - once the
+// claim's own persisted Final_Decision is anything else, the decision is
+// locked server-side too (services/claim_decision.py), so this page must
+// never let the officer submit again.
+function isFinalized(claim) {
+  return Boolean(claim.Final_Decision) && claim.Final_Decision !== "Pending";
 }
 
 export default function DecisionPage() {
@@ -54,6 +65,7 @@ export default function DecisionPage() {
     return (
       <div>
         <PageHeader title="Make Decision" />
+        <BackButton fallback={`/officer/claims/${claimId}`} />
         <ClaimWorkspaceError error={error} onRetry={reload} />
       </div>
     );
@@ -63,6 +75,10 @@ export default function DecisionPage() {
   // decision_audit is returned newest-first, so audits[0] is the latest.
   const latestAudit = audits[0];
   const hasRealAiRecommendation = Boolean(latestAudit) && REAL_AI_RECOMMENDATION_VALUES.has(latestAudit.AI_Recommendation);
+  // Derived fresh from the just-fetched claim on every load - never local
+  // state - so the lock holds after a refresh, logout/login, or opening
+  // the claim from another page, exactly like the backend's own check.
+  const locked = isFinalized(claim);
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -114,6 +130,7 @@ export default function DecisionPage() {
       <Breadcrumbs items={[{ label: "All Claims", to: "/officer/claims" }, { label: claim.Claim_Number, to: `/officer/claims/${claim.Claim_ID}` }, { label: "Make Decision" }]} />
       <PageHeader title={`Make Decision — ${claim.Claim_Number}`} />
       <ClaimTabs claimId={claim.Claim_ID} />
+      <BackButton fallback={`/officer/claims/${claim.Claim_ID}`} />
 
       <p className="mb-6 flex items-center gap-2 rounded-card border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800">
         <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -158,73 +175,91 @@ export default function DecisionPage() {
 
           <Card>
             <h3 className="mb-4 text-sm font-semibold text-ink">Record a Decision</h3>
-            <div className="space-y-4">
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-ink">
-                  Final Decision<span className="text-danger"> *</span>
-                </span>
-                <select className="input" value={form.finalDecision} onChange={(e) => selectDecision(e.target.value)}>
-                  <option value="">Select a decision</option>
-                  {FINAL_DECISION_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-ink">
-                  Decision Reason<span className="text-danger"> *</span>
-                </span>
-                <textarea
-                  className="input resize-none"
-                  rows={3}
-                  maxLength={2000}
-                  value={form.decisionReason}
-                  onChange={(e) => update("decisionReason", e.target.value)}
-                />
-                {!reasonValid && form.decisionReason.length > 0 && (
-                  <p className="mt-1 text-xs text-danger">Decision reason cannot be empty.</p>
-                )}
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-ink">
-                  Approved Amount (INR)<span className="text-danger"> *</span>
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  className="input"
-                  disabled={form.finalDecision === "Rejected"}
-                  value={form.approvedAmount}
-                  onChange={(e) => update("approvedAmount", e.target.value)}
-                />
-                {form.finalDecision === "Rejected" ? (
-                  <p className="mt-1 text-xs text-muted">A rejected claim cannot have a positive approved amount.</p>
-                ) : form.finalDecision && (
-                  <p className="mt-1 text-xs text-muted">
-                    {form.finalDecision} requires a positive approved amount.
-                  </p>
-                )}
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-ink">Officer Comments</span>
-                <textarea
-                  className="input resize-none"
-                  rows={3}
-                  maxLength={2000}
-                  value={form.officerComments}
-                  onChange={(e) => update("officerComments", e.target.value)}
-                />
-              </label>
-
-              {saveState.status === "error" && <p className="text-sm text-danger">{saveState.message}</p>}
-
-              <div className="flex justify-end border-t border-border pt-4">
-                <Button onClick={handleSubmit} isLoading={saveState.status === "saving"} disabled={!formValid}>
-                  Submit Decision
-                </Button>
+            {locked ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 rounded-card border border-border bg-surface p-3 text-sm text-ink">
+                  <Lock className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+                  Final decision recorded. This claim's decision is locked and cannot be edited.
+                </div>
+                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Detail label="Final Decision" value={latestAudit?.Final_Decision ?? claim.Final_Decision} />
+                  <Detail
+                    label="Approved Amount (INR)"
+                    value={formatCurrency(latestAudit?.Approved_Amount ?? claim.Approved_Amount)}
+                  />
+                  <Detail label="Decision Reason" value={latestAudit?.Decision_Reason ?? claim.Decision_Reason} />
+                  <Detail label="Officer Comments" value={latestAudit?.Officer_Comments || "-"} />
+                </dl>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-ink">
+                    Final Decision<span className="text-danger"> *</span>
+                  </span>
+                  <select className="input" value={form.finalDecision} onChange={(e) => selectDecision(e.target.value)}>
+                    <option value="">Select a decision</option>
+                    {FINAL_DECISION_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-ink">
+                    Decision Reason<span className="text-danger"> *</span>
+                  </span>
+                  <textarea
+                    className="input resize-none"
+                    rows={3}
+                    maxLength={2000}
+                    value={form.decisionReason}
+                    onChange={(e) => update("decisionReason", e.target.value)}
+                  />
+                  {!reasonValid && form.decisionReason.length > 0 && (
+                    <p className="mt-1 text-xs text-danger">Decision reason cannot be empty.</p>
+                  )}
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-ink">
+                    Approved Amount (INR)<span className="text-danger"> *</span>
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="input"
+                    disabled={form.finalDecision === "Rejected"}
+                    value={form.approvedAmount}
+                    onChange={(e) => update("approvedAmount", e.target.value)}
+                  />
+                  {form.finalDecision === "Rejected" ? (
+                    <p className="mt-1 text-xs text-muted">A rejected claim cannot have a positive approved amount.</p>
+                  ) : form.finalDecision && (
+                    <p className="mt-1 text-xs text-muted">
+                      {form.finalDecision} requires a positive approved amount.
+                    </p>
+                  )}
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-ink">Officer Comments</span>
+                  <textarea
+                    className="input resize-none"
+                    rows={3}
+                    maxLength={2000}
+                    value={form.officerComments}
+                    onChange={(e) => update("officerComments", e.target.value)}
+                  />
+                </label>
+
+                {saveState.status === "error" && <p className="text-sm text-danger">{saveState.message}</p>}
+
+                <div className="flex justify-end border-t border-border pt-4">
+                  <Button onClick={handleSubmit} isLoading={saveState.status === "saving"} disabled={!formValid}>
+                    Submit Decision
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
 
           {saveState.status === "success" && (

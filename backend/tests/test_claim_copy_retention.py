@@ -1,8 +1,11 @@
-"""RC / driving-licence / policy copies are read but not kept.
+"""RC / driving-licence / policy copies are read AND kept as a stored file
+(so an assigned surveyor can view them - see services/surveyor_documents.py),
+but what is persisted in Extracted_Text stays reduced to the verification
+record, and the stored filename stays a neutral placeholder.
 
 Database-free: the CRUD calls are replaced by in-memory stand-ins, and the
 document storage root and the temporary directory point at pytest's
-tmp_path, so the tests can show that no file is left behind.
+tmp_path, so the tests can show exactly what is and is not left behind.
 """
 
 import asyncio
@@ -77,7 +80,9 @@ def test_kept_record_drops_personal_details():
     assert "POL-926009" in claim_copy_retention.verification_record(POLICY_TEXT)
 
 
-def test_only_rc_licence_and_policy_are_not_retained():
+def test_only_rc_licence_and_policy_have_reduced_extracted_text():
+    """is_copy_retained now governs text reduction, not file storage - all
+    seven types store a file; only these three reduce Extracted_Text."""
     assert not any(
         claim_copy_retention.is_copy_retained(t) for t in ("RC", "Driving Licence", "Insurance Policy")
     )
@@ -140,17 +145,22 @@ def _upload(db, document_type, filename, content):
     return asyncio.run(document_upload.upload_document_for_customer(db, "C1", "CLM-1", document_type, upload))
 
 
-def test_rc_copy_is_read_but_no_file_is_kept(dirs):
+def test_rc_copy_is_read_and_the_file_is_kept_with_reduced_text(dirs):
     db = FakeDb()
-    document = _upload(db, "rc_book", "rc.pdf", _pdf(RC_TEXT))
+    content = _pdf(RC_TEXT)
+    document = _upload(db, "rc_book", "rc.pdf", content)
     assert document.Document_Type == "RC"
     assert "TN09BX4417" in document.Extracted_Text
     assert "Priya Sharma" not in document.Extracted_Text and "Station Road" not in document.Extracted_Text
     assert document.OCR_Confidence_Score == Decimal("1.0")  # native PDF text, not an OCR guess
     assert document.Verification_Status == "Pending"
-    assert _files(dirs.storage) == [] and _files(dirs.temp) == []
-    assert DocumentOut.model_validate(document).Copy_Retained is False
-    assert document.Document_Name == "rc-copy.pdf"  # the customer's filename is not kept either
+    # The file IS kept now, so an assigned surveyor can view it...
+    stored = _files(dirs.storage)
+    assert len(stored) == 1 and _files(dirs.temp) == []
+    assert stored[0].read_bytes() == content
+    assert DocumentOut.model_validate(document).Copy_Retained is True
+    # ...but under a neutral name, never the customer's own filename.
+    assert document.Document_Name == "rc-copy.pdf"
 
 
 def test_a_filename_carrying_a_name_is_not_stored_for_a_copy(dirs):
@@ -160,10 +170,10 @@ def test_a_filename_carrying_a_name_is_not_stored_for_a_copy(dirs):
 
 
 @pytest.mark.parametrize("document_type, filename", [("driving_licence", "dl.pdf"), ("insurance_policy", "pol.pdf")])
-def test_licence_and_policy_copies_are_not_kept(dirs, document_type, filename):
+def test_licence_and_policy_copies_are_kept_with_reduced_text(dirs, document_type, filename):
     document = _upload(FakeDb(), document_type, filename, _pdf(POLICY_TEXT if "pol" in filename else LICENCE_TEXT))
     assert "Priya Sharma" not in document.Extracted_Text
-    assert _files(dirs.storage) == [] and _files(dirs.temp) == []
+    assert len(_files(dirs.storage)) == 1 and _files(dirs.temp) == []
 
 
 def test_temporary_copy_is_removed_when_extraction_fails(dirs, monkeypatch):
@@ -188,11 +198,13 @@ def test_nothing_is_left_when_the_database_write_fails(dirs):
     assert _files(dirs.storage) == [] and _files(dirs.temp) == []
 
 
-def test_unreadable_copy_keeps_no_text_and_claims_nothing(dirs, monkeypatch):
+def test_unreadable_copy_keeps_no_text_but_the_file_is_still_kept(dirs, monkeypatch):
     monkeypatch.setattr(document_analysis, "_tesseract_available", lambda: False)
     document = _upload(FakeDb(), "rc_book", "rc.jpg", JPEG)
     assert document.Extracted_Text == "" and document.OCR_Confidence_Score == Decimal("0.0")
-    assert _files(dirs.storage) == [] and _files(dirs.temp) == []
+    # Nothing could be read from it, but the file itself is still stored -
+    # a surveyor can still view the image even though nothing was extracted.
+    assert len(_files(dirs.storage)) == 1 and _files(dirs.temp) == []
 
 
 def test_fir_is_claim_evidence_and_is_stored(dirs):

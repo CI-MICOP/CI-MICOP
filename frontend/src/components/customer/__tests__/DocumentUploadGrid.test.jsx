@@ -29,13 +29,19 @@ describe("DocumentUploadGrid", () => {
     expect(photos).toHaveTextContent(/please don't take photos of yourself here/i);
   });
 
-  it("keeps FIR, repair estimate and survey report as kept claim evidence uploads", () => {
+  it("keeps FIR and repair estimate as kept claim evidence uploads", () => {
     render(<DocumentUploadGrid files={{}} onFileChange={() => {}} />);
     const evidence = section("Other claim evidence");
-    for (const label of ["FIR Copy", "Repair Estimate", "Survey Report"]) {
+    for (const label of ["FIR Copy", "Repair Estimate"]) {
       expect(within(evidence).getByLabelText(new RegExp(label))).toHaveAttribute("type", "file");
     }
     expect(evidence).toHaveTextContent(/kept with your claim/i);
+  });
+
+  it("does not offer a Survey Report upload - that belongs to the surveyor's inspection workflow", () => {
+    render(<DocumentUploadGrid files={{}} onFileChange={() => {}} />);
+    expect(screen.queryByLabelText(/survey report/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/survey report/i)).not.toBeInTheDocument();
   });
 
   it("says that uploading is not verification", () => {
@@ -49,12 +55,9 @@ describe("DocumentUploadGrid", () => {
     for (const category of DOCUMENT_CATEGORIES) {
       expect(groups.has(category.group)).toBe(true);
     }
-    expect(container.querySelectorAll('input[type="file"]')).toHaveLength(6);
+    expect(container.querySelectorAll('input[type="file"]')).toHaveLength(5);
     expect(DOCUMENT_CATEGORIES.map((c) => c.key)).toEqual([
-      "fir_copy", "driving_licence", "rc_book", "insurance_policy", "repair_estimate", "accident_photos", "survey_report",
-    ]);
-    expect(DOCUMENT_CATEGORIES.filter((c) => !c.retained).map((c) => c.key)).toEqual([
-      "driving_licence", "rc_book", "insurance_policy",
+      "fir_copy", "driving_licence", "rc_book", "insurance_policy", "repair_estimate", "accident_photos",
     ]);
   });
 

@@ -61,7 +61,7 @@ describe("AppShell floating dock", () => {
     }
   });
 
-  it.each(["Customer", "Admin"])("has no More button for %s - every route fits on the dock", (role) => {
+  it.each(["Customer", "Admin", "Claims Officer"])("has no More button for %s - every route fits on the dock", (role) => {
     renderShell(role);
     expect(moreButton()).not.toBeInTheDocument();
   });
@@ -82,15 +82,32 @@ describe("AppShell floating dock", () => {
     ]);
   });
 
-  it("shows only dock items until More is opened (Claims Officer)", () => {
+  it("gives the Claims Officer a simplified dock with no removed navigation items", () => {
     renderShell("Claims Officer");
-    expect(within(dock()).getByRole("link", { name: "Queue" })).toBeInTheDocument();
-    expect(within(dock()).queryByRole("link", { name: "Escalations" })).not.toBeInTheDocument();
+    const dockNames = within(dock()).getAllByRole("link").map((link) => link.textContent);
+    expect(dockNames).toEqual(["Dashboard", "Queue", "Claims", "Reports", "Audit"]);
+    // Help & Support, Notifications and Profile all moved to the shared header
+    // instead of the dock, so there is nothing left for an overflow menu.
+    expect(moreButton()).not.toBeInTheDocument();
 
-    fireEvent.click(moreButton());
-    expect(within(dock()).getByRole("link", { name: "Escalations" })).toBeInTheDocument();
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(within(dock()).queryByRole("link", { name: "Escalations" })).not.toBeInTheDocument();
+    for (const removed of [
+      "Claim Search",
+      "Assign Surveyor",
+      "Track Claims",
+      "Fraud Risk Panel",
+      "AI Risk Insights",
+      "Document Consistency",
+      "Estimate Analysis",
+      "Make Decision",
+      "Escalations",
+      "RFI / Clarifications",
+      "SLA Reports",
+      "Notifications",
+      "Profile Settings",
+      "Help & Support",
+    ]) {
+      expect(within(dock()).queryByRole("link", { name: removed })).not.toBeInTheDocument();
+    }
   });
 
   it("keeps Claims active while filing a new claim, without also activating Home", () => {
@@ -126,11 +143,6 @@ describe("AppShell floating dock", () => {
   it("keeps a section active on its sub-pages", () => {
     renderShell("Customer", "/customer/documents/upload");
     expect(within(dock()).getByRole("link", { name: "Docs" })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("highlights More when the current page lives in the overflow menu", () => {
-    renderShell("Claims Officer", "/officer/escalations");
-    expect(moreButton().querySelector(".bg-brand-600")).not.toBeNull();
   });
 });
 
@@ -177,12 +189,27 @@ describe("AppShell top header", () => {
     expect(screen.getByRole("menu", { name: "Notifications" })).toBeInTheDocument();
   });
 
-  it("offers support as a header shortcut when it is not on the dock (Claims Officer)", () => {
+  it("moves Help & Support into the header, alongside Notifications and Profile, with no duplicate in the dock", () => {
     renderShell("Claims Officer");
     const header = screen.getByRole("banner");
     expect(within(header).getByRole("link", { name: "Help & Support" })).toHaveAttribute("href", "/officer/support");
-    // Claim Search is on the officer's dock, so it is not repeated here.
+    expect(within(header).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+    expect(within(header).getByRole("button", { name: /dev_user/ })).toBeInTheDocument();
+    // Not repeated in the dock or its (now nonexistent) overflow menu.
+    expect(within(dock()).queryByRole("link", { name: "Help & Support" })).not.toBeInTheDocument();
+    expect(moreButton()).not.toBeInTheDocument();
+    // Claim Search was removed from the officer's navigation entirely.
     expect(within(header).queryByRole("link", { name: "Claim Search" })).not.toBeInTheDocument();
+  });
+
+  it("puts officer Profile Settings in the profile menu, and keeps the bell for Notifications", () => {
+    renderShell("Claims Officer");
+    const header = screen.getByRole("banner");
+    expect(within(header).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+    expect(within(header).queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
+
+    openProfileMenu();
+    expect(screen.getByRole("menuitem", { name: "Profile Settings" })).toHaveAttribute("href", "/officer/profile");
   });
 
   it("has no shortcut the role does not already have (Admin)", () => {

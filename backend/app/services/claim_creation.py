@@ -27,6 +27,7 @@ from app.db_models.claim import Claim
 from app.db_models.policy import Policy
 from app.db_models.vehicle import Vehicle
 from app.schemas.claim import ClaimCreate
+from app.services.claim_status import UNDER_REVIEW_STATUS
 
 # Project convention (matches seed_dev_data.py), not part of the dataset's
 # own codebook - kept here as the single source of truth.
@@ -89,7 +90,7 @@ def create_claim_for_customer(db: Session, customer_id: str, payload: ClaimCreat
         Claim_Type=payload.Claim_Type,
         Claim_Amount=payload.Claim_Amount,
         Approved_Amount=Decimal("0.00"),
-        Claim_Status="Under Review",
+        Claim_Status=UNDER_REVIEW_STATUS,
         Claim_Description=payload.Claim_Description,
         Claims_History_Code=claims_history_code,
         Incurred_Claims_Code="I1",
